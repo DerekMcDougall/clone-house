@@ -523,11 +523,11 @@ describe('Guest Model - New Guest Types (Auctioneer, Gangster, Rock Star, Gamble
     });
 
     /**
-     * SHOP_GUESTS has exactly 28 total entries
+     * SHOP_GUESTS has exactly 56 total entries (48 previous + 8 new overflow guests)
      * **Validates: Requirements 5.6**
      */
-    it('should have exactly 44 total entries', () => {
-      expect(SHOP_GUESTS).toHaveLength(48);
+    it('should have exactly 56 total entries', () => {
+      expect(SHOP_GUESTS).toHaveLength(56);
     });
   });
 

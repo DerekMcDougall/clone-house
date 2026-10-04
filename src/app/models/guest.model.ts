@@ -1,6 +1,6 @@
-import { EffectContext } from './effect-context';
+import { EffectContext, GameEffect } from './effect-context';
 
-export type { EffectContext };
+export type { EffectContext, GameEffect };
 
 export type GuestType = 'OLD_FRIEND' | 'WILD_BUDDY' | 'RICH_PAL' | 'MONKEY'
   | 'AUCTIONEER' | 'GANGSTER' | 'ROCK_STAR' | 'GAMBLER'
@@ -223,11 +223,13 @@ export const INITIAL_GUESTS: readonly { type: GuestType; name: string }[] = [
   { type: 'RICH_PAL' as const, name: 'Renata' }
 ];
 
-export type EffectHandler = (ctx: EffectContext) => void;
+// Runs when a guest joins the party. `guest` is the guest as admitted; use
+// ctx.updateGuest(guest, ...) to change it in the party.
+export type EffectHandler = (ctx: EffectContext, guest: Guest) => void;
 
 export const GUEST_TYPE_ENTRANCE_EFFECTS: Partial<Record<GuestType, EffectHandler>> = {
-  CLIMBER: (ctx) => {
-    ctx.updateGuest(g => ({
+  CLIMBER: (ctx, guest) => {
+    ctx.updateGuest(guest, g => ({
       ...g,
       properties: {
         ...g.properties,
@@ -236,10 +238,31 @@ export const GUEST_TYPE_ENTRANCE_EFFECTS: Partial<Record<GuestType, EffectHandle
     }));
   },
   MR_POPULAR: (ctx) => {
-    ctx.autoInvite();
+    autoInvite(ctx);
   },
   CELEBRITY: (ctx) => {
-    ctx.autoInvite();
-    ctx.autoInvite();
+    autoInvite(ctx);
+    autoInvite(ctx);
   }
 };
+
+// Adds a guest to the party, then enqueues its entrance effect (if any).
+export function admitGuest(guest: Guest): GameEffect {
+  return (ctx) => {
+    ctx.setParty([...ctx.getParty(), guest]);
+
+    const entranceEffect = GUEST_TYPE_ENTRANCE_EFFECTS[guest.type];
+    if (entranceEffect) {
+      ctx.enqueue((c) => entranceEffect(c, guest));
+    }
+  };
+}
+
+// Draws the top guest from the deck and enqueues its admission to the party.
+export function autoInvite(ctx: EffectContext): void {
+  const [guest, ...remainingDeck] = ctx.getDeck();
+  if (!guest) return;
+
+  ctx.setDeck(remainingDeck);
+  ctx.enqueue(admitGuest(guest));
+}

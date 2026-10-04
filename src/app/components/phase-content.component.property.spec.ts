@@ -135,8 +135,8 @@ describe('PhaseContentComponent - Property-Based Tests', () => {
             // Initialize the game
             component.gameStore.initializeGame();
             
-            // Raise capacity so we can invite up to 10 guests
-            patchState(component.gameStore, { houseCapacity: 100 });
+            // Raise capacity and trouble limit so we can invite up to 10 guests without a bust
+            patchState(component.gameStore, { houseCapacity: 100, baseTroubleLimit: 100 });
             
             // Advance to PARTY phase
             component.gameStore.advancePhase();
@@ -209,8 +209,8 @@ describe('PhaseContentComponent - Property-Based Tests', () => {
             // Initialize the game
             testComponent.gameStore.initializeGame();
             
-            // Raise capacity so we can invite up to 10 guests
-            patchState(testComponent.gameStore, { houseCapacity: 100 });
+            // Raise capacity and trouble limit so we can invite up to 10 guests without a bust
+            patchState(testComponent.gameStore, { houseCapacity: 100, baseTroubleLimit: 100 });
             
             // Advance to PARTY phase
             testComponent.gameStore.advancePhase();

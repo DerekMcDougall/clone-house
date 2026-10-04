@@ -1,37 +1,34 @@
 import { computed } from '@angular/core';
 import { patchState, signalStore, withComputed, withMethods, withState } from '@ngrx/signals';
 import { GamePhase, GameState } from '../models';
-import { EffectContext } from '../models/effect-context';
-import { Guest, GUEST_TYPE_COSTS, GUEST_TYPE_DEFAULTS, GUEST_TYPE_ENTRANCE_EFFECTS, GUEST_TYPE_LABELS, GuestType, INITIAL_GUESTS, SHOP_GUESTS } from '../models/guest.model';
+import { EffectContext, GameEffect } from '../models/effect-context';
+import { admitGuest, Guest, GUEST_TYPE_COSTS, GUEST_TYPE_DEFAULTS, GUEST_TYPE_LABELS, GuestType, INITIAL_GUESTS, SHOP_GUESTS } from '../models/guest.model';
 
 export type { EffectContext };
 
 class EffectContextImpl implements EffectContext {
-  private _guest: Guest;
   private _deck: Guest[];
   private _party: Guest[];
   private _discard: Guest[];
   private _popularity: number;
   private _money: number;
+  private _enqueue: (effect: GameEffect) => void;
 
   constructor(
-    guest: Guest,
     deck: Guest[],
     party: Guest[],
     discard: Guest[],
     popularity: number,
-    money: number
+    money: number,
+    enqueue: (effect: GameEffect) => void
   ) {
-    this._guest = guest;
     this._deck = deck;
     this._party = party;
     this._discard = discard;
     this._popularity = popularity;
     this._money = money;
+    this._enqueue = enqueue;
   }
-
-  get guest(): Guest { return this._guest; }
-  updateGuest(updater: (g: Guest) => Guest): void { this._guest = updater(this._guest); }
 
   getDeck(): Guest[] { return this._deck; }
   setDeck(deck: Guest[]): void { this._deck = deck; }
@@ -45,14 +42,13 @@ class EffectContextImpl implements EffectContext {
   getMoney(): number { return this._money; }
   setMoney(value: number): void { this._money = value; }
 
-  autoInvite(): void {
-    const deck = this._deck;
-    if (deck.length === 0) return;
-
-    const [guest, ...remainingDeck] = deck;
-    this._deck = remainingDeck;
-    this._party = [...this._party, guest];
+  updateGuest(guest: Guest, updater: (g: Guest) => Guest): Guest {
+    const updated = updater(guest);
+    this._party = this._party.map(g => (g === guest ? updated : g));
+    return updated;
   }
+
+  enqueue(effect: GameEffect): void { this._enqueue(effect); }
 }
 
 export interface ShopInventoryEntry {
@@ -133,8 +129,11 @@ export const GameStore = signalStore(
       return isFinalTurn ? 'Game Over' : 'End Party';
     }),
     
-    canInviteGuest: computed(() => 
-      store.deck().length > 0 && store.party().length < store.houseCapacity()
+    canInviteGuest: computed(() =>
+      store.deck().length > 0 &&
+      store.party().length < store.houseCapacity() &&
+      !store.isPartyShutdown() &&
+      !store.isBanSelectionActive()
     ),
     
     trouble: computed(() => {
@@ -230,6 +229,50 @@ export const GameStore = signalStore(
       });
     };
 
+    // Private method to resolve an effect and every effect it enqueues, in FIFO order.
+    // State is committed after each effect, then checked for overflow and trouble; a bust
+    // shuts the party down and discards any effects still queued.
+    const resolveEffects = (initialEffect: GameEffect): void => {
+      const queue: GameEffect[] = [initialEffect];
+
+      while (queue.length > 0) {
+        const effect = queue.shift()!;
+        const ctx = new EffectContextImpl(
+          store.deck(),
+          store.party(),
+          store.discard(),
+          store.popularity(),
+          store.money(),
+          (next) => queue.push(next)
+        );
+
+        effect(ctx);
+
+        patchState(store, {
+          deck: ctx.getDeck(),
+          party: ctx.getParty(),
+          discard: ctx.getDiscard(),
+          popularity: ctx.getPopularity(),
+          money: ctx.getMoney()
+        });
+
+        // Check overflow first (priority over trouble)
+        const isOverflow = store.party().length > store.houseCapacity();
+        if (isOverflow || store.trouble() > store.effectiveTroubleLimit()) {
+          const partySnapshot = [...store.party()];
+          patchState(store, {
+            deck: [...store.deck(), ...store.discard()],
+            party: [],
+            discard: [],
+            bustPartySnapshot: partySnapshot,
+            isPartyShutdown: true,
+            isOverflowShutdown: isOverflow
+          });
+          return;
+        }
+      }
+    };
+
     return {
       initializeGame(turnCount: number = 25): void {
         if (turnCount <= 0) {
@@ -289,6 +332,11 @@ export const GameStore = signalStore(
       },
       
       inviteGuest(): void {
+        // No inviting while a bust is being resolved (shutdown modal or ban selection)
+        if (store.isPartyShutdown() || store.isBanSelectionActive()) {
+          return;
+        }
+
         const deck = store.deck();
 
         if (deck.length === 0) {
@@ -303,101 +351,11 @@ export const GameStore = signalStore(
 
         patchState(store, { showEmptyDeckMessage: false, showHouseFullMessage: false });
 
-        // Draw rawGuest from the deck
+        // Draw the top guest; admitting it (and any effects that follow) is handled by the effect queue
         const [rawGuest, ...remainingDeck] = deck;
-
-        // Look up initial handler (may be null for guests without entrance effects)
-        const initialHandler = GUEST_TYPE_ENTRANCE_EFFECTS[rawGuest.type] ?? null;
-
-        // Seed the local pendingEffects queue with the initial guest
-        const pendingEffects: Array<{ guest: Guest; handler: typeof initialHandler }> = [
-          { guest: rawGuest, handler: initialHandler }
-        ];
-
-        // Commit deck-minus-rawGuest to the store immediately
         patchState(store, { deck: remainingDeck });
 
-        // Process queue in FIFO order
-        for (const pending of pendingEffects) {
-          // Add this guest to the party and commit
-          patchState(store, { party: [...store.party(), pending.guest] });
-
-          // Check overflow first (priority over trouble)
-          if (store.party().length > store.houseCapacity()) {
-            // Inline overflow shutdown logic
-            const partySnapshot = [...store.party()];
-            const currentDiscard = store.discard();
-            const currentDeckVal = store.deck();
-            const deckWithReturned = [...currentDeckVal, ...currentDiscard];
-            patchState(store, {
-              deck: deckWithReturned,
-              party: [],
-              discard: [],
-              bustPartySnapshot: partySnapshot,
-              isPartyShutdown: true,
-              isOverflowShutdown: true
-            });
-            return;
-          }
-
-          // Check trouble limit
-          if (store.trouble() > store.effectiveTroubleLimit()) {
-            // Inline party shutdown logic
-            const partySnapshot = [...store.party()];
-            const currentDiscard = store.discard();
-            const currentDeckVal = store.deck();
-            const deckWithReturned = [...currentDeckVal, ...currentDiscard];
-            patchState(store, {
-              deck: deckWithReturned,
-              party: [],
-              discard: [],
-              bustPartySnapshot: partySnapshot,
-              isPartyShutdown: true,
-              isOverflowShutdown: false
-            });
-            return;
-          }
-
-          // Run this guest's entrance effect if it has one
-          if (pending.handler) {
-            const ctx = new EffectContextImpl(
-              pending.guest,
-              store.deck(),
-              store.party(),
-              store.discard(),
-              store.popularity(),
-              store.money()
-            );
-
-            // Run the handler (may call autoInvite() N times)
-            pending.handler(ctx);
-
-            // Commit any state changes the handler made
-            patchState(store, {
-              deck: ctx.getDeck(),
-              party: ctx.getParty(),
-              discard: ctx.getDiscard(),
-              popularity: ctx.getPopularity(),
-              money: ctx.getMoney()
-            });
-
-            // Identify drawn guests (guests added to party by autoInvite() calls)
-            // The party before running the handler already contains pending.guest
-            // Any guests beyond that are the ones drawn by autoInvite()
-            const partyAfter = ctx.getParty();
-            const partyBefore = store.party(); // already includes pending.guest
-            const drawnGuests = partyAfter.slice(partyBefore.length);
-
-            // Enqueue each drawn guest with its own handler
-            for (const drawn of drawnGuests) {
-              pendingEffects.push({
-                guest: drawn,
-                handler: GUEST_TYPE_ENTRANCE_EFFECTS[drawn.type] ?? null
-              });
-            }
-          }
-          // If no handler, deck stays as-is (store.deck())
-        }
+        resolveEffects(admitGuest(rawGuest));
       },
       
       advancePhase(): void {
@@ -478,13 +436,14 @@ export const GameStore = signalStore(
         const currentDeck = store.deck();
         const deckWithReturned = [...currentDeck, ...currentDiscard];
 
-        // Step 3: Clear party, discard; set shutdown flag
+        // Step 3: Clear party, discard; set shutdown flags
         patchState(store, {
           deck: deckWithReturned,
           party: [],
           discard: [],
           bustPartySnapshot: partySnapshot,
-          isPartyShutdown: true
+          isPartyShutdown: true,
+          isOverflowShutdown: false
         });
       },
 
@@ -523,8 +482,13 @@ export const GameStore = signalStore(
             selectedBanGuest: null
           });
         } else if (isOverflow) {
-          // Non-final turn with overflow: skip ban selection, advance to next turn Buy phase
+          // Non-final turn with overflow: return every bust party guest to the deck (no ban),
+          // shuffle, skip ban selection and advance to next turn Buy phase
+          const updatedDeck = [...store.deck(), ...store.bustPartySnapshot()];
+          shuffleDeck(updatedDeck);
+
           patchState(store, {
+            deck: updatedDeck,
             isPartyShutdown: false,
             isOverflowShutdown: false,
             bustPartySnapshot: [],
