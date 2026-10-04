@@ -6,19 +6,25 @@ This feature introduces the overflow mechanic and two new guest types — Mr. Po
 
 ### Key Design Decisions
 
-1. **Effect Queue in inviteGuest()**: The current `EffectContext` is synchronous and single-guest. To support chained effects (Celebrity's two Auto_Invites, then the newly-arrived guest's effect), `inviteGuest()` maintains a local `pendingEffects` queue of `{ guest: Guest; handler: EffectHandler }` pairs. Every guest arrival — whether from the player's initial invite or an Auto_Invite — goes through the same loop: add guest to party → commit to store → check shutdown → look up handler → enqueue if one exists → repeat. This keeps all queue management in one place and makes `EffectContext` a thinner object.
+1. **Generic FIFO effect queue in the store**: All effect resolution happens in a private store method, `resolveEffects(initialEffect)`. It holds a local queue of `GameEffect`s (`(ctx: EffectContext) => void`). Effects can add follow-up effects with `ctx.enqueue(...)`. The loop takes the next effect, builds a fresh `EffectContextImpl` from store state, runs the effect, commits the context back with `patchState`, and checks for a bust before running the next effect. Neither `inviteGuest()` nor the loop knows what kinds of effects exist.
 
-2. **autoInvite() Only Draws and Adds**: `autoInvite()` on `EffectContext` is responsible only for drawing the top guest from the deck and adding it to the party. It does not check for shutdown conditions and does not queue the drawn guest's entrance effect. After `autoInvite()` returns, `inviteGuest()` commits the state to the store, checks overflow and trouble, and enqueues the drawn guest's handler if one exists. This mirrors exactly what `inviteGuest()` does for the initial guest.
+2. **Every arrival is an effect**: `admitGuest(guest)` returns an effect that adds the guest to the party and enqueues the guest's entrance effect (if its type has one). The player's invite and every Auto_Invite go through `admitGuest`, so all arrivals are checked for a bust the same way.
 
-3. **isOverflowShutdown State Flag**: A new `isOverflowShutdown: boolean` field is added to `GameStoreState`. When true, `acknowledgeShutdown()` skips ban selection and advances directly to the next turn Buy phase (or marks game complete on the final turn). The existing `isPartyShutdown` flag remains the primary "shutdown modal is showing" signal; `isOverflowShutdown` is the discriminator between the two shutdown types.
+3. **autoInvite() enqueues a draw**: `autoInvite(ctx)` (a helper in `guest.model.ts`, not a context method) enqueues one effect that draws the top guest from the deck and admits it. The draw happens when that effect runs, not when it is enqueued. If an earlier effect busts the party, the queue is discarded, the draw never happens, and the guest stays in the deck. An empty deck makes the draw a no-op.
 
-4. **Two Distinct Shutdown Modals**: The trouble shutdown modal ("The party has gotten out of control...") and the overflow modal ("Party exceeded capacity! Fire department has shut it down!") are rendered separately in `PhaseContentComponent`. Both modals use the same button label logic: "End Party" on non-final turns and "Game Over" on the final turn. The two modals are distinguished only by their message text and CSS styling.
+4. **Sequencing falls out of FIFO order**: Celebrity's handler enqueues two draws. Each draw, when it runs, admits a guest and enqueues that guest's entrance effect at the back of the queue. So both of Celebrity's guests arrive before either of their entrance effects runs, and entrance effects run in arrival order (Requirement 6).
 
-5. **triggerOverflowShutdown() vs triggerPartyShutdown()**: A new `triggerOverflowShutdown()` store method handles the overflow case. It performs the same guest-return-to-deck logic as `triggerPartyShutdown()` but sets `isOverflowShutdown: true` alongside `isPartyShutdown: true`. The `acknowledgeShutdown()` method reads `isOverflowShutdown` to decide whether to enter ban selection.
+5. **isOverflowShutdown State Flag**: A new `isOverflowShutdown: boolean` field is added to `GameStoreState`. When true, `acknowledgeShutdown()` skips ban selection and advances directly to the next turn Buy phase (or marks game complete on the final turn). The existing `isPartyShutdown` flag remains the primary "shutdown modal is showing" signal; `isOverflowShutdown` is the discriminator between the two shutdown types.
 
-6. **Overflow and Trouble Checked in inviteGuest() Loop**: After each guest is added to the party and committed to the store, `inviteGuest()` checks: overflow first (party.length > houseCapacity), then trouble (trouble > effectiveTroubleLimit). If either condition is met, the appropriate shutdown method is called and the loop exits. The `GameplayComponent` `effect()` that watches trouble continues to handle the manual-invite trouble case; the loop handles the Auto_Invite case synchronously before any further queue entries are processed.
+6. **Two Distinct Shutdown Modals**: The trouble shutdown modal ("The party has gotten out of control...") and the overflow modal ("Party exceeded capacity! Fire department has shut it down!") are rendered separately in `PhaseContentComponent`. Both modals use the same button label logic: "End Party" on non-final turns and "Game Over" on the final turn. The two modals are distinguished only by their message text and CSS styling.
 
-7. **Shop sort order**: `purchasableShopItems()` already sorts by cost ascending then label alphabetically. MR_POPULAR (cost 5) slots between CATERER/ROCK_STAR (cost 5) alphabetically: Caterer → Mr. Popular → Rock Star. CELEBRITY (cost 11) slots between AUCTIONEER (cost 9) and CLIMBER (cost 12).
+7. **Bust checked after every effect, overflow first**: After each effect is committed, `resolveEffects()` checks overflow (`party.length > houseCapacity`), then trouble (`trouble > effectiveTroubleLimit`). On either, it shuts the party down inline: the party is moved to `bustPartySnapshot`, the discard pile returns to the deck, `isPartyShutdown` is set, `isOverflowShutdown` records which kind of bust it was, and the loop returns, discarding any effects still queued. This covers the player's own invite as well as Auto_Invites.
+
+8. **Busted guests wait in the snapshot**: Busted guests stay in `bustPartySnapshot` until the player dismisses the modal. For an overflow on a non-final turn, `acknowledgeShutdown()` returns the whole snapshot to the deck and shuffles it. For a trouble bust, they stay there through ban selection, and `confirmBan()` returns all but the banned guest.
+
+9. **Guard against inviting during a bust**: `inviteGuest()` returns immediately while `isPartyShutdown` or `isBanSelectionActive` is true, and `canInviteGuest` is false in those states.
+
+10. **Shop sort order**: `purchasableShopItems()` already sorts by cost ascending then label alphabetically. MR_POPULAR (cost 5) slots between CATERER/ROCK_STAR (cost 5) alphabetically: Caterer → Mr. Popular → Rock Star. CELEBRITY (cost 11) slots between AUCTIONEER (cost 9) and CLIMBER (cost 12).
 
 ## Architecture
 
@@ -31,18 +37,23 @@ guest.model.ts
 ├── GUEST_TYPE_LABELS: + MR_POPULAR → "Mr. Popular", CELEBRITY → "Celebrity"
 ├── GUEST_TYPE_COSTS: + MR_POPULAR → 5, CELEBRITY → 11
 ├── SHOP_GUESTS: + 4 MR_POPULAR entries, + 4 CELEBRITY entries
-└── GUEST_TYPE_ENTRANCE_EFFECTS: + MR_POPULAR (1 autoInvite), CELEBRITY (2 autoInvites)
+├── EffectHandler: (ctx: EffectContext, guest: Guest) => void
+├── GUEST_TYPE_ENTRANCE_EFFECTS: + MR_POPULAR (1 autoInvite), CELEBRITY (2 autoInvites)
+├── admitGuest(guest): GameEffect — add to party, enqueue entrance effect
+└── autoInvite(ctx): enqueue an effect that draws the top guest and admits it
 
 effect-context.ts
-└── EffectContext interface: + autoInvite(): void
-                               (draws top deck guest, adds to party; no shutdown checking)
+├── GameEffect: (ctx: EffectContext) => void
+└── EffectContext: + enqueue(effect: GameEffect): void
+                   + updateGuest(guest, updater): Guest  (replaces the per-guest context)
 
 game.store.ts
 ├── GameStoreState: + isOverflowShutdown: boolean
-├── EffectContextImpl: + autoInvite() implementation (draw + add only)
-├── inviteGuest(): owns effect queue loop — add guest → commit → check shutdown → enqueue handler → repeat
-├── + triggerOverflowShutdown(): new method
-├── acknowledgeShutdown(): check isOverflowShutdown to skip ban selection
+├── EffectContextImpl: built per effect; enqueue() pushes onto the resolveEffects queue
+├── + resolveEffects(initialEffect) [private]: FIFO loop — run effect → commit → check bust → repeat
+├── inviteGuest(): guard → empty-deck / house-full checks → draw → resolveEffects(admitGuest(guest))
+├── canInviteGuest: + false while isPartyShutdown or isBanSelectionActive
+├── acknowledgeShutdown(): overflow → return snapshot to deck, shuffle, skip ban selection
 └── initializeGame() / resetGame(): include isOverflowShutdown: false
 
 PhaseContentComponent
@@ -51,56 +62,53 @@ PhaseContentComponent
 
 ### Effect Chain Flow
 
+Example: the player invites a Celebrity; her first auto-invite draws a Mr. Popular.
+
 ```mermaid
 sequenceDiagram
     participant Player
     participant inviteGuest
-    participant EffectContextImpl
-    participant GUEST_TYPE_ENTRANCE_EFFECTS
+    participant resolveEffects
     participant Store
 
     Player->>inviteGuest: inviteGuest()
-    inviteGuest->>Store: read deck[0], party, houseCapacity, effectiveTroubleLimit, ...
-    Note over inviteGuest: pendingEffects = [{ guest: deck[0], handler: handler|null }]
+    inviteGuest->>Store: patchState({ deck: remainingDeck })  (Celebrity drawn)
+    inviteGuest->>resolveEffects: resolveEffects(admitGuest(celebrity))
+    Note over resolveEffects: queue = [admit Celebrity]
 
-    loop drain pendingEffects queue (FIFO)
-        inviteGuest->>Store: patchState — add guest to party, update deck
-        inviteGuest->>inviteGuest: check overflow (party.length > houseCapacity)
-        inviteGuest->>inviteGuest: check trouble (trouble > effectiveTroubleLimit)
-        alt overflow detected
-            inviteGuest->>Store: triggerOverflowShutdown()
-            Note over inviteGuest: exit loop
-        else trouble detected
-            inviteGuest->>Store: triggerPartyShutdown()
-            Note over inviteGuest: exit loop
-        else no shutdown AND guest has a handler
-            inviteGuest->>EffectContextImpl: new EffectContextImpl(guest, currentDeck, currentParty, ...)
-            inviteGuest->>GUEST_TYPE_ENTRANCE_EFFECTS: run handler(ctx)
-            Note over EffectContextImpl: handler calls ctx.autoInvite() N times
-            Note over EffectContextImpl: each autoInvite draws a guest and adds to ctx party
-            inviteGuest->>inviteGuest: for each drawn guest: enqueue { guest, handler } onto pendingEffects
+    loop until queue is empty or a bust
+        resolveEffects->>resolveEffects: effect = queue.shift(); ctx = new EffectContextImpl(store state, enqueue)
+        resolveEffects->>resolveEffects: effect(ctx)  (may call ctx.enqueue)
+        resolveEffects->>Store: patchState(deck, party, discard, popularity, money from ctx)
+        alt party.length > houseCapacity
+            resolveEffects->>Store: bust: snapshot party, isPartyShutdown, isOverflowShutdown = true
+            Note over resolveEffects: return (remaining queue discarded)
+        else trouble > effectiveTroubleLimit
+            resolveEffects->>Store: bust: snapshot party, isPartyShutdown, isOverflowShutdown = false
+            Note over resolveEffects: return (remaining queue discarded)
         end
     end
+
+    Note over resolveEffects: Queue over time:<br/>1. admit Celebrity → enqueues Celebrity's effect<br/>2. Celebrity's effect → enqueues draw A, draw B<br/>3. draw A → admits Mr. Popular → enqueues his effect<br/>4. draw B → admits the next guest<br/>5. Mr. Popular's effect → enqueues draw C<br/>6. draw C → admits the next guest
 ```
 
 ### Overflow Shutdown Flow
 
 ```mermaid
 graph TD
-    A[inviteGuest loop: add guest to party, commit to store] --> C{party.length > houseCapacity?}
-    C -->|Yes| D[triggerOverflowShutdown: isPartyShutdown=true, isOverflowShutdown=true]
+    A[resolveEffects: run next effect, commit ctx to store] --> C{party.length > houseCapacity?}
+    C -->|Yes| D["Bust: bustPartySnapshot = party, party emptied, discard → deck, isPartyShutdown = true, isOverflowShutdown = true"]
     C -->|No| E{trouble > effectiveTroubleLimit?}
-    E -->|Yes| F[triggerPartyShutdown: isPartyShutdown=true, isOverflowShutdown=false]
-    E -->|No| G[Look up guest handler; if exists, run handler and enqueue drawn guests]
-    G --> H{pendingEffects queue empty?}
+    E -->|Yes| F[Bust: same, with isOverflowShutdown = false]
+    E -->|No| H{queue empty?}
     H -->|No| A
-    H -->|Yes| I[inviteGuest returns normally]
+    H -->|Yes| I[resolveEffects returns normally]
     D --> J[PhaseContentComponent shows overflow modal]
     F --> K[PhaseContentComponent shows trouble modal]
-    J --> L[Player clicks End Party]
-    L --> M[acknowledgeShutdown: isOverflowShutdown=true → skip ban, advance turn]
-    K --> N[Player clicks End Party / Game Over]
-    N --> O[acknowledgeShutdown: isOverflowShutdown=false → enter ban selection]
+    J --> L["Player clicks End Party (non-final turn)"]
+    L --> M[acknowledgeShutdown: snapshot → deck, shuffle, skip ban, advance turn]
+    K --> N["Player clicks End Party (non-final turn)"]
+    N --> O[acknowledgeShutdown: enter ban selection]
 ```
 
 ## Components and Interfaces
@@ -166,20 +174,53 @@ CELEBRITY: 11
 
 ```typescript
 MR_POPULAR: (ctx) => {
-  ctx.autoInvite();
+  autoInvite(ctx);
 },
 CELEBRITY: (ctx) => {
-  ctx.autoInvite();
-  ctx.autoInvite();
+  autoInvite(ctx);
+  autoInvite(ctx);
 }
 ```
+
+### New Functions: admitGuest() and autoInvite() (guest.model.ts)
+
+`admitGuest` is the single path by which any guest joins the party. `autoInvite` is how an entrance effect brings in another guest. Neither checks capacity or trouble — the store's effect loop checks for a bust after every effect.
+
+```typescript
+// Adds a guest to the party, then enqueues its entrance effect (if any).
+export function admitGuest(guest: Guest): GameEffect {
+  return (ctx) => {
+    ctx.setParty([...ctx.getParty(), guest]);
+
+    const entranceEffect = GUEST_TYPE_ENTRANCE_EFFECTS[guest.type];
+    if (entranceEffect) {
+      ctx.enqueue((c) => entranceEffect(c, guest));
+    }
+  };
+}
+
+// Enqueues an effect that draws the top guest from the deck and admits it to the party.
+// The draw happens when the effect runs, not when it is enqueued, so if a bust discards
+// the queue first, the guest is never drawn and stays in the deck.
+export function autoInvite(ctx: EffectContext): void {
+  ctx.enqueue((c) => {
+    const [guest, ...remainingDeck] = c.getDeck();
+    if (!guest) return;
+
+    c.setDeck(remainingDeck);
+    admitGuest(guest)(c);
+  });
+}
+```
+
+Note that the draw effect calls `admitGuest(guest)(c)` directly instead of enqueueing it. The arrival is part of the draw, so the bust check that follows the draw sees the new guest. The arriving guest's own entrance effect is still enqueued at the back of the queue.
 
 ### Modified Interface: EffectContext (effect-context.ts)
 
 ```typescript
+export type GameEffect = (ctx: EffectContext) => void;
+
 export interface EffectContext {
-  readonly guest: Guest;
-  updateGuest(updater: (g: Guest) => Guest): void;
   getDeck(): Guest[];
   setDeck(deck: Guest[]): void;
   getParty(): Guest[];
@@ -190,55 +231,109 @@ export interface EffectContext {
   setPopularity(value: number): void;
   getMoney(): number;
   setMoney(value: number): void;
-  // NEW: Auto_Invite — draws top deck guest and adds it to the party.
-  // Does NOT check shutdown conditions or queue entrance effects.
-  // inviteGuest() is responsible for those steps after autoInvite() returns.
-  autoInvite(): void;
+
+  // Replaces `guest` in the party with updater(guest) (matched by reference) and returns the updated guest
+  updateGuest(guest: Guest, updater: (g: Guest) => Guest): Guest;
+
+  // NEW: adds an effect to the end of the effect queue; it runs after every effect already queued
+  enqueue(effect: GameEffect): void;
 }
 ```
 
+The context no longer carries a triggering guest. Entrance effect handlers receive the guest as a second argument (`EffectHandler = (ctx, guest) => void`), so the same context type serves effects that have no triggering guest, such as the draw effect above.
+
 ### Modified Class: EffectContextImpl (game.store.ts)
 
-The implementation gains the `autoInvite()` method. Unlike the previous design, `autoInvite()` is a thin operation: it draws the top guest from the deck and appends it to the party. It does not check shutdown conditions, does not queue entrance effects, and carries no `_shutdownType` or `pendingEffects` state. All of that logic lives in `inviteGuest()`.
+A fresh `EffectContextImpl` is built from store state for each effect. Its `enqueue` pushes onto the queue owned by `resolveEffects()`.
 
 ```typescript
 class EffectContextImpl implements EffectContext {
-  private _guest: Guest;
   private _deck: Guest[];
   private _party: Guest[];
   private _discard: Guest[];
   private _popularity: number;
   private _money: number;
+  private _enqueue: (effect: GameEffect) => void;
 
   constructor(
-    guest: Guest,
     deck: Guest[],
     party: Guest[],
     discard: Guest[],
     popularity: number,
-    money: number
+    money: number,
+    enqueue: (effect: GameEffect) => void
   ) { /* ... assign all fields ... */ }
 
-  // ... existing getters/setters unchanged ...
+  // ... getters/setters for deck, party, discard, popularity, money ...
 
-  autoInvite(): void {
-    // If deck is empty, skip silently
-    if (this._deck.length === 0) return;
-
-    // Draw top guest from deck and add to party
-    const [drawnGuest, ...remainingDeck] = this._deck;
-    this._deck = remainingDeck;
-    this._party = [...this._party, drawnGuest];
+  updateGuest(guest: Guest, updater: (g: Guest) => Guest): Guest {
+    const updated = updater(guest);
+    this._party = this._party.map(g => (g === guest ? updated : g));
+    return updated;
   }
+
+  enqueue(effect: GameEffect): void { this._enqueue(effect); }
 }
+```
+
+### New Private Method: resolveEffects() (game.store.ts)
+
+`resolveEffects()` runs an effect and every effect it enqueues, in FIFO order. State is committed after each effect, then checked for a bust. A bust shuts the party down and discards any effects still queued.
+
+```typescript
+const resolveEffects = (initialEffect: GameEffect): void => {
+  const queue: GameEffect[] = [initialEffect];
+
+  while (queue.length > 0) {
+    const effect = queue.shift()!;
+    const ctx = new EffectContextImpl(
+      store.deck(),
+      store.party(),
+      store.discard(),
+      store.popularity(),
+      store.money(),
+      (next) => queue.push(next)
+    );
+
+    effect(ctx);
+
+    patchState(store, {
+      deck: ctx.getDeck(),
+      party: ctx.getParty(),
+      discard: ctx.getDiscard(),
+      popularity: ctx.getPopularity(),
+      money: ctx.getMoney()
+    });
+
+    // Check overflow first (priority over trouble)
+    const isOverflow = store.party().length > store.houseCapacity();
+    if (isOverflow || store.trouble() > store.effectiveTroubleLimit()) {
+      const partySnapshot = [...store.party()];
+      patchState(store, {
+        deck: [...store.deck(), ...store.discard()],
+        party: [],
+        discard: [],
+        bustPartySnapshot: partySnapshot,
+        isPartyShutdown: true,
+        isOverflowShutdown: isOverflow
+      });
+      return;
+    }
+  }
+};
 ```
 
 ### Modified Method: inviteGuest() (game.store.ts)
 
-`inviteGuest()` now owns the full effect chain loop. Every guest arrival — the initial player-invited guest and every Auto_Invited guest — goes through the same steps: add to party, commit to store, check shutdown, look up handler, run it (which may call `autoInvite()` N times), then enqueue each drawn guest for the next iteration. The loop is FIFO, so Celebrity's two auto-invites are processed before any guest drawn by those auto-invites.
+`inviteGuest()` knows nothing about effect kinds. It validates the invite, draws the top guest and hands `admitGuest(guest)` to the effect loop.
 
 ```typescript
 inviteGuest(): void {
+  // No inviting while a bust is being resolved (shutdown modal or ban selection)
+  if (store.isPartyShutdown() || store.isBanSelectionActive()) {
+    return;
+  }
+
   const deck = store.deck();
 
   if (deck.length === 0) {
@@ -253,102 +348,17 @@ inviteGuest(): void {
 
   patchState(store, { showEmptyDeckMessage: false, showHouseFullMessage: false });
 
+  // Draw the top guest; admitting it (and any effects that follow) is handled by the effect queue
   const [rawGuest, ...remainingDeck] = deck;
-
-  // Seed the queue with the initial guest (handler may be null for guests without effects)
-  const initialHandler = GUEST_TYPE_ENTRANCE_EFFECTS[rawGuest.type] ?? null;
-  const pendingEffects: Array<{ guest: Guest; handler: EffectHandler | null }> = [
-    { guest: rawGuest, handler: initialHandler }
-  ];
-
-  // Update deck immediately (rawGuest has been drawn)
   patchState(store, { deck: remainingDeck });
 
-  // Process queue in FIFO order
-  for (const pending of pendingEffects) {
-    // Add this guest to the party and commit
-    patchState(store, { party: [...store.party(), pending.guest] });
-
-    // Check overflow first (priority over trouble)
-    if (store.party().length > store.houseCapacity()) {
-      store.triggerOverflowShutdown();
-      return;
-    }
-
-    // Check trouble
-    if (store.trouble() > store.effectiveTroubleLimit()) {
-      store.triggerPartyShutdown();
-      return;
-    }
-
-    // No shutdown — run this guest's entrance effect if it has one
-    if (pending.handler) {
-      const ctx = new EffectContextImpl(
-        pending.guest,
-        store.deck(),
-        store.party(),
-        store.discard(),
-        store.popularity(),
-        store.money()
-      );
-
-      pending.handler(ctx);
-
-      // Commit any state changes the handler made (e.g. popularity, money, guest mutations)
-      patchState(store, {
-        deck: ctx.getDeck(),
-        party: ctx.getParty(),
-        discard: ctx.getDiscard(),
-        popularity: ctx.getPopularity(),
-        money: ctx.getMoney()
-      });
-
-      // Enqueue each guest drawn by autoInvite() calls in the handler
-      // The drawn guests are now in ctx.getParty() but not yet processed through
-      // the shutdown-check + handler-lookup steps — find them by diffing party sizes.
-      // More precisely: the handler's autoInvite() calls moved guests from ctx._deck
-      // to ctx._party. We need to enqueue those guests with their own handlers.
-      // We identify them as the guests appended to the party beyond pending.guest.
-      const partyAfter = ctx.getParty();
-      const partyBefore = store.party(); // already committed above
-      // The newly drawn guests are the ones appended after pending.guest's position
-      // Since pending.guest was already committed to the store party before running
-      // the handler, the ctx was initialized with that party. Any guests added to
-      // ctx._party by autoInvite() are the drawn guests.
-      const drawnGuests = partyAfter.slice(partyBefore.length);
-      for (const drawn of drawnGuests) {
-        pendingEffects.push({
-          guest: drawn,
-          handler: GUEST_TYPE_ENTRANCE_EFFECTS[drawn.type] ?? null
-        });
-      }
-    }
-  }
+  resolveEffects(admitGuest(rawGuest));
 }
 ```
 
-**Note on the drawn-guest identification**: Because `autoInvite()` appends drawn guests to `ctx._party`, and the context was initialized with the current store party (which already includes `pending.guest`), the drawn guests are simply the tail of `ctx.getParty()` beyond the pre-handler party length. The loop then processes each drawn guest through the same add → check shutdown → run handler → enqueue cycle, preserving FIFO arrival order.
+### Store Methods: triggerOverflowShutdown() and triggerPartyShutdown()
 
-### New Method: triggerOverflowShutdown() (game.store.ts)
-
-```typescript
-triggerOverflowShutdown(): void {
-  // Same guest-return logic as triggerPartyShutdown()
-  const partySnapshot = [...store.party()];
-  const currentDiscard = store.discard();
-  const currentDeck = store.deck();
-  const deckWithReturned = [...currentDeck, ...currentDiscard];
-
-  patchState(store, {
-    deck: deckWithReturned,
-    party: [],
-    discard: [],
-    bustPartySnapshot: partySnapshot,
-    isPartyShutdown: true,
-    isOverflowShutdown: true   // NEW: distinguishes from trouble shutdown
-  });
-}
-```
+`resolveEffects()` performs the bust inline and does not call these methods. Both still exist on the store with the same state changes (snapshot the party, return the discard pile to the deck, set the shutdown flags; `triggerOverflowShutdown()` also sets `isOverflowShutdown: true`). `triggerPartyShutdown()` is still called by the `GameplayComponent` effect that watches trouble. `triggerOverflowShutdown()` is now used only by tests to put the store into an overflow shutdown directly.
 
 ### Modified Method: acknowledgeShutdown() (game.store.ts)
 
@@ -368,8 +378,13 @@ acknowledgeShutdown(): void {
       selectedBanGuest: null
     });
   } else if (isOverflow) {
-    // Overflow: skip ban selection, advance directly to next turn Buy phase
+    // Non-final turn with overflow: return every bust party guest to the deck (no ban),
+    // shuffle, skip ban selection and advance to next turn Buy phase
+    const updatedDeck = [...store.deck(), ...store.bustPartySnapshot()];
+    shuffleDeck(updatedDeck);
+
     patchState(store, {
+      deck: updatedDeck,
       isPartyShutdown: false,
       isOverflowShutdown: false,
       bustPartySnapshot: [],
@@ -536,7 +551,8 @@ With the existing sort (ascending cost, then alphabetical label for ties):
 ### Guest Conservation (Updated)
 
 ```
-deck.length + party.length + discard.length + sum(shopInventory[*].guests.length)
+deck.length + party.length + discard.length + bustPartySnapshot.length
+  + sum(shopInventory[*].guests.length)
   = INITIAL_GUESTS.length + SHOP_GUESTS.length
   = 10 + 56
   = 66
@@ -548,8 +564,8 @@ deck.length + party.length + discard.length + sum(shopInventory[*].guests.length
 
 | Aspect | Trouble_Limit_Shutdown | Overflow_Shutdown |
 |--------|----------------------|-------------------|
-| Trigger | trouble > effectiveTroubleLimit | party.length > houseCapacity after Auto_Invite |
-| Detection point | GameplayComponent effect() OR autoInvite() | autoInvite() only |
+| Trigger | trouble > effectiveTroubleLimit (and no overflow) | party.length > houseCapacity (only an Auto_Invite can cause it) |
+| Detection point | `resolveEffects()` after any effect (also the `GameplayComponent` trouble effect()) | `resolveEffects()` after any effect |
 | isPartyShutdown | true | true |
 | isOverflowShutdown | false | true |
 | Modal message | "The party has gotten out of control and has been shut down!" | "Party exceeded capacity! Fire department has shut it down!" |
@@ -558,20 +574,28 @@ deck.length + party.length + discard.length + sum(shopInventory[*].guests.length
 | After acknowledge (non-final) | Enter ban selection | Advance to next turn Buy phase |
 | After acknowledge (final) | Mark game complete | Mark game complete |
 | Scoring | Forfeited | Forfeited |
-| Guests returned to deck | Yes | Yes |
+| Guests returned to deck (non-final turn) | All but the banned guest, by `confirmBan()` | All, by `acknowledgeShutdown()`, then the deck is shuffled |
+| Guests returned to deck (final turn) | None — the game ends and `bustPartySnapshot` is cleared | None — the game ends and `bustPartySnapshot` is cleared |
 
 ### Effect Queue State Machine
 
-The `pendingEffects` queue is a local variable inside `inviteGuest()` and is never stored in `GameStoreState`. It is a transient structure that exists only for the duration of a single `inviteGuest()` call.
+The effect queue is a local variable inside `resolveEffects()` and is never stored in `GameStoreState`. It exists only for the duration of a single `resolveEffects()` call.
 
 | State | Description |
 |-------|-------------|
-| Queue seeded | Initial guest + handler (or null) pushed onto queue |
-| Guest processed | Guest added to party, committed to store, shutdown checked |
-| Shutdown detected | Store shutdown method called immediately, loop exits |
-| Handler runs | `EffectContextImpl` created from current store state; handler calls `autoInvite()` N times |
-| Drawn guests enqueued | Each guest appended to ctx party by `autoInvite()` is pushed onto queue with its own handler |
-| Queue exhausted | `inviteGuest()` returns normally |
+| Queue seeded | `inviteGuest()` passes `admitGuest(drawnGuest)` as the initial effect |
+| Effect runs | A fresh `EffectContextImpl` is built from store state; the effect reads and writes it and may call `ctx.enqueue()` |
+| Effect committed | Deck, party, discard, popularity and money are patched from the context |
+| Bust detected | Party moved to `bustPartySnapshot`, shutdown flags set, loop returns; queued effects are discarded |
+| Queue exhausted | `resolveEffects()` returns normally |
+
+Effect kinds currently enqueued:
+
+| Effect | Enqueued by | What it does |
+|--------|-------------|--------------|
+| `admitGuest(guest)` | `inviteGuest()` (as the initial effect) | Adds the guest to the party; enqueues its entrance effect |
+| Entrance effect | `admitGuest` | Runs `GUEST_TYPE_ENTRANCE_EFFECTS[type](ctx, guest)` |
+| Draw-and-admit | `autoInvite(ctx)` | Draws the top deck guest (no-op if the deck is empty) and admits it |
 
 ### Named Guest Instances
 
@@ -629,7 +653,7 @@ This is the most comprehensive sequencing test: Celebrity's two auto-invites mus
 
 ### Property 3: Overflow Shutdown State and Guest Preservation
 
-*For any* game state where the party size equals House_Capacity and an Auto_Invite is performed (via MR_POPULAR or CELEBRITY), after the shutdown is processed, the Game_Store SHALL have `isPartyShutdown = true`, `isOverflowShutdown = true`, `party = []`, and the deck SHALL contain all guests that were in the party before the shutdown, each with their original type, name, and properties intact. The discard pile and shopInventory SHALL be unchanged.
+*For any* game state where the party size equals House_Capacity and an Auto_Invite is performed (via MR_POPULAR or CELEBRITY), the Game_Store SHALL have `isPartyShutdown = true`, `isOverflowShutdown = true`, `party = []`, and `bustPartySnapshot` SHALL contain every guest in the party at the moment of overflow. After `acknowledgeShutdown()` on a non-final turn, the deck SHALL contain all of those guests, each with their type, name, and properties intact, and `bustPartySnapshot` SHALL be empty. The shopInventory SHALL be unchanged; any discarded guest SHALL have returned to the deck.
 
 **Validates: Requirements 7.1, 7.3, 11.3**
 
@@ -641,7 +665,7 @@ This is the most comprehensive sequencing test: Celebrity's two auto-invites mus
 
 ### Property 5: Pending Effects Cancelled on Any Shutdown
 
-*For any* effect chain where a shutdown (overflow or trouble) is triggered during an Auto_Invite, the Game_Store SHALL NOT execute any entrance effects that were queued as Pending_Effects after the shutdown was triggered. The party state after shutdown SHALL reflect only the guests added before the shutdown-triggering Auto_Invite completed.
+*For any* effect chain where a shutdown (overflow or trouble) is triggered during an Auto_Invite, the Game_Store SHALL NOT execute any effect still in the queue when the shutdown was triggered. This includes pending draws, so a guest whose Auto_Invite had not yet run SHALL remain in the deck. `bustPartySnapshot` SHALL contain only the guests that had arrived up to and including the shutdown-triggering arrival.
 
 **Validates: Requirements 6.4, 7.2, 8.2**
 
@@ -659,7 +683,7 @@ This is the most comprehensive sequencing test: Celebrity's two auto-invites mus
 
 ### Property 8: Guest Conservation Invariant
 
-*For any* sequence of game operations including `purchaseGuest`, `inviteGuest` (with Auto_Invites), `advancePhase`, `triggerPartyShutdown`, `triggerOverflowShutdown`, and `confirmBan`, the sum `deck.length + party.length + discard.length + sum(shopInventory[*].guests.length)` SHALL remain constant and equal to 66 (10 initial + 56 shop guests). Auto_Invites move guests from deck to party; overflow shutdowns move guests from party back to deck. No operation creates or destroys guests.
+*For any* sequence of game operations including `purchaseGuest`, `inviteGuest` (with Auto_Invites), `advancePhase`, `triggerPartyShutdown`, `triggerOverflowShutdown`, and `confirmBan`, the sum `deck.length + party.length + discard.length + bustPartySnapshot.length + sum(shopInventory[*].guests.length)` SHALL remain constant and equal to 66 (10 initial + 56 shop guests) until the game ends. Auto_Invites move guests from deck to party; a bust moves the party into `bustPartySnapshot`; `acknowledgeShutdown()` (overflow) or `confirmBan()` (trouble) moves them back to the deck or discard pile. No operation creates or destroys guests.
 
 **Validates: Requirements 11.1, 11.2, 11.3**
 
@@ -667,24 +691,22 @@ This is the most comprehensive sequencing test: Celebrity's two auto-invites mus
 
 ### Empty Deck During Auto_Invite
 
-If `autoInvite()` is called when the deck is empty, it returns silently without modifying any state. This handles:
-- MR_POPULAR invited when deck has only 1 guest (himself) — no auto-invite occurs
-- CELEBRITY's first auto-invite when deck is empty — neither auto-invite occurs
-- CELEBRITY's second auto-invite when deck has exactly 1 guest — first auto-invite succeeds, second is skipped
-
-Because `autoInvite()` is a no-op on an empty deck, no guest is appended to the context party, so `inviteGuest()` finds no new drawn guests to enqueue.
+When a draw effect enqueued by `autoInvite()` runs and the deck is empty, it returns without modifying any state. Because the deck is checked when the draw runs, not when it is enqueued, this handles:
+- MR_POPULAR invited when deck has only 1 guest (himself) — his draw finds an empty deck
+- CELEBRITY invited when the deck is otherwise empty — both draws find an empty deck
+- CELEBRITY invited when the deck has exactly 1 other guest — the first draw admits that guest, the second finds an empty deck
 
 ### Shutdown During Effect Chain
 
-When `inviteGuest()` detects overflow or trouble after committing a guest to the store, it calls the appropriate shutdown method and returns immediately. Any remaining entries in the local `pendingEffects` queue are simply abandoned — they are never stored in `GameStoreState` and are garbage-collected with the local variable.
+When `resolveEffects()` detects overflow or trouble after committing an effect, it shuts the party down and returns immediately. Any effects still in the local queue are simply abandoned — they are never stored in `GameStoreState` and are garbage-collected with the local variable.
 
 ### Pending Effects After Shutdown
 
-Because shutdown detection happens in `inviteGuest()` before the next queue entry is processed, no entrance effect handler is ever called after a shutdown. The queue is checked after every guest addition, so the shutdown is caught at the earliest possible point.
+Because the bust check runs after every effect and before the next one is taken from the queue, no effect ever runs after a shutdown. That covers entrance effects and pending draws alike, so a guest whose Auto_Invite had not run yet is never drawn and stays in the deck.
 
-### triggerOverflowShutdown() Called Outside Effect Chain
+### Inviting During a Shutdown
 
-If `triggerOverflowShutdown()` is called when `isPartyShutdown` is already true (shouldn't happen in normal flow), it would overwrite the existing shutdown state. The `inviteGuest()` method guards against this by returning immediately after calling any shutdown method, and the `GameplayComponent` effect() guards against double-triggering by checking `!isShutdown` before calling `triggerPartyShutdown()`.
+`inviteGuest()` returns immediately while `isPartyShutdown` or `isBanSelectionActive` is true, so no guest can be drawn while a bust is being resolved, and `canInviteGuest` is false in those states. The `GameplayComponent` trouble effect() guards against double-triggering by checking `!isShutdown` before calling `triggerPartyShutdown()`.
 
 ### acknowledgeShutdown() on Non-Shutdown State
 
@@ -719,13 +741,13 @@ Both reset `isOverflowShutdown: false` alongside all other state. `resetGame()` 
 2. **Property 2 test** (`game.store.property.spec.ts`): Generate decks where CELEBRITY is first, MR_POPULAR is second, and at least 2 more guests follow. Set party size well below capacity and trouble limit high enough to avoid shutdown. Call `inviteGuest()`. Verify party contains all 4 guests in arrival order: Celebrity, guest-2 (Celebrity's first auto-invite), guest-3 (Celebrity's second auto-invite), guest-4 (MR_POPULAR's auto-invite).
    - Tag: `// Feature: overflow, Property 2: Effect Sequencing — Current Effect Completes Before Chained Effects Fire`
 
-3. **Property 3 test** (`game.store.property.spec.ts`): Generate random party compositions where `party.length === houseCapacity - 1` and deck has MR_POPULAR on top followed by at least 1 guest. Call `inviteGuest()`. Verify `isPartyShutdown = true`, `isOverflowShutdown = true`, `party = []`, and all original party guests plus MR_POPULAR plus the auto-invited guest are in the deck. Verify discard and shopInventory are unchanged.
+3. **Property 3 test** (`game.store.property.spec.ts`): Generate random party compositions where `party.length === houseCapacity - 1` and deck has MR_POPULAR on top followed by at least 1 guest. Call `inviteGuest()`. Verify `isPartyShutdown = true`, `isOverflowShutdown = true`, `party = []`, and `bustPartySnapshot` holds all original party guests plus MR_POPULAR plus the auto-invited guest. Call `acknowledgeShutdown()` on a non-final turn and verify all of them are in the deck. Verify shopInventory is unchanged.
    - Tag: `// Feature: overflow, Property 3: Overflow Shutdown State and Guest Preservation`
 
 4. **Property 4 test** (`game.store.property.spec.ts`): Generate random turn numbers (non-final and final). Trigger overflow shutdown. Call `acknowledgeShutdown()`. Verify: non-final → `isBanSelectionActive = false`, `currentTurn = T+1`, `currentPhase = BUY`; final → `isGameComplete = true`.
    - Tag: `// Feature: overflow, Property 4: Overflow Shutdown Skips Ban Selection and Advances Turn`
 
-5. **Property 5 test** (`game.store.property.spec.ts`): Generate decks where CELEBRITY is first, a guest that would trigger overflow is second (party at capacity-2 so Celebrity's first auto-invite fills it, second overflows), and more guests follow. Call `inviteGuest()`. Verify the third deck guest (which would have been Celebrity's second auto-invite) is NOT in the party — it remains in the deck.
+5. **Property 5 test** (`game.store.property.spec.ts`): Generate decks where CELEBRITY is first and at least two guests follow, with the party at capacity-1 so Celebrity fills the house and her first auto-invite overflows it. Call `inviteGuest()`. Verify `isOverflowShutdown = true`, the second deck guest (her first auto-invite) is in `bustPartySnapshot`, and the third deck guest (her second auto-invite, still queued at the bust) is NOT in `bustPartySnapshot` — it remains in the deck.
    - Tag: `// Feature: overflow, Property 5: Pending Effects Cancelled on Any Shutdown`
 
 6. **Property 6 test** (`game.store.property.spec.ts`): Generate states where auto-invite draws a high-trouble guest that pushes trouble over the limit, but party size stays below capacity. Call `inviteGuest()`. Verify `isPartyShutdown = true`, `isOverflowShutdown = false`. Then call `acknowledgeShutdown()` on a non-final turn and verify `isBanSelectionActive = true`.
@@ -734,7 +756,7 @@ Both reset `isOverflowShutdown: false` alongside all other state. `resetGame()` 
 7. **Property 7 test** (`game.store.property.spec.ts`): Generate states where party is at capacity-1, trouble limit is 0 (so any trouble guest triggers trouble shutdown), and deck has MR_POPULAR on top followed by a trouble guest. Call `inviteGuest()`. Verify `isOverflowShutdown = true` (overflow wins over trouble). Call `acknowledgeShutdown()` on non-final turn. Verify `isBanSelectionActive = false`.
    - Tag: `// Feature: overflow, Property 7: Overflow Takes Priority Over Trouble Limit`
 
-8. **Property 8 test** (`game.store.property.spec.ts`): Generate random sequences of game operations including purchases, invites (with MR_POPULAR and CELEBRITY), party ends, and shutdowns. After each operation, verify `deck.length + party.length + discard.length + sum(shopInventory[*].guests.length) === 66`.
+8. **Property 8 test** (`game.store.property.spec.ts`): Generate random sequences of game operations including purchases, invites (with MR_POPULAR and CELEBRITY), party ends, and shutdowns. After each operation, verify `deck.length + party.length + discard.length + bustPartySnapshot.length + sum(shopInventory[*].guests.length) === 66`.
    - Tag: `// Feature: overflow, Property 8: Guest Conservation Invariant`
 
 ### Unit Test Plan

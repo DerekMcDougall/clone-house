@@ -2,9 +2,9 @@
 
 ## Overview
 
-This feature introduces the Climber guest type and an entrance effect system to the party card game. The Climber is the first guest type with a per-instance entrance effect: each time a specific Climber instance is invited to a party, her `popularityValue` increments by 1 (capped at 9) before she is added to the party. This increment is tracked on the guest object itself, so two different Climbers each maintain their own independent `popularityValue`.
+This feature introduces the Climber guest type and an entrance effect system to the party card game. The Climber is the first guest type with a per-instance entrance effect: each time a specific Climber instance is invited to a party, her `popularityValue` increments by 1 (capped at 9) once she has joined the party. This increment is tracked on the guest object itself, so two different Climbers each maintain their own independent `popularityValue`.
 
-The entrance effect system is designed for extensibility — future guest types can define entirely different entrance effects by adding a new case to a dedicated dispatch function in the Game Store, without touching the core invite flow. The system uses an `EffectContext` interface as the universal API for all effect types, so the same interface will serve entrance effects, end-of-party effects, on-discard effects, and any future trigger points without modification.
+The entrance effect system is designed for extensibility — future guest types can define entirely different entrance effects by adding an entry to `GUEST_TYPE_ENTRANCE_EFFECTS`, without touching the Game Store. Entrance effects run through the store's generic FIFO effect queue (introduced with the overflow feature; see `overflow/design.md`). The system uses an `EffectContext` interface as the universal API for all effect types, so the same interface will serve entrance effects, end-of-party effects, on-discard effects, and any future trigger points without modification.
 
 Climbers cost 12 popularity to purchase, have 4 named instances (Ascella, Skye, Icarus, Vela), and are not in the starting deck.
 
@@ -12,19 +12,21 @@ Climbers cost 12 popularity to purchase, have 4 named instances (Ascella, Skye, 
 
 1. **EffectContext is the universal effect API**: A new `EffectContext` interface is introduced as the single contract used by ALL guest effects regardless of when they trigger (entrance, end-of-party, on-discard, etc.). This means the interface is defined once and reused across all future trigger points without any changes.
 
-2. **void return, no return value**: Effect handlers return `void`. Effects express all changes through the context object; `inviteGuest` reads back the final state from the context after the handler runs. This avoids the need to thread return values through the dispatch chain.
+2. **void return, no return value**: Effect handlers return `void`. Effects express all changes through the context object; the store reads back the final state from the context after each effect runs. This avoids the need to thread return values through the dispatch chain.
 
 3. **Resources included in EffectContext**: `popularity` and `money` are direct store state and are included in `EffectContext`. `trouble` and `peace` are derived from party guest properties, so they are not included — effects that want to influence trouble or peace do so via `updateGuest` or `setParty`.
 
 4. **Testable in isolation**: Entrance effects can be tested by constructing a mock `EffectContext` without needing a full NgRx store setup. Handler functions in `GUEST_TYPE_ENTRANCE_EFFECTS` are pure functions over the context interface.
 
-5. **Extensibility**: Adding a new entrance effect requires only adding an entry to `GUEST_TYPE_ENTRANCE_EFFECTS` in `guest.model.ts`. The store never changes. Adding a new trigger point requires adding a new `Partial<Record<GuestType, EffectHandler>>` constant and a corresponding lookup in the relevant store method — the `EffectContext` interface itself does not change.
+5. **Extensibility**: Adding a new entrance effect requires only adding an entry to `GUEST_TYPE_ENTRANCE_EFFECTS` in `guest.model.ts`. The store never changes. Adding a new trigger point requires adding a new `Partial<Record<GuestType, EffectHandler>>` constant and a corresponding lookup where that trigger happens — the `EffectContext` interface itself does not change.
 
-6. **No new state fields**: The existing `Guest` interface and `GuestProperties` interface are sufficient. `popularityValue` already exists on every guest. No new fields are added to `GameStoreState`.
+6. **The effect runs after the guest joins**: `admitGuest(guest)` adds the guest to the party and then enqueues the guest's entrance effect. The store checks for a bust (overflow, then trouble) after every effect, so if the Climber's own arrival busts the party, the queue is discarded and her increment never happens. When the party survives her arrival, the result is identical to incrementing before she joins (Requirement 4.1).
 
-7. **Guest conservation is unaffected**: The entrance effect only mutates a property on the guest object via the context; it does not create or remove guests. The total count across deck + party + discard + shopInventory remains 58.
+7. **No new state fields**: The existing `Guest` interface and `GuestProperties` interface are sufficient. `popularityValue` already exists on every guest. No new fields are added to `GameStoreState`.
 
-8. **Shop display order**: The existing `purchasableShopItems()` sort (ascending cost, then alphabetical label) places CLIMBER last at cost 12, after AUCTIONEER at cost 9.
+8. **Guest conservation is unaffected**: The entrance effect only mutates a property on the guest object via the context; it does not create or remove guests. The total count across deck + party + discard + shopInventory remains 58.
+
+9. **Shop display order**: The existing `purchasableShopItems()` sort (ascending cost, then alphabetical label) places CLIMBER last at cost 12, after AUCTIONEER at cost 9.
 
 ## Architecture
 
@@ -38,15 +40,19 @@ guest.model.ts
 ├── GUEST_TYPE_COSTS: + CLIMBER → 12
 ├── SHOP_GUESTS: + 4 Climber entries (Ascella, Skye, Icarus, Vela)
 ├── INITIAL_GUESTS: unchanged
-├── EffectHandler [new type alias]: (ctx: EffectContext) => void
-└── GUEST_TYPE_ENTRANCE_EFFECTS [new constant]: Partial<Record<GuestType, EffectHandler>>, CLIMBER entry defined
+├── EffectHandler [new type alias]: (ctx: EffectContext, guest: Guest) => void
+├── GUEST_TYPE_ENTRANCE_EFFECTS [new constant]: Partial<Record<GuestType, EffectHandler>>, CLIMBER entry defined
+└── admitGuest(guest): GameEffect — adds the guest to the party, then enqueues its entrance effect (if any)
 
-game.store.ts (or new effect-context.ts)
-├── EffectContext [new interface]: universal effect API
-├── EffectContextImpl [new class]: concrete implementation
-└── inviteGuest(): constructs EffectContextImpl, looks up GUEST_TYPE_ENTRANCE_EFFECTS[guest.type],
-    calls handler if present, commits via single patchState
-    (no applyEntranceEffect function)
+effect-context.ts
+├── GameEffect [type alias]: (ctx: EffectContext) => void
+└── EffectContext [interface]: universal effect API
+
+game.store.ts
+├── EffectContextImpl [class]: concrete implementation
+├── resolveEffects(initialEffect) [private]: runs the FIFO effect queue, commits after each effect, checks for a bust
+└── inviteGuest(): draws the top guest and calls resolveEffects(admitGuest(guest))
+    (the store has no per-type dispatch; it never changes when an entrance effect is added)
 
 PhaseContentComponent — no changes (renders CLIMBER shop card automatically)
 GuestCardComponent — no changes (renders CLIMBER label from GUEST_TYPE_LABELS automatically)
@@ -58,22 +64,23 @@ GuestCardComponent — no changes (renders CLIMBER label from GUEST_TYPE_LABELS 
 sequenceDiagram
     participant Player
     participant inviteGuest
+    participant resolveEffects
     participant EffectContextImpl
-    participant GUEST_TYPE_ENTRANCE_EFFECTS
     participant Store
 
     Player->>inviteGuest: inviteGuest()
-    inviteGuest->>Store: read deck[0], remainingDeck, party, discard, popularity, money
-    inviteGuest->>EffectContextImpl: new EffectContextImpl(rawGuest, remainingDeck, party, discard, popularity, money)
-    inviteGuest->>GUEST_TYPE_ENTRANCE_EFFECTS: lookup handler = GUEST_TYPE_ENTRANCE_EFFECTS[rawGuest.type]
-    alt handler exists (e.g. CLIMBER)
-        inviteGuest->>handler: handler(ctx)
-        handler->>EffectContextImpl: ctx.updateGuest(g => { ...g, popularityValue: min(9, v+1) })
-        EffectContextImpl-->>handler: (void)
-    else no handler (any other type)
-        inviteGuest-->>inviteGuest: (no-op)
-    end
-    inviteGuest->>Store: patchState({ deck: ctx.getDeck(), party: [...ctx.getParty(), ctx.getGuest()], discard: ctx.getDiscard(), popularity: ctx.getPopularity(), money: ctx.getMoney() })
+    inviteGuest->>Store: patchState({ deck: remainingDeck })
+    inviteGuest->>resolveEffects: resolveEffects(admitGuest(climber))
+    Note over resolveEffects: queue = [admitGuest(climber)]
+    resolveEffects->>EffectContextImpl: new EffectContextImpl(deck, party, discard, popularity, money, enqueue)
+    resolveEffects->>EffectContextImpl: admitGuest(climber)(ctx)
+    Note over EffectContextImpl: party += climber; enqueue(c => CLIMBER handler(c, climber))
+    resolveEffects->>Store: patchState(ctx state)
+    resolveEffects->>resolveEffects: bust check (overflow, then trouble) — none
+    resolveEffects->>EffectContextImpl: new context; run CLIMBER handler(ctx, climber)
+    Note over EffectContextImpl: ctx.updateGuest(climber, g => popularityValue: min(9, v+1))
+    resolveEffects->>Store: patchState(ctx state) — party now holds the incremented Climber
+    resolveEffects->>resolveEffects: bust check — none; queue empty, return
 ```
 
 ### How Existing Systems Handle the New Type
@@ -88,9 +95,9 @@ graph TD
     F --> G[purchaseGuest: deduct 12 popularity, add Climber to deck]
     G --> H[Climber in deck with popularityValue 0]
     H --> I[Player calls inviteGuest]
-    I --> J[EffectContextImpl constructed from store state]
-    J --> K[GUEST_TYPE_ENTRANCE_EFFECTS lookup: handler = map[guest.type]]
-    K --> L[patchState commits ctx state: Climber added to party with incremented popularityValue]
+    I --> J[resolveEffects runs admitGuest: Climber added to party, entrance effect enqueued]
+    J --> K[Queued CLIMBER handler runs: ctx.updateGuest increments her popularityValue]
+    K --> L[patchState commits ctx state: Climber in party with incremented popularityValue]
     L --> M[advancePhase: popularityValue counted in party total]
     M --> N[Climber returned to deck with preserved popularityValue]
 ```
@@ -152,8 +159,12 @@ No Climber entries. The starting deck remains 10 guests (4 Old Friends, 4 Wild B
 `EffectHandler` is the type for all guest effect handler functions. It follows the same pattern as the existing `GUEST_TYPE_DEFAULTS`, `GUEST_TYPE_LABELS`, and `GUEST_TYPE_COSTS` constants — all guest type metadata lives in `guest.model.ts`.
 
 ```typescript
-export type EffectHandler = (ctx: EffectContext) => void;
+// Runs when a guest joins the party. `guest` is the guest as admitted; use
+// ctx.updateGuest(guest, ...) to change it in the party.
+export type EffectHandler = (ctx: EffectContext, guest: Guest) => void;
 ```
+
+The handler receives the guest that triggered it as an argument rather than through the context, so one `EffectContext` shape serves every effect, including effects that have no triggering guest.
 
 #### GUEST_TYPE_ENTRANCE_EFFECTS Constant
 
@@ -161,8 +172,8 @@ export type EffectHandler = (ctx: EffectContext) => void;
 
 ```typescript
 export const GUEST_TYPE_ENTRANCE_EFFECTS: Partial<Record<GuestType, EffectHandler>> = {
-  CLIMBER: (ctx) => {
-    ctx.updateGuest(g => ({
+  CLIMBER: (ctx, guest) => {
+    ctx.updateGuest(guest, g => ({
       ...g,
       properties: {
         ...g.properties,
@@ -173,24 +184,41 @@ export const GUEST_TYPE_ENTRANCE_EFFECTS: Partial<Record<GuestType, EffectHandle
 };
 ```
 
+(The overflow feature later adds `MR_POPULAR` and `CELEBRITY` entries to this map.)
+
+#### admitGuest()
+
+`admitGuest` turns "this guest joins the party" into a `GameEffect` for the store's effect queue. Every arrival goes through it — the player's own invite and every auto-invite — so entrance effects are triggered in one place.
+
+```typescript
+export function admitGuest(guest: Guest): GameEffect {
+  return (ctx) => {
+    ctx.setParty([...ctx.getParty(), guest]);
+
+    const entranceEffect = GUEST_TYPE_ENTRANCE_EFFECTS[guest.type];
+    if (entranceEffect) {
+      ctx.enqueue((c) => entranceEffect(c, guest));
+    }
+  };
+}
+```
+
 Future trigger points follow the same pattern:
 - `GUEST_TYPE_END_OF_PARTY_EFFECTS: Partial<Record<GuestType, EffectHandler>>`
 - `GUEST_TYPE_ON_DISCARD_EFFECTS: Partial<Record<GuestType, EffectHandler>>`
 
 All use the same `EffectHandler` type and `EffectContext` interface.
 
-### New Interface and Implementation (game.store.ts or effect-context.ts)
+### New Interface and Implementation
 
-#### EffectContext Interface
+#### GameEffect and EffectContext (effect-context.ts)
 
-`EffectContext` is the universal effect API used by ALL guest effects regardless of trigger point. It is introduced now for entrance effects and will be reused unchanged for future trigger points (end-of-party, on-discard, etc.).
+`GameEffect` is one unit of work in the store's effect queue. `EffectContext` is the universal effect API used by ALL guest effects regardless of trigger point. It is introduced now for entrance effects and will be reused unchanged for future trigger points (end-of-party, on-discard, etc.).
 
 ```typescript
-export interface EffectContext {
-  // The guest that triggered this effect
-  readonly guest: Guest;
-  updateGuest(updater: (g: Guest) => Guest): void;
+export type GameEffect = (ctx: EffectContext) => void;
 
+export interface EffectContext {
   // Guest zones
   getDeck(): Guest[];
   setDeck(deck: Guest[]): void;
@@ -206,40 +234,44 @@ export interface EffectContext {
   setPopularity(value: number): void;
   getMoney(): number;
   setMoney(value: number): void;
+
+  // Replaces `guest` in the party with updater(guest) (matched by reference) and returns the updated guest
+  updateGuest(guest: Guest, updater: (g: Guest) => Guest): Guest;
+
+  // Adds an effect to the end of the effect queue; it runs after every effect already queued
+  enqueue(effect: GameEffect): void;
 }
 ```
 
-#### EffectContextImpl Class
+#### EffectContextImpl Class (game.store.ts)
 
-`EffectContextImpl` is the concrete implementation constructed by `inviteGuest()` from current store state. It holds a mutable snapshot of all relevant state that effects can read and write. After the effect runs, `inviteGuest()` reads the final state back out and commits it to the store in a single `patchState` call.
+`EffectContextImpl` is the concrete implementation. The store's effect loop constructs a fresh one from current store state for each effect. It holds a mutable snapshot of all relevant state that the effect can read and write. After the effect runs, the store reads the final state back out and commits it in a single `patchState` call.
 
 ```typescript
 class EffectContextImpl implements EffectContext {
-  private _guest: Guest;
   private _deck: Guest[];
   private _party: Guest[];
   private _discard: Guest[];
   private _popularity: number;
   private _money: number;
+  private _enqueue: (effect: GameEffect) => void;
 
   constructor(
-    guest: Guest,
     deck: Guest[],
     party: Guest[],
     discard: Guest[],
     popularity: number,
-    money: number
-  ) {
-    this._guest = guest;
-    this._deck = deck;
-    this._party = party;
-    this._discard = discard;
-    this._popularity = popularity;
-    this._money = money;
+    money: number,
+    enqueue: (effect: GameEffect) => void
+  ) { /* ... assign all fields ... */ }
+
+  updateGuest(guest: Guest, updater: (g: Guest) => Guest): Guest {
+    const updated = updater(guest);
+    this._party = this._party.map(g => (g === guest ? updated : g));
+    return updated;
   }
 
-  get guest(): Guest { return this._guest; }
-  updateGuest(updater: (g: Guest) => Guest): void { this._guest = updater(this._guest); }
+  enqueue(effect: GameEffect): void { this._enqueue(effect); }
 
   getDeck(): Guest[] { return this._deck; }
   setDeck(deck: Guest[]): void { this._deck = deck; }
@@ -259,10 +291,15 @@ class EffectContextImpl implements EffectContext {
 
 #### Modified `inviteGuest()` Method
 
-`inviteGuest()` constructs an `EffectContextImpl` from current store state, looks up the handler in `GUEST_TYPE_ENTRANCE_EFFECTS`, calls it if present, then commits all context state back to the store via a single `patchState`. No `applyEntranceEffect` function is needed — the store never needs to change when a new entrance effect is added:
+`inviteGuest()` draws the top guest and hands `admitGuest(guest)` to the store's effect loop, `resolveEffects()`. The loop runs the effect, which adds the guest and enqueues the Climber's entrance effect; then it runs the entrance effect. `inviteGuest()` knows nothing about guest types or effect kinds, so the store never needs to change when a new entrance effect is added. `resolveEffects()` (FIFO order, bust checks after each effect) is described in `overflow/design.md`.
 
 ```typescript
 inviteGuest(): void {
+  // No inviting while a bust is being resolved (shutdown modal or ban selection)
+  if (store.isPartyShutdown() || store.isBanSelectionActive()) {
+    return;
+  }
+
   const deck = store.deck();
 
   if (deck.length === 0) {
@@ -277,29 +314,11 @@ inviteGuest(): void {
 
   patchState(store, { showEmptyDeckMessage: false, showHouseFullMessage: false });
 
+  // Draw the top guest; admitting it (and any effects that follow) is handled by the effect queue
   const [rawGuest, ...remainingDeck] = deck;
+  patchState(store, { deck: remainingDeck });
 
-  // Construct context from current store state and apply entrance effect if one exists
-  const ctx = new EffectContextImpl(
-    rawGuest,
-    remainingDeck,
-    store.party(),
-    store.discard(),
-    store.popularity(),
-    store.money()
-  );
-
-  const handler = GUEST_TYPE_ENTRANCE_EFFECTS[rawGuest.type];
-  if (handler) handler(ctx);
-
-  // Commit all context state back to the store in a single patch
-  patchState(store, {
-    deck: ctx.getDeck(),
-    party: [...ctx.getParty(), ctx.guest],
-    discard: ctx.getDiscard(),
-    popularity: ctx.getPopularity(),
-    money: ctx.getMoney()
-  });
+  resolveEffects(admitGuest(rawGuest));
 },
 ```
 
@@ -374,19 +393,19 @@ The entrance effect only mutates `popularityValue` on a guest object via the con
 
 ### Property 1: Climber Entrance Effect Increments popularityValue
 
-*For any* Climber guest with `popularityValue` in [0, 8], when the handler from `GUEST_TYPE_ENTRANCE_EFFECTS['CLIMBER']` is called with a mock `EffectContext` containing that guest, the context's guest SHALL have `popularityValue` equal to the original value plus 1. When `popularityValue` is 9, it SHALL remain at 9.
+*For any* Climber guest with `popularityValue` in [0, 8], when the handler from `GUEST_TYPE_ENTRANCE_EFFECTS['CLIMBER']` is called with a mock `EffectContext` whose party contains that guest, and with that guest as its `guest` argument, the Climber in the context's party SHALL have `popularityValue` equal to the original value plus 1. When `popularityValue` is 9, it SHALL remain at 9.
 
 **Validates: Requirements 4.1, 4.4**
 
 ### Property 2: Non-Climber Guests Are Unaffected by Entrance Effect
 
-*For any* non-Climber guest type, `GUEST_TYPE_ENTRANCE_EFFECTS[type]` SHALL be `undefined` — no handler is registered, so the guest's properties are not modified when invited.
+*For any* guest type with no entry in `GUEST_TYPE_ENTRANCE_EFFECTS` (every type except CLIMBER, MR_POPULAR and CELEBRITY), running `admitGuest(guest)` SHALL add the guest to the party unchanged and SHALL enqueue no effect.
 
 **Validates: Requirements 4.3, 6.2**
 
 ### Property 3: Per-Instance popularityValue Tracking
 
-*For any* two Climber instances with `popularityValue` values v1 and v2 in [0, 8], after constructing independent `EffectContext` instances for each and invoking the `GUEST_TYPE_ENTRANCE_EFFECTS['CLIMBER']` handler on both, each context's guest SHALL have a `popularityValue` equal to its own original value plus 1, independently of the other.
+*For any* two Climber instances with `popularityValue` values v1 and v2 in [0, 8], both in the same party, after invoking the `GUEST_TYPE_ENTRANCE_EFFECTS['CLIMBER']` handler once for each Climber, each Climber in the party SHALL have a `popularityValue` equal to its own original value plus 1, independently of the other (`updateGuest` matches the guest by reference, not by type).
 
 **Validates: Requirements 5.1, 5.2**
 
@@ -446,13 +465,13 @@ Both are complementary — unit tests catch concrete regressions in type-specifi
 
 Properties 1–3 test handler functions from `GUEST_TYPE_ENTRANCE_EFFECTS` in isolation using a **mock `EffectContext`** — no store setup required. This is the key benefit of the registry design: handler functions are pure functions over the context interface, fully testable without NgRx.
 
-1. **Property 1 test** (`game.store.property.spec.ts`): Generate a Climber guest with `popularityValue` in [0, 8] using `fc.integer({ min: 0, max: 8 })`. Construct a mock `EffectContext` holding that guest. Call `const handler = GUEST_TYPE_ENTRANCE_EFFECTS['CLIMBER']; handler(mockCtx)`. Verify `mockCtx.guest.properties.popularityValue === original + 1`. Also verify the cap: generate `popularityValue = 9`, verify it stays at 9.
+1. **Property 1 test** (`game.store.property.spec.ts`): Generate a Climber guest with `popularityValue` in [0, 8] using `fc.integer({ min: 0, max: 8 })`. Construct a mock `EffectContext` whose party holds that guest. Call `const handler = GUEST_TYPE_ENTRANCE_EFFECTS['CLIMBER']; handler(mockCtx, climber)`. Verify `mockCtx.getParty()[0].properties.popularityValue === original + 1`. Also verify the cap: generate `popularityValue = 9`, verify it stays at 9.
    - Tag: `// Feature: climber-entrance-effect, Property 1: Climber Entrance Effect Increments popularityValue`
 
-2. **Property 2 test** (`game.store.property.spec.ts`): Generate a non-Climber guest type using `fc.constantFrom(...nonClimberTypes)`. Verify `GUEST_TYPE_ENTRANCE_EFFECTS[type]` is `undefined` — no handler registered for that type.
+2. **Property 2 test** (`game.store.property.spec.ts`): Generate a guest type with no entrance effect using `fc.constantFrom(...typesWithoutEntranceEffects)`. Run `admitGuest(guest)` against a mock `EffectContext`. Verify the guest is appended to the party with unchanged properties and `enqueue` was never called.
    - Tag: `// Feature: climber-entrance-effect, Property 2: Non-Climber Guests Are Unaffected by Entrance Effect`
 
-3. **Property 3 test** (`game.store.property.spec.ts`): Generate two `popularityValue` values in [0, 8] using `fc.tuple(fc.integer({ min: 0, max: 8 }), fc.integer({ min: 0, max: 8 }))`. Construct two independent mock `EffectContext` instances for two Climbers with those values. Call `const handler = GUEST_TYPE_ENTRANCE_EFFECTS['CLIMBER']` and invoke it on each context independently. Verify each context's guest has its own original value + 1.
+3. **Property 3 test** (`game.store.property.spec.ts`): Generate two `popularityValue` values in [0, 8] using `fc.tuple(fc.integer({ min: 0, max: 8 }), fc.integer({ min: 0, max: 8 }))`. Construct a mock `EffectContext` whose party holds two Climbers with those values. Call `const handler = GUEST_TYPE_ENTRANCE_EFFECTS['CLIMBER']` and invoke it once with each Climber as the `guest` argument. Verify each Climber in the party has its own original value + 1.
    - Tag: `// Feature: climber-entrance-effect, Property 3: Per-Instance popularityValue Tracking`
 
 4. **Property 4 test** (`game.store.property.spec.ts`): Generate a `popularityValue` in [0, 7]. Patch the store deck with a Climber at that value. Call `inviteGuest()` (value → n+1). Call `advancePhase()` (Climber returns to deck). Call `inviteGuest()` again (value → n+2). Verify the party guest has `popularityValue === n+2`.
