@@ -363,14 +363,22 @@ describe('GameStore - Unit Tests', () => {
       store.initializeGame(5);
       store.advancePhase(); // BUY -> PARTY
 
-      // Invite 4 guests (mixed types due to shuffled deck)
+      // Fix the draw order: one of each starting type plus a second Wild Buddy
+      // (two Wild Buddies keep trouble at the limit without busting)
+      const byName = (name: string) => store.deck().find(g => g.name === name)!;
+      const top = ['Brian', 'Anthony', 'Teresa', 'Khalil'];
+      patchState(store, {
+        deck: [...top.map(byName), ...store.deck().filter(g => !top.includes(g.name))]
+      });
+
+      // Invite 4 guests: Old Friend (1) + Wild Buddy (2) + Wild Buddy (2) + Rich Pal (0)
       store.inviteGuest();
       store.inviteGuest();
       store.inviteGuest();
       store.inviteGuest();
 
       expect(store.party().length).toBe(4);
-      const expectedPopularity = store.party().reduce((sum, g) => sum + g.properties.popularityValue, 0);
+      const expectedPopularity = 5;
       expect(store.popularity()).toBe(0); // Popularity not yet calculated
 
       // Advance from PARTY phase to trigger popularity calculation
@@ -661,8 +669,8 @@ describe('GameStore - Unit Tests', () => {
      */
     it('should return false for canInviteGuest when deck is empty', () => {
       store.initializeGame();
-      // Raise house capacity so all 10 guests can be invited
-      patchState(store, { houseCapacity: 10 });
+      // Raise house capacity and trouble limit so all 10 guests can be invited without a bust
+      patchState(store, { houseCapacity: 10, baseTroubleLimit: 100 });
 
       // Invite all 10 guests
       for (let i = 0; i < 10; i++) {
@@ -679,8 +687,8 @@ describe('GameStore - Unit Tests', () => {
      */
     it('should update canInviteGuest as guests are invited and returned', () => {
       store.initializeGame();
-      // Raise house capacity so all 10 guests can be invited
-      patchState(store, { houseCapacity: 10 });
+      // Raise house capacity and trouble limit so all 10 guests can be invited without a bust
+      patchState(store, { houseCapacity: 10, baseTroubleLimit: 100 });
       store.advancePhase(); // Move to PARTY phase
 
       expect(store.canInviteGuest()).toBe(true);
@@ -698,6 +706,32 @@ describe('GameStore - Unit Tests', () => {
       expect(store.canInviteGuest()).toBe(true);
       expect(store.deck().length).toBe(10);
     });
+
+    /**
+     * Test canInviteGuest becomes false when the house is full, even with guests left in the deck
+     */
+    it('should set canInviteGuest to false when the house is full', () => {
+      store.initializeGame();
+      store.advancePhase(); // Move to PARTY phase
+
+      // Draw only non-trouble guests so the party fills the house without a bust
+      const byName = (name: string) => store.deck().find(g => g.name === name)!;
+      const top = ['Brian', 'Colin', 'Emily', 'Rachelle', 'Khalil'];
+      patchState(store, {
+        deck: [...top.map(byName), ...store.deck().filter(g => !top.includes(g.name))]
+      });
+
+      for (let i = 0; i < store.houseCapacity() - 1; i++) {
+        store.inviteGuest();
+      }
+      expect(store.canInviteGuest()).toBe(true);
+
+      store.inviteGuest();
+
+      expect(store.party().length).toBe(5);
+      expect(store.deck().length).toBe(5);
+      expect(store.canInviteGuest()).toBe(false);
+    });
   });
 
   describe('Deck and Party Methods', () => {
@@ -707,23 +741,67 @@ describe('GameStore - Unit Tests', () => {
      */
     it('should not modify state when inviting from empty deck', () => {
       store.initializeGame();
-      // Raise house capacity so all 10 guests can be invited
-      patchState(store, { houseCapacity: 10 });
-      
-      // Invite all 10 guests to empty the deck
-      for (let i = 0; i < 10; i++) {
-        store.inviteGuest();
-      }
-      
-      expect(store.deck().length).toBe(0);
-      expect(store.party().length).toBe(10);
-      
+      store.advancePhase(); // BUY -> PARTY
+
+      // Start from an empty deck with a couple of guests already at the party
+      const [first, second] = store.deck();
+      patchState(store, { deck: [], party: [first, second] });
+
       // Attempt to invite from empty deck
       store.inviteGuest();
-      
-      // Verify no state change (no-op)
-      expect(store.deck().length).toBe(0);
-      expect(store.party().length).toBe(10);
+
+      // Verify no state change (no-op) other than showing the empty-deck message
+      expect(store.deck()).toEqual([]);
+      expect(store.party()).toEqual([first, second]);
+      expect(store.isPartyShutdown()).toBe(false);
+      expect(store.showEmptyDeckMessage()).toBe(true);
+    });
+
+    /**
+     * Test inviteGuest is a no-op while a bust is being resolved (shutdown modal or ban selection)
+     */
+    describe('inviting while a bust is being resolved', () => {
+      const bustOnThirdWildBuddy = () => {
+        store.initializeGame();
+        store.advancePhase(); // BUY -> PARTY
+
+        const byName = (name: string) => store.deck().find(g => g.name === name)!;
+        const top = ['Anthony', 'Teresa', 'Jacco', 'Brian'];
+        patchState(store, {
+          deck: [...top.map(byName), ...store.deck().filter(g => !top.includes(g.name))]
+        });
+
+        store.inviteGuest();
+        store.inviteGuest();
+        store.inviteGuest(); // Jacco: trouble 3 > limit 2
+        expect(store.isPartyShutdown()).toBe(true);
+      };
+
+      it('should not invite a guest during a party shutdown', () => {
+        bustOnThirdWildBuddy();
+        const deckBefore = store.deck();
+        const snapshotBefore = store.bustPartySnapshot();
+        expect(store.canInviteGuest()).toBe(false);
+
+        store.inviteGuest();
+
+        expect(store.party()).toEqual([]);
+        expect(store.deck()).toEqual(deckBefore);
+        expect(store.bustPartySnapshot()).toEqual(snapshotBefore);
+      });
+
+      it('should not invite a guest during ban selection', () => {
+        bustOnThirdWildBuddy();
+        store.acknowledgeShutdown();
+        expect(store.isBanSelectionActive()).toBe(true);
+        expect(store.canInviteGuest()).toBe(false);
+        const deckBefore = store.deck();
+
+        store.inviteGuest();
+
+        expect(store.party()).toEqual([]);
+        expect(store.deck()).toEqual(deckBefore);
+      });
     });
 
     /**
@@ -733,7 +811,14 @@ describe('GameStore - Unit Tests', () => {
     it('should return all guests to deck when transitioning from PARTY phase', () => {
       store.initializeGame();
       store.advancePhase(); // Move to PARTY phase
-      
+
+      // Fix the draw order so no trouble bust can occur (bust needs 3 Wild Buddies)
+      const byName = (name: string) => store.deck().find(g => g.name === name)!;
+      const top = ['Brian', 'Anthony', 'Khalil'];
+      patchState(store, {
+        deck: [...top.map(byName), ...store.deck().filter(g => !top.includes(g.name))]
+      });
+
       // Invite 3 guests
       store.inviteGuest();
       store.inviteGuest();
@@ -765,8 +850,8 @@ describe('GameStore - Unit Tests', () => {
      */
     it('should return all 10 guests to deck when entire party transitions', () => {
       store.initializeGame();
-      // Raise house capacity so all 10 guests can be invited
-      patchState(store, { houseCapacity: 10 });
+      // Raise house capacity and trouble limit so all 10 guests can be invited without a bust
+      patchState(store, { houseCapacity: 10, baseTroubleLimit: 100 });
       store.advancePhase(); // Move to PARTY phase
       
       // Invite all 10 guests
@@ -1034,24 +1119,31 @@ describe('GameStore - Unit Tests', () => {
     });
 
     /**
-     * Test trouble accumulates correctly with multiple Wild Buddies
-     * **Validates: Requirements 3.1, 4.1**
+     * Test the third Wild Buddy from the starting deck pushes trouble past the limit
      */
-    it('should accumulate trouble from multiple Wild Buddies in party', () => {
+    it('should trouble-bust when a third Wild Buddy joins the party', () => {
       store.initializeGame();
+      store.advancePhase(); // BUY -> PARTY
 
-      // Reorder deck so all 4 Wild Buddies are on top
-      const deck = store.deck();
-      const wildBuddies = deck.filter(g => g.type === 'WILD_BUDDY');
-      const oldFriends = deck.filter(g => g.type === 'OLD_FRIEND');
-      patchState(store, { deck: [...wildBuddies, ...oldFriends] });
+      const byName = (name: string) => store.deck().find(g => g.name === name)!;
+      const top = ['Anthony', 'Brian', 'Teresa', 'Jacco'];
+      patchState(store, {
+        deck: [...top.map(byName), ...store.deck().filter(g => !top.includes(g.name))]
+      });
 
-      // Invite 3 Wild Buddies
       store.inviteGuest();
       store.inviteGuest();
       store.inviteGuest();
+      expect(store.isPartyShutdown()).toBe(false);
+      expect(store.trouble()).toBe(2);
 
-      expect(store.trouble()).toBe(3 * GUEST_TYPE_DEFAULTS['WILD_BUDDY'].troubleValue);
+      store.inviteGuest(); // Jacco: third Wild Buddy, trouble 3 > limit 2
+
+      expect(store.isPartyShutdown()).toBe(true);
+      expect(store.isOverflowShutdown()).toBe(false);
+      expect(store.party()).toEqual([]);
+      expect(store.bustPartySnapshot().map(g => g.name)).toEqual(top);
+      expect(store.deck().length).toBe(6);
     });
 
     /**
@@ -1060,7 +1152,8 @@ describe('GameStore - Unit Tests', () => {
      */
     it('should track trouble and popularity independently', () => {
       store.initializeGame(5);
-      patchState(store, { houseCapacity: 100 });
+      // Raise house capacity and trouble limit so all 10 guests can be invited without a bust
+      patchState(store, { houseCapacity: 100, baseTroubleLimit: 100 });
       store.advancePhase(); // BUY -> PARTY
 
       // Invite all 10 guests
@@ -1873,7 +1966,7 @@ describe('Shop Buy Guests', () => {
       store.initializeGame();
 
       const inventory = store.shopInventory();
-      expect(inventory.length).toBe(12);
+      expect(inventory.length).toBe(14);
 
       const oldFriendEntry = inventory.find((e: ShopInventoryEntry) => e.type === 'OLD_FRIEND');
       const richPalEntry = inventory.find((e: ShopInventoryEntry) => e.type === 'RICH_PAL');
@@ -2039,8 +2132,8 @@ describe('Shop Buy Guests', () => {
      */
     it('should set shopInventory to empty array after resetGame()', () => {
       store.initializeGame();
-      // Verify shop has entries (OLD_FRIEND, RICH_PAL, MONKEY, + 4 new types + 2 peace types + 2 negative resource types + CLIMBER)
-      expect(store.shopInventory().length).toBe(12);
+      // Verify shop has entries (OLD_FRIEND, RICH_PAL, MONKEY, + 4 new types + 2 peace types + 2 negative resource types + CLIMBER + MR_POPULAR + CELEBRITY)
+      expect(store.shopInventory().length).toBe(14);
 
       store.resetGame();
 
@@ -2307,8 +2400,8 @@ describe('Monkey Guest — Store Initialization', () => {
 
     const items = store.purchasableShopItems();
 
-    // Expected order: Old Friend (2), Monkey (3), Rich Pal (3), Hippy (4), Ticket Taker (4), Caterer (5), Rock Star (5), Gangster (6), Cute Dog (7), Gambler (7), Auctioneer (9), Climber (12)
-    expect(items.length).toBe(12);
+    // Expected order: Old Friend (2), Monkey (3), Rich Pal (3), Hippy (4), Ticket Taker (4), Caterer (5), Mr. Popular (5), Rock Star (5), Gangster (6), Cute Dog (7), Gambler (7), Auctioneer (9), Celebrity (11), Climber (12)
+    expect(items.length).toBe(14);
     expect(items[0].type).toBe('OLD_FRIEND');
     expect(items[1].type).toBe('MONKEY');
     expect(items[2].type).toBe('RICH_PAL');
@@ -2427,12 +2520,12 @@ describe('More Guest Types — Store Initialization', () => {
      * Old Friend (2), Monkey (3), Rich Pal (3), Rock Star (5), Gangster (6), Gambler (7), Auctioneer (9)
      * **Validates: Requirements 9.1, 9.2**
      */
-    it('should return all 7 types sorted by ascending cost then alphabetical label', () => {
+    it('should return all 14 types sorted by ascending cost then alphabetical label', () => {
       store.initializeGame();
 
       const items = store.purchasableShopItems();
 
-      expect(items.length).toBe(12);
+      expect(items.length).toBe(14);
       expect(items[0].type).toBe('OLD_FRIEND');
       expect(items[0].cost).toBe(2);
       expect(items[1].type).toBe('MONKEY');
@@ -2445,18 +2538,22 @@ describe('More Guest Types — Store Initialization', () => {
       expect(items[4].cost).toBe(4);
       expect(items[5].type).toBe('CATERER');
       expect(items[5].cost).toBe(5);
-      expect(items[6].type).toBe('ROCK_STAR');
+      expect(items[6].type).toBe('MR_POPULAR');
       expect(items[6].cost).toBe(5);
-      expect(items[7].type).toBe('GANGSTER');
-      expect(items[7].cost).toBe(6);
-      expect(items[8].type).toBe('CUTE_DOG');
-      expect(items[8].cost).toBe(7);
-      expect(items[9].type).toBe('GAMBLER');
+      expect(items[7].type).toBe('ROCK_STAR');
+      expect(items[7].cost).toBe(5);
+      expect(items[8].type).toBe('GANGSTER');
+      expect(items[8].cost).toBe(6);
+      expect(items[9].type).toBe('CUTE_DOG');
       expect(items[9].cost).toBe(7);
-      expect(items[10].type).toBe('AUCTIONEER');
-      expect(items[10].cost).toBe(9);
-      expect(items[11].type).toBe('CLIMBER');
-      expect(items[11].cost).toBe(12);
+      expect(items[10].type).toBe('GAMBLER');
+      expect(items[10].cost).toBe(7);
+      expect(items[11].type).toBe('AUCTIONEER');
+      expect(items[11].cost).toBe(9);
+      expect(items[12].type).toBe('CELEBRITY');
+      expect(items[12].cost).toBe(11);
+      expect(items[13].type).toBe('CLIMBER');
+      expect(items[13].cost).toBe(12);
     });
   });
 });
@@ -2518,7 +2615,7 @@ describe('Climber Entrance Effect — GameStore', () => {
 
       const items = store.purchasableShopItems();
 
-      expect(items.length).toBe(12);
+      expect(items.length).toBe(14);
       const lastItem = items[items.length - 1];
       expect(lastItem.type).toBe('CLIMBER');
       expect(lastItem.cost).toBe(12);
@@ -2622,5 +2719,214 @@ describe('Climber Entrance Effect — GameStore', () => {
       expect(deckClimber).toBeDefined();
       expect(deckClimber!.properties.popularityValue).toBe(4);
     });
+  });
+});
+
+describe('Auto-invite Entrance Effects — GameStore', () => {
+  let store: InstanceType<typeof GameStore>;
+
+  const makeGuest = (type: Guest['type'], name: string): Guest => ({
+    type,
+    name,
+    properties: { ...GUEST_TYPE_DEFAULTS[type] }
+  });
+
+  beforeEach(() => {
+    TestBed.configureTestingModule({});
+    store = TestBed.inject(GameStore);
+    store.initializeGame();
+    patchState(store, { houseCapacity: 10, party: [] });
+  });
+
+  it('should admit exactly one extra guest, once, when Mr. Popular is invited', () => {
+    patchState(store, {
+      deck: [makeGuest('MR_POPULAR', 'Rowan'), makeGuest('OLD_FRIEND', 'Colin'), makeGuest('OLD_FRIEND', 'Emily')]
+    });
+
+    store.inviteGuest();
+
+    expect(store.party().map(g => g.name)).toEqual(['Rowan', 'Colin']);
+    expect(store.deck().map(g => g.name)).toEqual(['Emily']);
+  });
+
+  it('should admit exactly two extra guests, once each, when a Celebrity is invited', () => {
+    patchState(store, {
+      deck: [
+        makeGuest('CELEBRITY', 'Troy'),
+        makeGuest('OLD_FRIEND', 'Colin'),
+        makeGuest('OLD_FRIEND', 'Emily'),
+        makeGuest('OLD_FRIEND', 'Rachelle')
+      ]
+    });
+
+    store.inviteGuest();
+
+    expect(store.party().map(g => g.name)).toEqual(['Troy', 'Colin', 'Emily']);
+    expect(store.deck().map(g => g.name)).toEqual(['Rachelle']);
+  });
+
+  it('should run entrance effects of auto-invited guests in FIFO order', () => {
+    patchState(store, {
+      deck: [
+        makeGuest('MR_POPULAR', 'Rowan'),
+        makeGuest('MR_POPULAR', 'Oscar'),
+        makeGuest('OLD_FRIEND', 'Colin'),
+        makeGuest('OLD_FRIEND', 'Emily')
+      ]
+    });
+
+    store.inviteGuest();
+
+    expect(store.party().map(g => g.name)).toEqual(['Rowan', 'Oscar', 'Colin']);
+    expect(store.deck().map(g => g.name)).toEqual(['Emily']);
+  });
+
+  it('should not over-count auto-invited guests against house capacity', () => {
+    patchState(store, {
+      houseCapacity: 2,
+      deck: [makeGuest('MR_POPULAR', 'Rowan'), makeGuest('OLD_FRIEND', 'Colin'), makeGuest('OLD_FRIEND', 'Emily')]
+    });
+
+    store.inviteGuest();
+
+    expect(store.isOverflowShutdown()).toBe(false);
+    expect(store.party().map(g => g.name)).toEqual(['Rowan', 'Colin']);
+  });
+
+  it('should run the entrance effect of a second Celebrity invited into the same party', () => {
+    patchState(store, {
+      deck: [
+        makeGuest('CELEBRITY', 'Troy'),
+        makeGuest('OLD_FRIEND', 'Colin'),
+        makeGuest('OLD_FRIEND', 'Emily'),
+        makeGuest('CELEBRITY', 'Gemma'),
+        makeGuest('OLD_FRIEND', 'Rachelle'),
+        makeGuest('OLD_FRIEND', 'Nadia'),
+        makeGuest('OLD_FRIEND', 'Pierre')
+      ]
+    });
+
+    store.inviteGuest();
+    store.inviteGuest();
+
+    expect(store.isPartyShutdown()).toBe(false);
+    expect(store.party().map(g => g.name)).toEqual(['Troy', 'Colin', 'Emily', 'Gemma', 'Rachelle', 'Nadia']);
+    expect(store.deck().map(g => g.name)).toEqual(['Pierre']);
+  });
+
+  it('should run the entrance effect of a Celebrity auto-invited by another Celebrity', () => {
+    patchState(store, {
+      deck: [
+        makeGuest('CELEBRITY', 'Troy'),
+        makeGuest('CELEBRITY', 'Gemma'),
+        makeGuest('OLD_FRIEND', 'Colin'),
+        makeGuest('OLD_FRIEND', 'Emily'),
+        makeGuest('OLD_FRIEND', 'Rachelle'),
+        makeGuest('OLD_FRIEND', 'Pierre')
+      ]
+    });
+
+    store.inviteGuest();
+
+    expect(store.isPartyShutdown()).toBe(false);
+    expect(store.party().map(g => g.name)).toEqual(['Troy', 'Gemma', 'Colin', 'Emily', 'Rachelle']);
+    expect(store.deck().map(g => g.name)).toEqual(['Pierre']);
+  });
+
+  it('should run a Celebrity\'s entrance effect again when she returns in a later party', () => {
+    patchState(store, {
+      currentPhase: GamePhase.PARTY,
+      deck: [
+        makeGuest('CELEBRITY', 'Troy'),
+        makeGuest('OLD_FRIEND', 'Colin'),
+        makeGuest('OLD_FRIEND', 'Emily'),
+        makeGuest('OLD_FRIEND', 'Rachelle')
+      ]
+    });
+
+    store.inviteGuest();
+    expect(store.party().map(g => g.name)).toEqual(['Troy', 'Colin', 'Emily']);
+
+    // End the party (guests return to a shuffled deck), then start the next one
+    store.advancePhase();
+    store.advancePhase();
+    expect(store.currentPhase()).toBe(GamePhase.PARTY);
+
+    // Put the same Troy back on top of the deck in a known order
+    const byName = (name: string) => store.deck().find(g => g.name === name)!;
+    patchState(store, { deck: ['Troy', 'Colin', 'Emily', 'Rachelle'].map(byName) });
+
+    store.inviteGuest();
+
+    expect(store.party().map(g => g.name)).toEqual(['Troy', 'Colin', 'Emily']);
+    expect(store.deck().map(g => g.name)).toEqual(['Rachelle']);
+  });
+
+  it('should return all bust party guests to the deck after acknowledging an overflow shutdown', () => {
+    patchState(store, {
+      currentPhase: GamePhase.PARTY,
+      currentTurn: 1,
+      houseCapacity: 2,
+      deck: [
+        makeGuest('CELEBRITY', 'Troy'),
+        makeGuest('OLD_FRIEND', 'Colin'),
+        makeGuest('OLD_FRIEND', 'Emily'),
+        makeGuest('OLD_FRIEND', 'Rachelle')
+      ]
+    });
+
+    store.inviteGuest();
+    expect(store.isOverflowShutdown()).toBe(true);
+
+    store.acknowledgeShutdown();
+
+    expect(store.party()).toEqual([]);
+    expect(store.bustPartySnapshot()).toEqual([]);
+    expect(store.deck().map(g => g.name).sort()).toEqual(['Colin', 'Emily', 'Rachelle', 'Troy']);
+  });
+
+  it('should not lose a guest whose admission is still queued when an overflow shutdown occurs', () => {
+    patchState(store, {
+      currentPhase: GamePhase.PARTY,
+      currentTurn: 1,
+      houseCapacity: 1,
+      deck: [
+        makeGuest('CELEBRITY', 'Troy'),
+        makeGuest('OLD_FRIEND', 'Colin'),
+        makeGuest('OLD_FRIEND', 'Emily'),
+        makeGuest('OLD_FRIEND', 'Rachelle')
+      ]
+    });
+
+    // Troy fills the house; Colin's admission overflows while Emily's is still queued
+    store.inviteGuest();
+    expect(store.isOverflowShutdown()).toBe(true);
+
+    store.acknowledgeShutdown();
+
+    expect(store.deck().map(g => g.name).sort()).toEqual(['Colin', 'Emily', 'Rachelle', 'Troy']);
+  });
+
+  it('should not lose a guest whose admission is still queued when a trouble shutdown occurs', () => {
+    patchState(store, {
+      currentPhase: GamePhase.PARTY,
+      party: [makeGuest('WILD_BUDDY', 'Anthony'), makeGuest('WILD_BUDDY', 'Teresa')],
+      deck: [
+        makeGuest('CELEBRITY', 'Troy'),
+        makeGuest('WILD_BUDDY', 'Jacco'),
+        makeGuest('OLD_FRIEND', 'Emily'),
+        makeGuest('OLD_FRIEND', 'Rachelle')
+      ]
+    });
+
+    // Jacco's admission pushes trouble to 3 > 2 while Emily's is still queued
+    store.inviteGuest();
+    expect(store.isPartyShutdown()).toBe(true);
+    expect(store.isOverflowShutdown()).toBe(false);
+
+    const allNames = [...store.deck(), ...store.party(), ...store.discard(), ...store.bustPartySnapshot()]
+      .map(g => g.name)
+      .sort();
+    expect(allNames).toEqual(['Anthony', 'Emily', 'Jacco', 'Rachelle', 'Teresa', 'Troy']);
   });
 });

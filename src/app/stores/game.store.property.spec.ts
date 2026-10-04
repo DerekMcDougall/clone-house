@@ -363,6 +363,8 @@ describe('GameStore - Property-Based Tests', () => {
           (operations) => {
             // Initialize the game
             store.initializeGame();
+            // Raise trouble limit so invites from the starting deck cannot bust the party
+            patchState(store, { baseTroubleLimit: 100 });
             
             // Verify initial state has 10 guests total
             let totalGuests = store.deck().length + store.party().length;
@@ -425,6 +427,8 @@ describe('GameStore - Property-Based Tests', () => {
           (operations) => {
             // Initialize the game
             store.initializeGame();
+            // Raise trouble limit so invites from the starting deck cannot bust the party
+            patchState(store, { baseTroubleLimit: 100 });
             
             // Helper function to verify guest names
             const verifyGuestNames = () => {
@@ -499,7 +503,7 @@ describe('GameStore - Property-Based Tests', () => {
             // Initialize the game
             store.initializeGame();
             // Raise house capacity so invite operations aren't blocked by capacity
-            patchState(store, { houseCapacity: 100 });
+            patchState(store, { houseCapacity: 100, baseTroubleLimit: 100 });
             
             // Execute random sequence of operations
             operations.forEach(op => {
@@ -582,7 +586,7 @@ describe('GameStore - Property-Based Tests', () => {
             // Initialize the game
             store.initializeGame();
             // Raise house capacity so invite operations aren't blocked by capacity
-            patchState(store, { houseCapacity: 100 });
+            patchState(store, { houseCapacity: 100, baseTroubleLimit: 100 });
             
             // Execute random sequence of operations
             operations.forEach(op => {
@@ -652,7 +656,7 @@ describe('GameStore - Property-Based Tests', () => {
             // Initialize the game
             store.initializeGame();
             // Raise house capacity so invite operations aren't blocked by capacity
-            patchState(store, { houseCapacity: 100 });
+            patchState(store, { houseCapacity: 100, baseTroubleLimit: 100 });
             
             // Execute random sequence of operations to create various deck states
             operations.forEach(op => {
@@ -872,6 +876,8 @@ describe('GameStore - Property-Based Tests', () => {
           (inviteCount, turnNumber) => {
             // Initialize the game with enough turns
             store.initializeGame(Math.max(turnNumber, 10));
+            // Raise trouble limit so invites from the starting deck cannot bust the party
+            patchState(store, { baseTroubleLimit: 100 });
             
             // Advance to the target turn's PARTY phase
             for (let i = 1; i < turnNumber; i++) {
@@ -949,6 +955,8 @@ describe('GameStore - Property-Based Tests', () => {
           (operations) => {
             // Initialize the game
             store.initializeGame();
+            // Raise trouble limit so invites from the starting deck cannot bust the party
+            patchState(store, { baseTroubleLimit: 100 });
             
             // Capture the initial guest names (should be all 10 unique names)
             const initialGuests = [...store.deck(), ...store.party()];
@@ -1222,7 +1230,7 @@ describe('GameStore - Property-Based Tests', () => {
             // Initialize the game
             store.initializeGame(10);
             // Raise house capacity so invite operations aren't blocked by capacity
-            patchState(store, { houseCapacity: 100 });
+            patchState(store, { houseCapacity: 100, baseTroubleLimit: 100 });
             
             // Advance to PARTY phase
             store.advancePhase();
@@ -1999,7 +2007,7 @@ describe('GameStore - Property-Based Tests', () => {
             // Initialize the game (deck has 10 guests: 4 Old Friends + 4 Wild Buddies + 2 Rich Pals)
             store.initializeGame();
             // Raise house capacity so invite operations aren't blocked by capacity
-            patchState(store, { houseCapacity: 100 });
+            patchState(store, { houseCapacity: 100, baseTroubleLimit: 100 });
 
             // Advance to PARTY phase so we can invite guests
             store.advancePhase();
@@ -2136,7 +2144,7 @@ describe('GameStore - Property-Based Tests', () => {
             // Initialize the game
             store.initializeGame(10);
             // Raise house capacity so invite operations aren't blocked by capacity
-            patchState(store, { houseCapacity: 100 });
+            patchState(store, { houseCapacity: 100, baseTroubleLimit: 100 });
 
             // Advance to PARTY phase
             store.advancePhase();
@@ -2885,6 +2893,8 @@ describe('GameStore - Property-Based Tests', () => {
             store.resetGame();
 
             store.initializeGame();
+            // Raise trouble limit so invites from the starting deck cannot bust the party
+            patchState(store, { baseTroubleLimit: 100 });
 
             // Advance to PARTY phase
             store.advancePhase();
@@ -3524,14 +3534,14 @@ describe('GameStore - Shop Buy Guests Property Tests', () => {
    * **Validates: Requirements 3.1, 3.3, 3.6, 8.2**
    */
   describe('Property 1: Shop + Game Guest Conservation Invariant', () => {
-    it('should conserve total guests across deck, party, discard, and shop', () => {
+    it('should conserve total guests across deck, party, discard, bust snapshot, and shop', () => {
       // Feature: shop-buy-guests, Property 1: Shop + Game Guest Conservation Invariant
       const expectedTotal = INITIAL_GUESTS.length + purchasableShopGuestsCount;
 
-      const operationArb = fc.constantFrom(
-        'purchase',
-        'invite',
-        'advancePhase'
+      // Purchase types are generated by fast-check so any counterexample can be replayed
+      const operationArb = fc.oneof(
+        fc.constantFrom('invite' as const, 'advancePhase' as const),
+        fc.constantFrom(...purchasableTypes).map(type => ({ purchase: type }))
       );
 
       fc.assert(
@@ -3548,6 +3558,7 @@ describe('GameStore - Shop Buy Guests Property Tests', () => {
                 store.deck().length +
                 store.party().length +
                 store.discard().length +
+                store.bustPartySnapshot().length +
                 shopGuestCount(store.shopInventory());
               expect(total).toBe(expectedTotal);
             };
@@ -3555,15 +3566,13 @@ describe('GameStore - Shop Buy Guests Property Tests', () => {
             checkConservation();
 
             for (const op of operations) {
+              if (typeof op === 'object') {
+                store.purchaseGuest(op.purchase);
+                checkConservation();
+                continue;
+              }
+
               switch (op) {
-                case 'purchase': {
-                  // Try to purchase a random purchasable type
-                  const type = purchasableTypes[
-                    Math.floor(Math.random() * purchasableTypes.length)
-                  ];
-                  store.purchaseGuest(type);
-                  break;
-                }
                 case 'invite':
                   if (store.currentPhase() === GamePhase.PARTY) {
                     store.inviteGuest();
@@ -4679,13 +4688,13 @@ describe('GameStore - Shop Buy Guests Property Tests', () => {
    * For any sequence of game operations (purchaseGuest, inviteGuest, advancePhase,
    * triggerPartyShutdown, confirmBan), the sum
    * deck.length + party.length + discard.length + bustPartySnapshot.length +
-   * sum(shopInventory[*].guests.length) SHALL equal 38
-   * (10 initial guests + 28 purchasable shop guests).
+   * sum(shopInventory[*].guests.length) SHALL equal 66
+   * (10 initial guests + 56 purchasable shop guests).
    */
   describe('Property 3: Guest Conservation with Expanded Pool', () => {
-    it('should conserve total guests at 38 across deck, party, discard, bustPartySnapshot, and shop through all operations', () => {
+    it('should conserve total guests at 66 across deck, party, discard, bustPartySnapshot, and shop through all operations', () => {
       // Feature: more-guest-types, Property 3: Guest Conservation with Expanded Pool
-      const EXPECTED_TOTAL = 58; // 10 initial + 48 shop
+      const EXPECTED_TOTAL = 66; // 10 initial + 56 shop
 
       const operationArb = fc.constantFrom(
         'purchaseGuest',
@@ -4774,5 +4783,62 @@ describe('GameStore - Shop Buy Guests Property Tests', () => {
         { numRuns: 100 }
       );
     });
+  });
+});
+
+/**
+ * Property: Inviting From Any Starting Shuffle
+ *
+ * For any order of the starting deck and any number of invites up to house capacity,
+ * the party either holds exactly the guests drawn, or a trouble bust happened when the
+ * third Wild Buddy joined and every guest drawn is in the bust snapshot. No guest is lost.
+ */
+describe('GameStore - Starting Deck Shuffle Property Tests', () => {
+  let store: InstanceType<typeof GameStore>;
+
+  beforeEach(() => {
+    TestBed.configureTestingModule({});
+    store = TestBed.inject(GameStore);
+  });
+
+  it('should admit the drawn guests, or trouble-bust exactly when the third Wild Buddy joins', () => {
+    const startingNames = INITIAL_GUESTS.map(g => g.name);
+
+    fc.assert(
+      fc.property(
+        fc.shuffledSubarray(startingNames, { minLength: startingNames.length, maxLength: startingNames.length }),
+        fc.integer({ min: 1, max: 5 }),
+        (order, inviteCount) => {
+          store.initializeGame();
+          store.advancePhase(); // BUY -> PARTY
+          const byName = (name: string) => store.deck().find(g => g.name === name)!;
+          patchState(store, { deck: order.map(byName) });
+
+          // Invite until done or the party busts (the UI offers no invite during a shutdown)
+          for (let i = 0; i < inviteCount && !store.isPartyShutdown(); i++) {
+            store.inviteGuest();
+          }
+
+          // Position (1-based) at which the third Wild Buddy would be drawn
+          const wildPositions = order
+            .map((name, i) => (INITIAL_GUESTS.find(g => g.name === name)!.type === 'WILD_BUDDY' ? i + 1 : 0))
+            .filter(p => p > 0);
+          const bustAt = wildPositions[2];
+
+          if (bustAt <= inviteCount) {
+            expect(store.isPartyShutdown()).toBe(true);
+            expect(store.isOverflowShutdown()).toBe(false);
+            expect(store.party()).toEqual([]);
+            expect(store.bustPartySnapshot().map(g => g.name)).toEqual(order.slice(0, bustAt));
+            expect(store.deck().map(g => g.name)).toEqual(order.slice(bustAt));
+          } else {
+            expect(store.isPartyShutdown()).toBe(false);
+            expect(store.party().map(g => g.name)).toEqual(order.slice(0, inviteCount));
+            expect(store.deck().map(g => g.name)).toEqual(order.slice(inviteCount));
+          }
+        }
+      ),
+      { numRuns: 200 }
+    );
   });
 });

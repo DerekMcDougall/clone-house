@@ -116,8 +116,8 @@ describe('PhaseContentComponent', () => {
       // Advance to Party phase
       gameStore.advancePhase();
       
-      // Raise capacity so we can drain the entire deck
-      patchState(gameStore, { houseCapacity: 100 });
+      // Raise capacity and trouble limit so we can drain the entire deck without a bust
+      patchState(gameStore, { houseCapacity: 100, baseTroubleLimit: 100 });
       
       // Invite all guests to empty the deck
       while (gameStore.canInviteGuest()) {
@@ -367,8 +367,8 @@ describe('PhaseContentComponent', () => {
       const compiled = fixture.nativeElement as HTMLElement;
       const shopCards = compiled.querySelectorAll('.shop-card');
 
-      // Should have 12 purchasable guest types + 1 Expand House card = 13
-      expect(shopCards.length).toBe(13);
+      // Should have 14 purchasable guest types (including MR_POPULAR, CELEBRITY) + 1 Expand House card = 15
+      expect(shopCards.length).toBe(15);
     });
 
     it('should show type labels on shop cards', () => {
@@ -522,8 +522,8 @@ describe('PhaseContentComponent', () => {
 
       const compiled = fixture.nativeElement as HTMLElement;
       const shopCards = compiled.querySelectorAll('.shop-card');
-      // Gangster is at index 7 (Old Friend=0, Monkey=1, Rich Pal=2, Hippy=3, Ticket Taker=4, Caterer=5, Rock Star=6, Gangster=7)
-      const gangsterCard = shopCards[7];
+      // Gangster is at index 8 (Old Friend=0, Monkey=1, Rich Pal=2, Hippy=3, Ticket Taker=4, Caterer=5, Mr. Popular=6, Rock Star=7, Gangster=8)
+      const gangsterCard = shopCards[8];
       const price = gangsterCard?.querySelector('.shop-price');
 
       expect(price?.textContent?.trim()).toBe('Price: 6');
@@ -600,8 +600,8 @@ describe('PhaseContentComponent', () => {
 
       const compiled = fixture.nativeElement as HTMLElement;
       const shopCards = compiled.querySelectorAll('.shop-card');
-      // Auctioneer is at index 10 (Old Friend=0, Monkey=1, Rich Pal=2, Hippy=3, Ticket Taker=4, Caterer=5, Rock Star=6, Gangster=7, Cute Dog=8, Gambler=9, Auctioneer=10)
-      const auctioneerCard = shopCards[10];
+      // Auctioneer is at index 11 (Old Friend=0, Monkey=1, Rich Pal=2, Hippy=3, Ticket Taker=4, Caterer=5, Mr. Popular=6, Rock Star=7, Gangster=8, Cute Dog=9, Gambler=10, Auctioneer=11)
+      const auctioneerCard = shopCards[11];
       const price = auctioneerCard?.querySelector('.shop-price');
 
       expect(price?.textContent?.trim()).toBe('Price: 9');
@@ -639,8 +639,8 @@ describe('PhaseContentComponent', () => {
 
       const compiled = fixture.nativeElement as HTMLElement;
       const shopCards = compiled.querySelectorAll('.shop-card');
-      // Climber is at index 11 (Old Friend=0, Monkey=1, Rich Pal=2, Hippy=3, Ticket Taker=4, Caterer=5, Rock Star=6, Gangster=7, Cute Dog=8, Gambler=9, Auctioneer=10, Climber=11)
-      const climberCard = shopCards[11];
+      // Climber is at index 13 (Old Friend=0, Monkey=1, Rich Pal=2, Hippy=3, Ticket Taker=4, Caterer=5, Mr. Popular=6, Rock Star=7, Gangster=8, Cute Dog=9, Gambler=10, Auctioneer=11, Celebrity=12, Climber=13)
+      const climberCard = shopCards[13];
       const price = climberCard?.querySelector('.shop-price');
 
       expect(price?.textContent?.trim()).toBe('Price: 12');
@@ -776,7 +776,7 @@ describe('PhaseContentComponent', () => {
       expect(addedFeedback).toBeFalsy();
     });
 
-    it('should display shop cards in correct order: Old Friend, Monkey, Rich Pal, Hippy, Ticket Taker, Caterer, Rock Star, Gangster, Cute Dog, Gambler, Auctioneer, Climber, Expand House', () => {
+    it('should display shop cards in correct order: Old Friend, Monkey, Rich Pal, Hippy, Ticket Taker, Caterer, Mr. Popular, Rock Star, Gangster, Cute Dog, Gambler, Auctioneer, Celebrity, Climber, Expand House', () => {
       // Requirements: 9.2, 9.3
       component.phase = GamePhase.BUY;
       fixture.detectChanges();
@@ -784,20 +784,22 @@ describe('PhaseContentComponent', () => {
       const compiled = fixture.nativeElement as HTMLElement;
       const headers = compiled.querySelectorAll('.shop-card .card-header');
 
-      expect(headers.length).toBe(13);
+      expect(headers.length).toBe(15);
       expect(headers[0].textContent?.trim()).toBe('Old Friend');
       expect(headers[1].textContent?.trim()).toBe('Monkey');
       expect(headers[2].textContent?.trim()).toBe('Rich Pal');
       expect(headers[3].textContent?.trim()).toBe('Hippy');
       expect(headers[4].textContent?.trim()).toBe('Ticket Taker');
       expect(headers[5].textContent?.trim()).toBe('Caterer');
-      expect(headers[6].textContent?.trim()).toBe('Rock Star');
-      expect(headers[7].textContent?.trim()).toBe('Gangster');
-      expect(headers[8].textContent?.trim()).toBe('Cute Dog');
-      expect(headers[9].textContent?.trim()).toBe('Gambler');
-      expect(headers[10].textContent?.trim()).toBe('Auctioneer');
-      expect(headers[11].textContent?.trim()).toBe('Climber');
-      expect(headers[12].textContent?.trim()).toBe('Expand House');
+      expect(headers[6].textContent?.trim()).toBe('Mr. Popular');
+      expect(headers[7].textContent?.trim()).toBe('Rock Star');
+      expect(headers[8].textContent?.trim()).toBe('Gangster');
+      expect(headers[9].textContent?.trim()).toBe('Cute Dog');
+      expect(headers[10].textContent?.trim()).toBe('Gambler');
+      expect(headers[11].textContent?.trim()).toBe('Auctioneer');
+      expect(headers[12].textContent?.trim()).toBe('Celebrity');
+      expect(headers[13].textContent?.trim()).toBe('Climber');
+      expect(headers[14].textContent?.trim()).toBe('Expand House');
     });
   });
 

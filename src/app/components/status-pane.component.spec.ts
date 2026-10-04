@@ -380,8 +380,8 @@ describe('StatusPaneComponent', () => {
     it('should render with large popularity value', () => {
       store.initializeGame();
       
-      // Raise capacity so we can invite many guests per turn
-      patchState(store, { houseCapacity: 100 });
+      // Raise capacity and trouble limit so we can invite many guests per turn without a bust
+      patchState(store, { houseCapacity: 100, baseTroubleLimit: 100 });
       
       // Manually set a large popularity value by simulating multiple party phases
       // We'll use the store's internal state update mechanism
@@ -484,8 +484,8 @@ describe('StatusPaneComponent', () => {
       store.initializeGame();
       store.advancePhase(); // Move to PARTY phase
       
-      // Raise capacity so we can drain the entire deck
-      patchState(store, { houseCapacity: 100 });
+      // Raise capacity and trouble limit so we can drain the entire deck without a bust
+      patchState(store, { houseCapacity: 100, baseTroubleLimit: 100 });
       
       // Invite all 10 guests to empty the deck
       for (let i = 0; i < 10; i++) {

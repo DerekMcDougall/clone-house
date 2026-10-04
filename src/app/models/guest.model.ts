@@ -1,6 +1,6 @@
-import { EffectContext } from './effect-context';
+import { EffectContext, GameEffect } from './effect-context';
 
-export type { EffectContext };
+export type { EffectContext, GameEffect };
 
 export type GuestType = 'OLD_FRIEND' | 'WILD_BUDDY' | 'RICH_PAL' | 'MONKEY'
   | 'AUCTIONEER' | 'GANGSTER' | 'ROCK_STAR' | 'GAMBLER'
@@ -223,11 +223,13 @@ export const INITIAL_GUESTS: readonly { type: GuestType; name: string }[] = [
   { type: 'RICH_PAL' as const, name: 'Renata' }
 ];
 
-export type EffectHandler = (ctx: EffectContext) => void;
+// Runs when a guest joins the party. `guest` is the guest as admitted; use
+// ctx.updateGuest(guest, ...) to change it in the party.
+export type EffectHandler = (ctx: EffectContext, guest: Guest) => void;
 
 export const GUEST_TYPE_ENTRANCE_EFFECTS: Partial<Record<GuestType, EffectHandler>> = {
-  CLIMBER: (ctx) => {
-    ctx.updateGuest(g => ({
+  CLIMBER: (ctx, guest) => {
+    ctx.updateGuest(guest, g => ({
       ...g,
       properties: {
         ...g.properties,
@@ -236,10 +238,35 @@ export const GUEST_TYPE_ENTRANCE_EFFECTS: Partial<Record<GuestType, EffectHandle
     }));
   },
   MR_POPULAR: (ctx) => {
-    ctx.autoInvite();
+    autoInvite(ctx);
   },
   CELEBRITY: (ctx) => {
-    ctx.autoInvite();
-    ctx.autoInvite();
+    autoInvite(ctx);
+    autoInvite(ctx);
   }
 };
+
+// Adds a guest to the party, then enqueues its entrance effect (if any).
+export function admitGuest(guest: Guest): GameEffect {
+  return (ctx) => {
+    ctx.setParty([...ctx.getParty(), guest]);
+
+    const entranceEffect = GUEST_TYPE_ENTRANCE_EFFECTS[guest.type];
+    if (entranceEffect) {
+      ctx.enqueue((c) => entranceEffect(c, guest));
+    }
+  };
+}
+
+// Enqueues an effect that draws the top guest from the deck and admits it to the party.
+// The draw happens when the effect runs, not when it is enqueued, so if a bust discards
+// the queue first, the guest is never drawn and stays in the deck.
+export function autoInvite(ctx: EffectContext): void {
+  ctx.enqueue((c) => {
+    const [guest, ...remainingDeck] = c.getDeck();
+    if (!guest) return;
+
+    c.setDeck(remainingDeck);
+    admitGuest(guest)(c);
+  });
+}

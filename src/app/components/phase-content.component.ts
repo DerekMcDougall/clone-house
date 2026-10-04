@@ -65,12 +65,25 @@ import { GuestCardComponent } from './guest-card.component';
     }
   }
 </div>
-@if (gameStore.isPartyShutdown()) {
+@if (gameStore.isPartyShutdown() && !gameStore.isOverflowShutdown()) {
   <div class="shutdown-modal-overlay" role="dialog" aria-modal="true" aria-labelledby="shutdown-title">
     <div class="shutdown-modal">
       <p id="shutdown-title">The party has gotten out of control and has been shut down!</p>
       <button
         class="shutdown-button"
+        (click)="gameStore.acknowledgeShutdown()"
+        [attr.aria-label]="gameStore.isFinalTurn() ? 'Game Over' : 'End Party'">
+        {{ gameStore.isFinalTurn() ? 'Game Over' : 'End Party' }}
+      </button>
+    </div>
+  </div>
+}
+@if (gameStore.isPartyShutdown() && gameStore.isOverflowShutdown()) {
+  <div class="overflow-modal-overlay" role="dialog" aria-modal="true" aria-labelledby="overflow-title">
+    <div class="overflow-modal">
+      <p id="overflow-title">Party exceeded capacity! Fire department has shut it down!</p>
+      <button
+        class="overflow-button"
         (click)="gameStore.acknowledgeShutdown()"
         [attr.aria-label]="gameStore.isFinalTurn() ? 'Game Over' : 'End Party'">
         {{ gameStore.isFinalTurn() ? 'Game Over' : 'End Party' }}
@@ -222,6 +235,54 @@ import { GuestCardComponent } from './guest-card.component';
 
 .shutdown-button:focus {
   outline: 2px solid #c82333;
+  outline-offset: 2px;
+}
+
+.overflow-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.overflow-modal {
+  background: white;
+  padding: 2rem;
+  border-radius: 8px;
+  max-width: 400px;
+  text-align: center;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+}
+
+.overflow-modal p {
+  font-size: 1.2rem;
+  margin-bottom: 1.5rem;
+  color: #333;
+}
+
+.overflow-button {
+  padding: 0.75rem 2rem;
+  font-size: 1rem;
+  font-weight: 600;
+  color: white;
+  background-color: #fd7e14;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.overflow-button:hover {
+  background-color: #e8690a;
+}
+
+.overflow-button:focus {
+  outline: 2px solid #e8690a;
   outline-offset: 2px;
 }
 
