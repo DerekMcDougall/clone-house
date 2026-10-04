@@ -80,7 +80,8 @@ describe('PhaseContentComponent', () => {
     it('should render guest cards during Party phase', () => {
       // Advance to Party phase
       gameStore.advancePhase();
-      
+      patchState(gameStore, { baseTroubleLimit: 100 });
+
       // Invite some guests
       gameStore.inviteGuest();
       gameStore.inviteGuest();
@@ -140,7 +141,8 @@ describe('PhaseContentComponent', () => {
     it('should display guests in reverse chronological order (newest first)', () => {
       // Advance to Party phase
       gameStore.advancePhase();
-      
+      patchState(gameStore, { baseTroubleLimit: 100 });
+
       // Invite guests one by one and track their names
       const invitedGuestNames: string[] = [];
       

@@ -5,7 +5,11 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { GameplayComponent } from './components/gameplay.component';
 import { LandingPageComponent } from './components/landing-page.component';
 import { GamePhase } from './models';
+import { Guest } from './models/guest.model';
 import { GameStore } from './stores/game.store';
+
+const sortByPopularityDescending = (deck: Guest[]): Guest[] =>
+  [...deck].sort((a, b) => b.properties.popularityValue - a.properties.popularityValue);
 
 /**
  * Integration Tests for Turn-Based Gameplay System
@@ -895,6 +899,7 @@ describe('Party Guest Deck System Integration Tests', () => {
     it('should display guest cards for all invited guests', () => {
       fixture.detectChanges();
       store.initializeGame();
+      patchState(store, { baseTroubleLimit: 100 }); // Prevent shutdown during test
       store.advancePhase(); // Move to Party phase
       fixture.detectChanges();
       
@@ -997,6 +1002,7 @@ describe('Party Guest Deck System Integration Tests', () => {
     it('should display guest cards in reverse chronological order (newest first)', () => {
       fixture.detectChanges();
       store.initializeGame();
+      patchState(store, { baseTroubleLimit: 100 }); // Prevent shutdown during test
       store.advancePhase(); // Move to Party phase
       fixture.detectChanges();
       
@@ -1301,6 +1307,7 @@ describe('Party Guest Deck System Integration Tests', () => {
     it('should synchronize invite button, guest cards, and store state', () => {
       fixture.detectChanges();
       store.initializeGame();
+      patchState(store, { baseTroubleLimit: 100 }); // Prevent shutdown during test
       store.advancePhase(); // Move to Party phase
       fixture.detectChanges();
       
@@ -1598,7 +1605,10 @@ describe('Popularity Resource System Integration Tests', () => {
       // Turn 2: Invite 2 guests
       phaseButton.click(); // Move to Party phase
       fixture.detectChanges();
-      
+
+      // Put the most popular guests on top so the 2 invited guests always grant popularity
+      patchState(store, { deck: sortByPopularityDescending(store.deck()) });
+
       const inviteButton = fixture.nativeElement.querySelector('.invite-button');
       inviteButton.click();
       inviteButton.click();
@@ -1616,10 +1626,12 @@ describe('Popularity Resource System Integration Tests', () => {
       fixture.detectChanges();
       store.initializeGame(3);
       patchState(store, { baseTroubleLimit: 100 }); // Prevent shutdown during test
+      // Put the most popular guests on top so the 2 invited guests always grant popularity
+      patchState(store, { deck: sortByPopularityDescending(store.deck()) });
       fixture.detectChanges();
-      
+
       const phaseButton = fixture.nativeElement.querySelector('.phase-button');
-      
+
       // Build up some popularity in turn 1
       phaseButton.click(); // Move to Party phase
       fixture.detectChanges();
@@ -1713,7 +1725,10 @@ describe('Popularity Resource System Integration Tests', () => {
       // Build up popularity
       phaseButton.click(); // Move to Party phase
       fixture.detectChanges();
-      
+
+      // Put the most popular guests on top so the 2 invited guests always grant popularity
+      patchState(store, { deck: sortByPopularityDescending(store.deck()) });
+
       const inviteButton = fixture.nativeElement.querySelector('.invite-button');
       inviteButton.click();
       inviteButton.click();
