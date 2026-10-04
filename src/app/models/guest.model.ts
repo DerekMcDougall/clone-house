@@ -258,11 +258,15 @@ export function admitGuest(guest: Guest): GameEffect {
   };
 }
 
-// Draws the top guest from the deck and enqueues its admission to the party.
+// Enqueues an effect that draws the top guest from the deck and admits it to the party.
+// The draw happens when the effect runs, not when it is enqueued, so if a bust discards
+// the queue first, the guest is never drawn and stays in the deck.
 export function autoInvite(ctx: EffectContext): void {
-  const [guest, ...remainingDeck] = ctx.getDeck();
-  if (!guest) return;
+  ctx.enqueue((c) => {
+    const [guest, ...remainingDeck] = c.getDeck();
+    if (!guest) return;
 
-  ctx.setDeck(remainingDeck);
-  ctx.enqueue(admitGuest(guest));
+    c.setDeck(remainingDeck);
+    admitGuest(guest)(c);
+  });
 }

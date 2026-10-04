@@ -2884,4 +2884,49 @@ describe('Auto-invite Entrance Effects — GameStore', () => {
     expect(store.bustPartySnapshot()).toEqual([]);
     expect(store.deck().map(g => g.name).sort()).toEqual(['Colin', 'Emily', 'Rachelle', 'Troy']);
   });
+
+  it('should not lose a guest whose admission is still queued when an overflow shutdown occurs', () => {
+    patchState(store, {
+      currentPhase: GamePhase.PARTY,
+      currentTurn: 1,
+      houseCapacity: 1,
+      deck: [
+        makeGuest('CELEBRITY', 'Troy'),
+        makeGuest('OLD_FRIEND', 'Colin'),
+        makeGuest('OLD_FRIEND', 'Emily'),
+        makeGuest('OLD_FRIEND', 'Rachelle')
+      ]
+    });
+
+    // Troy fills the house; Colin's admission overflows while Emily's is still queued
+    store.inviteGuest();
+    expect(store.isOverflowShutdown()).toBe(true);
+
+    store.acknowledgeShutdown();
+
+    expect(store.deck().map(g => g.name).sort()).toEqual(['Colin', 'Emily', 'Rachelle', 'Troy']);
+  });
+
+  it('should not lose a guest whose admission is still queued when a trouble shutdown occurs', () => {
+    patchState(store, {
+      currentPhase: GamePhase.PARTY,
+      party: [makeGuest('WILD_BUDDY', 'Anthony'), makeGuest('WILD_BUDDY', 'Teresa')],
+      deck: [
+        makeGuest('CELEBRITY', 'Troy'),
+        makeGuest('WILD_BUDDY', 'Jacco'),
+        makeGuest('OLD_FRIEND', 'Emily'),
+        makeGuest('OLD_FRIEND', 'Rachelle')
+      ]
+    });
+
+    // Jacco's admission pushes trouble to 3 > 2 while Emily's is still queued
+    store.inviteGuest();
+    expect(store.isPartyShutdown()).toBe(true);
+    expect(store.isOverflowShutdown()).toBe(false);
+
+    const allNames = [...store.deck(), ...store.party(), ...store.discard(), ...store.bustPartySnapshot()]
+      .map(g => g.name)
+      .sort();
+    expect(allNames).toEqual(['Anthony', 'Emily', 'Jacco', 'Rachelle', 'Teresa', 'Troy']);
+  });
 });
