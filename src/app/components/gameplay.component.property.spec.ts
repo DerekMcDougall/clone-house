@@ -1,10 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { provideRouter, Router } from '@angular/router';
-import { patchState } from '@ngrx/signals';
 import * as fc from 'fast-check';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { GamePhase } from '../models';
-import { Guest, GUEST_TYPE_DEFAULTS } from '../models/guest.model';
 import { GameStore } from '../stores/game.store';
 import { GameplayComponent } from './gameplay.component';
 
@@ -119,91 +116,5 @@ describe('GameplayComponent - Property-Based Tests', () => {
         }
       );
     }, 30000); // Increase Vitest test timeout to 30 seconds
-  });
-
-  /**
-   * Property 3: Shutdown If and Only If Trouble Exceeds Limit During Party
-   *
-   * **Validates: Requirements 3.1, 3.2, 3.3**
-   *
-   * For any game state during the Party phase, a party shutdown SHALL be
-   * triggered if and only if trouble > effectiveTroubleLimit. When
-   * trouble <= effectiveTroubleLimit, the party SHALL continue normally
-   * without shutdown.
-   *
-   * This test creates a GameplayComponent (which hosts the shutdown detection
-   * effect), sets up the store in PARTY phase with guests invited, then
-   * controls the effective limit via patchState. After detectChanges triggers
-   * the effect, it checks isPartyShutdown matches the expected condition.
-   */
-  describe('Property 3: Shutdown If and Only If Trouble Exceeds Limit During Party', () => {
-    it('should trigger shutdown iff trouble > effectiveTroubleLimit during PARTY phase', async () => {
-      // Feature: trouble-limit-party-shutdown, Property 3: Shutdown If and Only If Trouble Exceeds Limit During Party
-      await fc.assert(
-        fc.asyncProperty(
-          fc.integer({ min: 0, max: 10 }),
-          fc.integer({ min: 0, max: 10 }),
-          fc.integer({ min: 0, max: 5 }),
-          async (guestsToInvite, baseTroubleLimit, peaceGuestCount) => {
-            // Reset store state
-            store.resetGame();
-            store.initializeGame();
-
-            // Create a fresh component to get a clean effect
-            const fixture = TestBed.createComponent(GameplayComponent);
-            fixture.detectChanges();
-
-            // Re-initialize after component's ngOnInit
-            store.resetGame();
-            store.initializeGame();
-
-            // Advance to PARTY phase
-            store.advancePhase();
-            expect(store.currentPhase()).toBe(GamePhase.PARTY);
-
-            // Invite guests to build up trouble
-            const actualInvites = Math.min(guestsToInvite, store.deck().length);
-            for (let i = 0; i < actualInvites; i++) {
-              store.inviteGuest();
-            }
-
-            // Set the trouble limit via baseTroubleLimit and add peace guests to party
-            const currentParty = store.party();
-            const peaceGuests: Guest[] = Array.from({ length: peaceGuestCount }, (_, i) => ({
-              type: 'HIPPY' as const,
-              name: `Hippy${i}`,
-              properties: { ...GUEST_TYPE_DEFAULTS['HIPPY'] }
-            }));
-            patchState(store as any, { baseTroubleLimit, party: [...currentParty, ...peaceGuests] });
-
-            // Ensure isPartyShutdown is false before the effect fires
-            patchState(store as any, { isPartyShutdown: false });
-
-            // Read the current trouble and effective limit
-            const trouble = store.trouble();
-            const effectiveLimit = store.effectiveTroubleLimit();
-            const shouldShutdown = trouble > effectiveLimit;
-
-            // Trigger change detection to fire the shutdown detection effect
-            fixture.detectChanges();
-            await new Promise(resolve => setTimeout(resolve, 0));
-
-            if (shouldShutdown) {
-              // Trouble exceeded limit: shutdown should have been triggered
-              expect(store.isPartyShutdown()).toBe(true);
-            } else {
-              // Trouble within limit: no shutdown
-              expect(store.isPartyShutdown()).toBe(false);
-            }
-
-            fixture.destroy();
-          }
-        ),
-        {
-          numRuns: 100,
-          timeout: 15000
-        }
-      );
-    }, 15000);
   });
 });

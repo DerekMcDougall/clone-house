@@ -1,6 +1,5 @@
 import { Component, OnInit, effect, inject } from '@angular/core';
 import { Router } from '@angular/router';
-import { GamePhase } from '../models';
 import { GameStore } from '../stores/game.store';
 import { PhaseContentComponent } from './phase-content.component';
 import { StatusPaneComponent } from './status-pane.component';
@@ -50,18 +49,6 @@ export class GameplayComponent implements OnInit {
     effect(() => {
       if (this.gameStore.isGameComplete()) {
         this.router.navigate(['/']);
-      }
-    });
-
-    // Watch for trouble exceeding limit during party phase
-    effect(() => {
-      const trouble = this.gameStore.trouble();
-      const limit = this.gameStore.effectiveTroubleLimit();
-      const phase = this.gameStore.currentPhase();
-      const isShutdown = this.gameStore.isPartyShutdown();
-
-      if (phase === GamePhase.PARTY && !isShutdown && trouble > limit) {
-        this.gameStore.triggerPartyShutdown();
       }
     });
   }

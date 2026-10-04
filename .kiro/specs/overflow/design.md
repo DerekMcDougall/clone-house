@@ -358,7 +358,7 @@ inviteGuest(): void {
 
 ### Store Methods: triggerOverflowShutdown() and triggerPartyShutdown()
 
-`resolveEffects()` performs the bust inline and does not call these methods. Both still exist on the store with the same state changes (snapshot the party, return the discard pile to the deck, set the shutdown flags; `triggerOverflowShutdown()` also sets `isOverflowShutdown: true`). `triggerPartyShutdown()` is still called by the `GameplayComponent` effect that watches trouble. `triggerOverflowShutdown()` is now used only by tests to put the store into an overflow shutdown directly.
+`resolveEffects()` performs the bust inline and does not call these methods. Both still exist on the store with the same state changes (snapshot the party, return the discard pile to the deck, set the shutdown flags; `triggerOverflowShutdown()` also sets `isOverflowShutdown: true`). Nothing in the app calls them; tests use them to put the store into a trouble or overflow shutdown directly.
 
 ### Modified Method: acknowledgeShutdown() (game.store.ts)
 
@@ -565,7 +565,7 @@ deck.length + party.length + discard.length + bustPartySnapshot.length
 | Aspect | Trouble_Limit_Shutdown | Overflow_Shutdown |
 |--------|----------------------|-------------------|
 | Trigger | trouble > effectiveTroubleLimit (and no overflow) | party.length > houseCapacity (only an Auto_Invite can cause it) |
-| Detection point | `resolveEffects()` after any effect (also the `GameplayComponent` trouble effect()) | `resolveEffects()` after any effect |
+| Detection point | `resolveEffects()` after any effect | `resolveEffects()` after any effect |
 | isPartyShutdown | true | true |
 | isOverflowShutdown | false | true |
 | Modal message | "The party has gotten out of control and has been shut down!" | "Party exceeded capacity! Fire department has shut it down!" |
@@ -706,7 +706,7 @@ Because the bust check runs after every effect and before the next one is taken 
 
 ### Inviting During a Shutdown
 
-`inviteGuest()` returns immediately while `isPartyShutdown` or `isBanSelectionActive` is true, so no guest can be drawn while a bust is being resolved, and `canInviteGuest` is false in those states. The `GameplayComponent` trouble effect() guards against double-triggering by checking `!isShutdown` before calling `triggerPartyShutdown()`.
+`inviteGuest()` returns immediately while `isPartyShutdown` or `isBanSelectionActive` is true, so no guest can be drawn while a bust is being resolved, and `canInviteGuest` is false in those states.
 
 ### acknowledgeShutdown() on Non-Shutdown State
 

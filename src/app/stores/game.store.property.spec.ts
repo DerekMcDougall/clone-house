@@ -2819,6 +2819,60 @@ describe('GameStore - Property-Based Tests', () => {
   });
 
   /**
+   * Property 3: Shutdown If and Only If Trouble Exceeds Limit During Party
+   *
+   * **Validates: Requirements 3.1, 3.2, 3.3**
+   *
+   * For any sequence of invites during the Party phase, a party shutdown SHALL
+   * be triggered if and only if the invited guest pushes trouble above the
+   * effective trouble limit (base limit plus party peace). When trouble stays
+   * within the limit, the party SHALL continue normally.
+   */
+  describe('Property 3: Shutdown If and Only If Trouble Exceeds Limit During Party', () => {
+    it('should shut down on an invite iff trouble then exceeds the effective trouble limit', () => {
+      // Feature: trouble-limit-party-shutdown, Property 3: Shutdown If and Only If Trouble Exceeds Limit During Party
+      const guestTypeArb = fc.constantFrom<GuestType>('OLD_FRIEND', 'WILD_BUDDY', 'MONKEY', 'GANGSTER', 'HIPPY', 'CUTE_DOG');
+
+      fc.assert(
+        fc.property(
+          fc.array(guestTypeArb, { minLength: 1, maxLength: 10 }),
+          fc.integer({ min: 0, max: 5 }),
+          (types, baseTroubleLimit) => {
+            store.resetGame();
+            store.initializeGame();
+            store.advancePhase();
+            expect(store.currentPhase()).toBe(GamePhase.PARTY);
+
+            const deck: Guest[] = types.map((type, i) => ({
+              type,
+              name: `Guest${i}`,
+              properties: { ...GUEST_TYPE_DEFAULTS[type] }
+            }));
+            patchState(store, { deck, houseCapacity: 100, baseTroubleLimit });
+
+            for (const guest of deck) {
+              const arrivingParty = [...store.party(), guest];
+              const trouble = arrivingParty.reduce((sum, g) => sum + g.properties.troubleValue, 0);
+              const peace = arrivingParty.reduce((sum, g) => sum + g.properties.peaceValue, 0);
+              const shouldShutdown = trouble > Math.max(0, baseTroubleLimit + peace);
+
+              store.inviteGuest();
+
+              expect(store.isPartyShutdown()).toBe(shouldShutdown);
+              if (shouldShutdown) {
+                expect(store.bustPartySnapshot()).toEqual(arrivingParty);
+                break;
+              }
+              expect(store.party()).toEqual(arrivingParty);
+            }
+          }
+        ),
+        { numRuns: 100 }
+      );
+    });
+  });
+
+  /**
    * Property 4: Shutdown Forfeits Popularity and Money
    *
    * **Validates: Requirements 4.1, 4.2**
