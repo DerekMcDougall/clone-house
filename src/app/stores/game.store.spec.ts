@@ -915,6 +915,7 @@ describe('GameStore - Unit Tests', () => {
      */
     it('should preserve guest names through invite and return operations', () => {
       store.initializeGame();
+      patchState(store, { baseTroubleLimit: 100 }); // Prevent a bust while inviting
       store.advancePhase(); // Move to PARTY phase
       
       // Get initial deck names
@@ -1343,6 +1344,7 @@ describe('GameStore - Unit Tests', () => {
      */
     it('should snapshot party, clear party, and return discard to deck when triggerPartyShutdown is called', () => {
       store.initializeGame(5);
+      patchState(store, { baseTroubleLimit: 100 }); // Prevent a bust while inviting
       store.advancePhase(); // BUY -> PARTY
 
       store.inviteGuest();
@@ -1525,6 +1527,7 @@ describe('GameStore - Unit Tests', () => {
        */
       it('should snapshot party, clear party, and return discard to deck', () => {
         store.initializeGame(5);
+        patchState(store, { baseTroubleLimit: 100 }); // Prevent a bust while inviting
         store.advancePhase(); // BUY -> PARTY
 
         // Invite 3 guests
