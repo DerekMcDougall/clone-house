@@ -1,9 +1,9 @@
 import { TestBed } from '@angular/core/testing';
 import { patchState } from '@ngrx/signals';
 import * as fc from 'fast-check';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { GamePhase } from '../models';
-import { Guest, GUEST_TYPE_COSTS, GUEST_TYPE_DEFAULTS, GUEST_TYPE_LABELS, GuestType, INITIAL_GUESTS, SHOP_GUESTS } from '../models/guest.model';
+import { Guest, GUEST_TYPE_COSTS, GUEST_TYPE_DEFAULTS, GUEST_TYPE_ENTRANCE_EFFECTS, GUEST_TYPE_LABELS, GuestType, INITIAL_GUESTS, SHOP_GUESTS } from '../models/guest.model';
 import { GameStore, ShopInventoryEntry } from './game.store';
 
 /**
@@ -4742,13 +4742,13 @@ describe('GameStore - Shop Buy Guests Property Tests', () => {
    * For any sequence of game operations (purchaseGuest, inviteGuest, advancePhase,
    * triggerPartyShutdown, confirmBan), the sum
    * deck.length + party.length + discard.length + bustPartySnapshot.length +
-   * sum(shopInventory[*].guests.length) SHALL equal 66
-   * (10 initial guests + 56 purchasable shop guests).
+   * sum(shopInventory[*].guests.length) SHALL equal 94
+   * (10 initial guests + 84 purchasable shop guests).
    */
   describe('Property 3: Guest Conservation with Expanded Pool', () => {
-    it('should conserve total guests at 66 across deck, party, discard, bustPartySnapshot, and shop through all operations', () => {
+    it('should conserve total guests at 94 across deck, party, discard, bustPartySnapshot, and shop through all operations', () => {
       // Feature: more-guest-types, Property 3: Guest Conservation with Expanded Pool
-      const EXPECTED_TOTAL = 66; // 10 initial + 56 shop
+      const EXPECTED_TOTAL = 94; // 10 initial + 84 shop
 
       const operationArb = fc.constantFrom(
         'purchaseGuest',
@@ -4757,7 +4757,8 @@ describe('GameStore - Shop Buy Guests Property Tests', () => {
         'triggerPartyShutdown',
         'acknowledgeShutdown',
         'selectGuestToBan',
-        'confirmBan'
+        'confirmBan',
+        'claimVictory'
       );
 
       fc.assert(
@@ -4827,6 +4828,9 @@ describe('GameStore - Shop Buy Guests Property Tests', () => {
                     patchState(store, { popularity: Math.max(store.popularity(), 200) });
                   }
                   break;
+                case 'claimVictory':
+                  store.claimVictory();
+                  break;
               }
               checkConservation();
             }
@@ -4893,6 +4897,323 @@ describe('GameStore - Starting Deck Shuffle Property Tests', () => {
         }
       ),
       { numRuns: 200 }
+    );
+  });
+});
+
+/**
+ * Property-Based Tests for Star Guests & Winning
+ *
+ * Property 9 (Guest Conservation at 94) is the expanded-pool conservation test above.
+ */
+describe('GameStore - Star Guests & Winning Property Tests', () => {
+  let store: InstanceType<typeof GameStore>;
+
+  const STAR_TYPES: GuestType[] = ['ALIEN', 'LEPRECHAUN', 'DRAGON', 'DINOSAUR', 'MERMAID', 'UNICORN', 'SUPERHERO'];
+  const ALL_TYPES = Object.keys(GUEST_TYPE_DEFAULTS) as GuestType[];
+  const NON_STAR_TYPES = ALL_TYPES.filter(t => !STAR_TYPES.includes(t));
+
+  const makeParty = (types: GuestType[], prefix = 'G'): Guest[] =>
+    types.map((type, i) => ({ type, name: `${prefix}${i}-${type}`, properties: { ...GUEST_TYPE_DEFAULTS[type] } }));
+
+  const sumOf = (guests: Guest[], key: keyof Guest['properties']): number =>
+    guests.reduce((sum, g) => sum + g.properties[key], 0);
+
+  beforeEach(() => {
+    TestBed.configureTestingModule({});
+    store = TestBed.inject(GameStore);
+    store.initializeGame();
+  });
+
+  /**
+   * Property 1: Stars Equal Sum of Party starValue
+   * **Validates: Requirements 1.4, 12.1, 12.2, 12.4**
+   */
+  it('should compute stars as the sum of party starValue, including multiple and negative stars', () => {
+    // Feature: star-guests-winning, Property 1: Stars Equal Sum of Party starValue
+    fc.assert(
+      fc.property(
+        fc.array(
+          fc.record({ type: fc.constantFrom(...ALL_TYPES), starValue: fc.integer({ min: -3, max: 3 }) }),
+          { maxLength: 10 }
+        ),
+        (specs) => {
+          const party: Guest[] = specs.map((s, i) => ({
+            type: s.type,
+            name: `G${i}`,
+            properties: { ...GUEST_TYPE_DEFAULTS[s.type], starValue: s.starValue }
+          }));
+          patchState(store, { party });
+          expect(store.stars()).toBe(specs.reduce((sum, s) => sum + s.starValue, 0));
+        }
+      ),
+      { numRuns: 100 }
+    );
+  });
+
+  /**
+   * Property 2: Ending a Party With Enough Stars Wins
+   * **Validates: Requirements 14.2, 14.3, 14.4, 15.4**
+   */
+  it('should enter victory without settling or advancing when ending a party with 4+ stars', () => {
+    // Feature: star-guests-winning, Property 2: Ending a Party With Enough Stars Wins
+    fc.assert(
+      fc.property(
+        fc.array(fc.constantFrom(...STAR_TYPES), { minLength: 4, maxLength: 7 }),
+        fc.array(fc.constantFrom(...NON_STAR_TYPES), { maxLength: 4 }),
+        fc.integer({ min: 1, max: 10 }),
+        fc.integer({ min: 0, max: 9 }),
+        fc.integer({ min: 0, max: 100 }),
+        fc.integer({ min: 0, max: 100 }),
+        (starTypes, otherTypes, totalTurns, turnOffset, popularity, money) => {
+          store.initializeGame(totalTurns);
+          const currentTurn = Math.min(totalTurns, 1 + turnOffset);
+          const party = makeParty([...starTypes, ...otherTypes]);
+          patchState(store, { currentPhase: GamePhase.PARTY, currentTurn, party, popularity, money });
+          const deck = store.deck();
+          const discard = store.discard();
+
+          store.advancePhase();
+
+          expect(store.isVictory()).toBe(true);
+          expect(store.isGameComplete()).toBe(false);
+          expect(store.currentTurn()).toBe(currentTurn);
+          expect(store.currentPhase()).toBe(GamePhase.PARTY);
+          expect(store.popularity()).toBe(popularity);
+          expect(store.money()).toBe(money);
+          expect(store.party()).toEqual(party);
+          expect(store.deck()).toBe(deck);
+          expect(store.discard()).toBe(discard);
+        }
+      ),
+      { numRuns: 100 }
+    );
+  });
+
+  /**
+   * Property 3: Ending a Party Without Enough Stars Is Unchanged
+   * **Validates: Requirements 13.3, 14.5**
+   */
+  it('should settle and advance normally when ending a party with fewer than 4 stars', () => {
+    // Feature: star-guests-winning, Property 3: Ending a Party Without Enough Stars Is Unchanged
+    fc.assert(
+      fc.property(
+        fc.array(fc.constantFrom(...STAR_TYPES), { maxLength: 3 }),
+        fc.array(fc.constantFrom(...NON_STAR_TYPES), { maxLength: 4 }),
+        fc.integer({ min: 1, max: 5 }),
+        fc.integer({ min: 0, max: 100 }),
+        fc.integer({ min: 0, max: 20 }),
+        (starTypes, otherTypes, totalTurns, popularity, money) => {
+          store.initializeGame(totalTurns);
+          const party = makeParty([...starTypes, ...otherTypes]);
+          patchState(store, { currentPhase: GamePhase.PARTY, party, popularity, money });
+          const guestCount = store.deck().length + party.length;
+
+          store.advancePhase();
+
+          const rawMoney = money + sumOf(party, 'moneyValue');
+          const deficit = Math.max(0, -rawMoney);
+          const expectedPopularity = Math.max(0, Math.max(0, popularity + sumOf(party, 'popularityValue')) - deficit * 7);
+
+          expect(store.isVictory()).toBe(false);
+          expect(store.money()).toBe(Math.max(0, rawMoney));
+          expect(store.popularity()).toBe(expectedPopularity);
+          expect(store.party()).toEqual([]);
+          expect(store.deck()).toHaveLength(guestCount);
+          if (totalTurns === 1) {
+            expect(store.isGameComplete()).toBe(true);
+          } else {
+            expect(store.currentTurn()).toBe(2);
+            expect(store.currentPhase()).toBe(GamePhase.BUY);
+          }
+        }
+      ),
+      { numRuns: 100 }
+    );
+  });
+
+  /**
+   * Property 4: Shutdowns Never Win
+   * **Validates: Requirements 12.3, 14.6**
+   */
+  it('should never enter victory through a trouble or overflow shutdown', () => {
+    // Feature: star-guests-winning, Property 4: Shutdowns Never Win
+    fc.assert(
+      fc.property(
+        fc.array(fc.constantFrom<GuestType>('ALIEN', 'LEPRECHAUN', 'DRAGON', 'SUPERHERO'), { minLength: 0, maxLength: 6 }),
+        fc.boolean(),
+        (starTypes, overflow) => {
+          store.initializeGame();
+          const stars = makeParty(starTypes, 'S');
+          const deck = overflow
+            // Mermaid fills the last slot, so its auto-invite overflows the house
+            ? [...stars, ...makeParty(['MERMAID', 'OLD_FRIEND'], 'O')]
+            // Dinosaur + two Wild Buddies make 3 trouble, over the base limit of 2
+            : [...stars, ...makeParty(['DINOSAUR', 'WILD_BUDDY', 'WILD_BUDDY'], 'T')];
+          patchState(store, {
+            currentPhase: GamePhase.PARTY,
+            deck,
+            houseCapacity: overflow ? stars.length + 1 : 20
+          });
+
+          while (!store.isPartyShutdown() && store.deck().length > 0) {
+            store.inviteGuest();
+            expect(store.isVictory()).toBe(false);
+          }
+
+          expect(store.isPartyShutdown()).toBe(true);
+          expect(store.isOverflowShutdown()).toBe(overflow);
+
+          store.acknowledgeShutdown();
+          expect(store.isVictory()).toBe(false);
+
+          if (store.isBanSelectionActive()) {
+            store.selectGuestToBan(0);
+            store.confirmBan();
+          }
+          expect(store.isVictory()).toBe(false);
+          expect(store.stars()).toBe(0);
+        }
+      ),
+      { numRuns: 100 }
+    );
+  });
+
+  /**
+   * Property 5: Victory Freezes Gameplay Until Claimed
+   * **Validates: Requirements 14.8, 15.5**
+   */
+  it('should ignore invites and phase advances during victory until claimVictory()', () => {
+    // Feature: star-guests-winning, Property 5: Victory Freezes Gameplay Until Claimed
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    fc.assert(
+      fc.property(
+        fc.array(fc.constantFrom(...STAR_TYPES), { minLength: 4, maxLength: 6 }),
+        fc.array(fc.constantFrom('inviteGuest', 'advancePhase'), { minLength: 1, maxLength: 10 }),
+        (starTypes, operations) => {
+          store.initializeGame();
+          patchState(store, { currentPhase: GamePhase.PARTY, party: makeParty(starTypes) });
+          store.advancePhase();
+          expect(store.isVictory()).toBe(true);
+
+          const snapshot = {
+            deck: store.deck(), party: store.party(), discard: store.discard(),
+            turn: store.currentTurn(), phase: store.currentPhase(),
+            popularity: store.popularity(), money: store.money()
+          };
+
+          for (const op of operations) {
+            if (op === 'inviteGuest') store.inviteGuest();
+            else store.advancePhase();
+          }
+
+          expect(store.isVictory()).toBe(true);
+          expect(store.deck()).toBe(snapshot.deck);
+          expect(store.party()).toBe(snapshot.party);
+          expect(store.discard()).toBe(snapshot.discard);
+          expect(store.currentTurn()).toBe(snapshot.turn);
+          expect(store.currentPhase()).toBe(snapshot.phase);
+          expect(store.popularity()).toBe(snapshot.popularity);
+          expect(store.money()).toBe(snapshot.money);
+
+          store.claimVictory();
+          expect(store.isVictory()).toBe(false);
+          expect(store.isGameComplete()).toBe(true);
+        }
+      ),
+      { numRuns: 100 }
+    );
+    warnSpy.mockRestore();
+  });
+
+  /**
+   * Property 6: Star Guest Purchase Flow
+   * **Validates: Requirements 9.9, 17.1**
+   */
+  it('should buy any star type when stocked and affordable', () => {
+    // Feature: star-guests-winning, Property 6: Star Guest Purchase Flow
+    fc.assert(
+      fc.property(
+        fc.constantFrom(...STAR_TYPES),
+        fc.integer({ min: 0, max: 100 }),
+        (type, extraPopularity) => {
+          store.initializeGame();
+          const cost = GUEST_TYPE_COSTS[type]!;
+          patchState(store, { popularity: cost + extraPopularity });
+          const before = store.shopInventory().find(e => e.type === type)!.guests.map(g => g.name);
+          const deckLength = store.deck().length;
+
+          const result = store.purchaseGuest(type);
+
+          expect(result).toEqual({ success: true, guestType: type });
+          expect(store.deck()).toHaveLength(deckLength + 1);
+          const bought = store.deck()[store.deck().length - 1];
+          expect(bought.type).toBe(type);
+          expect(before).toContain(bought.name);
+          expect(store.shopInventory().find(e => e.type === type)!.guests).toHaveLength(before.length - 1);
+          expect(store.popularity()).toBe(extraPopularity);
+        }
+      ),
+      { numRuns: 100 }
+    );
+  });
+
+  /**
+   * Property 7: Star Guest Resource Contributions
+   * **Validates: Requirements 13.1**
+   */
+  it('should include star guests in trouble, peace, stars, popularity and money', () => {
+    // Feature: star-guests-winning, Property 7: Star Guest Resource Contributions
+    fc.assert(
+      fc.property(
+        fc.array(fc.constantFrom(...STAR_TYPES), { minLength: 1, maxLength: 3 }),
+        fc.array(fc.constantFrom(...NON_STAR_TYPES), { maxLength: 3 }),
+        (starTypes, otherTypes) => {
+          store.initializeGame();
+          const types = [...starTypes, ...otherTypes];
+          const party = makeParty(types);
+          const expectedSum = (key: keyof Guest['properties']) =>
+            types.reduce((sum, t) => sum + GUEST_TYPE_DEFAULTS[t][key], 0);
+          patchState(store, { currentPhase: GamePhase.PARTY, party, popularity: 1000, money: 1000 });
+
+          expect(store.trouble()).toBe(expectedSum('troubleValue'));
+          expect(store.partyTroubleLimitModifier()).toBe(expectedSum('peaceValue'));
+          expect(store.stars()).toBe(expectedSum('starValue'));
+
+          // At most 3 stars, so ending the party settles normally
+          store.advancePhase();
+          expect(store.popularity()).toBe(1000 + expectedSum('popularityValue'));
+          expect(store.money()).toBe(1000 + expectedSum('moneyValue'));
+        }
+      ),
+      { numRuns: 100 }
+    );
+  });
+
+  /**
+   * Property 8: Mermaid Auto-Invites Exactly One Guest
+   * **Validates: Requirements 6.5, 6.6**
+   */
+  it('should admit the Mermaid followed by exactly the next deck guest', () => {
+    // Feature: star-guests-winning, Property 8: Mermaid Auto-Invites Exactly One Guest
+    const plainTypes = ALL_TYPES.filter(t => !GUEST_TYPE_ENTRANCE_EFFECTS[t] && GUEST_TYPE_DEFAULTS[t].troubleValue === 0);
+    fc.assert(
+      fc.property(
+        fc.array(fc.constantFrom(...plainTypes), { maxLength: 5 }),
+        (restTypes) => {
+          store.initializeGame();
+          const [mermaid] = makeParty(['MERMAID'], 'M');
+          const rest = makeParty(restTypes, 'R');
+          patchState(store, { currentPhase: GamePhase.PARTY, houseCapacity: 10, deck: [mermaid, ...rest] });
+
+          store.inviteGuest();
+
+          expect(store.isPartyShutdown()).toBe(false);
+          expect(store.party()).toEqual([mermaid, ...rest.slice(0, 1)]);
+          expect(store.deck()).toEqual(rest.slice(1));
+        }
+      ),
+      { numRuns: 100 }
     );
   });
 });

@@ -7,13 +7,15 @@ export type GuestType = 'OLD_FRIEND' | 'WILD_BUDDY' | 'RICH_PAL' | 'MONKEY'
   | 'CUTE_DOG' | 'HIPPY'
   | 'CATERER' | 'TICKET_TAKER'
   | 'CLIMBER'
-  | 'MR_POPULAR' | 'CELEBRITY';
+  | 'MR_POPULAR' | 'CELEBRITY'
+  | 'ALIEN' | 'LEPRECHAUN' | 'DRAGON' | 'DINOSAUR' | 'MERMAID' | 'UNICORN' | 'SUPERHERO';
 
 export interface GuestProperties {
   popularityValue: number;
   troubleValue: number;
   moneyValue: number;
   peaceValue: number;
+  starValue: number;
 }
 
 export interface Guest {
@@ -21,6 +23,9 @@ export interface Guest {
   name: string;
   properties: GuestProperties;
 }
+
+// Stars needed in a single party, at its normal end, to win the game.
+export const WINNING_STAR_COUNT = 4;
 
 export const GUEST_TYPE_LABELS: Record<GuestType, string> = {
   OLD_FRIEND: 'Old Friend',
@@ -37,7 +42,14 @@ export const GUEST_TYPE_LABELS: Record<GuestType, string> = {
   TICKET_TAKER: 'Ticket Taker',
   CLIMBER: 'Climber',
   MR_POPULAR: 'Mr. Popular',
-  CELEBRITY: 'Celebrity'
+  CELEBRITY: 'Celebrity',
+  ALIEN: 'Alien',
+  LEPRECHAUN: 'Leprechaun',
+  DRAGON: 'Dragon',
+  DINOSAUR: 'Dinosaur',
+  MERMAID: 'Mermaid',
+  UNICORN: 'Unicorn',
+  SUPERHERO: 'Superhero'
 };
 
 export const GUEST_TYPE_DEFAULTS: Record<GuestType, GuestProperties> = {
@@ -45,91 +57,155 @@ export const GUEST_TYPE_DEFAULTS: Record<GuestType, GuestProperties> = {
     popularityValue: 1,
     troubleValue: 0,
     moneyValue: 0,
-    peaceValue: 0
+    peaceValue: 0,
+    starValue: 0
   },
   WILD_BUDDY: {
     popularityValue: 2,
     troubleValue: 1,
     moneyValue: 0,
-    peaceValue: 0
+    peaceValue: 0,
+    starValue: 0
   },
   RICH_PAL: {
     popularityValue: 0,
     troubleValue: 0,
     moneyValue: 1,
-    peaceValue: 0
+    peaceValue: 0,
+    starValue: 0
   },
   MONKEY: {
     popularityValue: 4,
     troubleValue: 1,
     moneyValue: 0,
-    peaceValue: 0
+    peaceValue: 0,
+    starValue: 0
   },
   AUCTIONEER: {
     popularityValue: 0,
     troubleValue: 0,
     moneyValue: 3,
-    peaceValue: 0
+    peaceValue: 0,
+    starValue: 0
   },
   GANGSTER: {
     popularityValue: 0,
     troubleValue: 1,
     moneyValue: 4,
-    peaceValue: 0
+    peaceValue: 0,
+    starValue: 0
   },
   ROCK_STAR: {
     popularityValue: 3,
     troubleValue: 1,
     moneyValue: 2,
-    peaceValue: 0
+    peaceValue: 0,
+    starValue: 0
   },
   GAMBLER: {
     popularityValue: 2,
     troubleValue: 1,
     moneyValue: 3,
-    peaceValue: 0
+    peaceValue: 0,
+    starValue: 0
   },
   CUTE_DOG: {
     popularityValue: 2,
     troubleValue: 0,
     moneyValue: 0,
-    peaceValue: 1
+    peaceValue: 1,
+    starValue: 0
   },
   HIPPY: {
     popularityValue: 1,
     troubleValue: 0,
     moneyValue: 0,
-    peaceValue: 1
+    peaceValue: 1,
+    starValue: 0
   },
   CATERER: {
     popularityValue: 4,
     troubleValue: 0,
     moneyValue: -1,
-    peaceValue: 0
+    peaceValue: 0,
+    starValue: 0
   },
   TICKET_TAKER: {
     popularityValue: -1,
     troubleValue: 0,
     moneyValue: 2,
-    peaceValue: 0
+    peaceValue: 0,
+    starValue: 0
   },
   CLIMBER: {
     popularityValue: 0,
     troubleValue: 0,
     moneyValue: 0,
-    peaceValue: 0
+    peaceValue: 0,
+    starValue: 0
   },
   MR_POPULAR: {
     popularityValue: 3,
     troubleValue: 0,
     moneyValue: 0,
-    peaceValue: 0
+    peaceValue: 0,
+    starValue: 0
   },
   CELEBRITY: {
     popularityValue: 2,
     troubleValue: 0,
     moneyValue: 3,
-    peaceValue: 0
+    peaceValue: 0,
+    starValue: 0
+  },
+  ALIEN: {
+    popularityValue: 0,
+    troubleValue: 0,
+    moneyValue: 0,
+    peaceValue: 0,
+    starValue: 1
+  },
+  LEPRECHAUN: {
+    popularityValue: 0,
+    troubleValue: 0,
+    moneyValue: 3,
+    peaceValue: 0,
+    starValue: 1
+  },
+  DRAGON: {
+    popularityValue: 0,
+    troubleValue: 0,
+    moneyValue: -3,
+    peaceValue: 0,
+    starValue: 1
+  },
+  DINOSAUR: {
+    popularityValue: 0,
+    troubleValue: 1,
+    moneyValue: 0,
+    peaceValue: 0,
+    starValue: 1
+  },
+  MERMAID: {
+    popularityValue: 0,
+    troubleValue: 0,
+    moneyValue: 0,
+    peaceValue: 0,
+    starValue: 1
+  },
+  UNICORN: {
+    popularityValue: 0,
+    troubleValue: 0,
+    moneyValue: 0,
+    peaceValue: 1,
+    starValue: 1
+  },
+  SUPERHERO: {
+    popularityValue: 3,
+    troubleValue: 0,
+    moneyValue: 0,
+    peaceValue: 0,
+    starValue: 1
   }
 };
 
@@ -148,7 +224,14 @@ export const GUEST_TYPE_COSTS: Record<GuestType, number | null> = {
   TICKET_TAKER: 4,
   CLIMBER: 12,
   MR_POPULAR: 5,
-  CELEBRITY: 11
+  CELEBRITY: 11,
+  ALIEN: 40,
+  LEPRECHAUN: 50,
+  DRAGON: 30,
+  DINOSAUR: 25,
+  MERMAID: 35,
+  UNICORN: 45,
+  SUPERHERO: 50
 };
 
 export const SHOP_GUESTS: readonly { type: GuestType; name: string }[] = [
@@ -208,6 +291,34 @@ export const SHOP_GUESTS: readonly { type: GuestType; name: string }[] = [
   { type: 'CELEBRITY', name: 'Rainier' },
   { type: 'CELEBRITY', name: 'Pedro' },
   { type: 'CELEBRITY', name: 'Kent' },
+  { type: 'ALIEN', name: 'ET' },
+  { type: 'ALIEN', name: 'Rocky' },
+  { type: 'ALIEN', name: 'Olimar' },
+  { type: 'ALIEN', name: 'Alf' },
+  { type: 'LEPRECHAUN', name: 'Lucky' },
+  { type: 'LEPRECHAUN', name: 'Liam' },
+  { type: 'LEPRECHAUN', name: 'Seamus' },
+  { type: 'LEPRECHAUN', name: 'Patrick' },
+  { type: 'DRAGON', name: 'Smaug' },
+  { type: 'DRAGON', name: 'Clay' },
+  { type: 'DRAGON', name: 'Malathrax' },
+  { type: 'DRAGON', name: 'Toothless' },
+  { type: 'DINOSAUR', name: 'Barney' },
+  { type: 'DINOSAUR', name: 'Blue' },
+  { type: 'DINOSAUR', name: 'Dino' },
+  { type: 'DINOSAUR', name: 'Rex' },
+  { type: 'MERMAID', name: 'Ariel' },
+  { type: 'MERMAID', name: 'Marina' },
+  { type: 'MERMAID', name: 'Calypso' },
+  { type: 'MERMAID', name: 'Oceana' },
+  { type: 'UNICORN', name: 'Sparkles' },
+  { type: 'UNICORN', name: 'Glitter' },
+  { type: 'UNICORN', name: 'Stardust' },
+  { type: 'UNICORN', name: 'Moonbeam' },
+  { type: 'SUPERHERO', name: 'Superman' },
+  { type: 'SUPERHERO', name: 'Spider-man' },
+  { type: 'SUPERHERO', name: 'Batman' },
+  { type: 'SUPERHERO', name: 'Iron Man' },
 ];
 
 export const INITIAL_GUESTS: readonly { type: GuestType; name: string }[] = [
@@ -242,6 +353,9 @@ export const GUEST_TYPE_ENTRANCE_EFFECTS: Partial<Record<GuestType, EffectHandle
   },
   CELEBRITY: (ctx) => {
     autoInvite(ctx);
+    autoInvite(ctx);
+  },
+  MERMAID: (ctx) => {
     autoInvite(ctx);
   }
 };

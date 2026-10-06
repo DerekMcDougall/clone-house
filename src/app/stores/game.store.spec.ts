@@ -2,7 +2,7 @@ import { TestBed } from '@angular/core/testing';
 import { patchState } from '@ngrx/signals';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { GamePhase } from '../models';
-import { Guest, GUEST_TYPE_DEFAULTS, INITIAL_GUESTS } from '../models/guest.model';
+import { Guest, GUEST_TYPE_DEFAULTS, GuestType, INITIAL_GUESTS } from '../models/guest.model';
 import { GameStore, ShopInventoryEntry } from './game.store';
 
 /**
@@ -1969,7 +1969,7 @@ describe('Shop Buy Guests', () => {
       store.initializeGame();
 
       const inventory = store.shopInventory();
-      expect(inventory.length).toBe(14);
+      expect(inventory.length).toBe(21);
 
       const oldFriendEntry = inventory.find((e: ShopInventoryEntry) => e.type === 'OLD_FRIEND');
       const richPalEntry = inventory.find((e: ShopInventoryEntry) => e.type === 'RICH_PAL');
@@ -2135,8 +2135,8 @@ describe('Shop Buy Guests', () => {
      */
     it('should set shopInventory to empty array after resetGame()', () => {
       store.initializeGame();
-      // Verify shop has entries (OLD_FRIEND, RICH_PAL, MONKEY, + 4 new types + 2 peace types + 2 negative resource types + CLIMBER + MR_POPULAR + CELEBRITY)
-      expect(store.shopInventory().length).toBe(14);
+      // Verify shop has entries (OLD_FRIEND, RICH_PAL, MONKEY, + 4 new types + 2 peace types + 2 negative resource types + CLIMBER + MR_POPULAR + CELEBRITY + 7 star types)
+      expect(store.shopInventory().length).toBe(21);
 
       store.resetGame();
 
@@ -2403,8 +2403,8 @@ describe('Monkey Guest — Store Initialization', () => {
 
     const items = store.purchasableShopItems();
 
-    // Expected order: Old Friend (2), Monkey (3), Rich Pal (3), Hippy (4), Ticket Taker (4), Caterer (5), Mr. Popular (5), Rock Star (5), Gangster (6), Cute Dog (7), Gambler (7), Auctioneer (9), Celebrity (11), Climber (12)
-    expect(items.length).toBe(14);
+    // Expected order: Old Friend (2), Monkey (3), Rich Pal (3), Hippy (4), Ticket Taker (4), Caterer (5), Mr. Popular (5), Rock Star (5), Gangster (6), Cute Dog (7), Gambler (7), Auctioneer (9), Celebrity (11), Climber (12), then the 7 star types (25-50)
+    expect(items.length).toBe(21);
     expect(items[0].type).toBe('OLD_FRIEND');
     expect(items[1].type).toBe('MONKEY');
     expect(items[2].type).toBe('RICH_PAL');
@@ -2523,12 +2523,12 @@ describe('More Guest Types — Store Initialization', () => {
      * Old Friend (2), Monkey (3), Rich Pal (3), Rock Star (5), Gangster (6), Gambler (7), Auctioneer (9)
      * **Validates: Requirements 9.1, 9.2**
      */
-    it('should return all 14 types sorted by ascending cost then alphabetical label', () => {
+    it('should return all 21 types sorted by ascending cost then alphabetical label', () => {
       store.initializeGame();
 
       const items = store.purchasableShopItems();
 
-      expect(items.length).toBe(14);
+      expect(items.length).toBe(21);
       expect(items[0].type).toBe('OLD_FRIEND');
       expect(items[0].cost).toBe(2);
       expect(items[1].type).toBe('MONKEY');
@@ -2557,6 +2557,20 @@ describe('More Guest Types — Store Initialization', () => {
       expect(items[12].cost).toBe(11);
       expect(items[13].type).toBe('CLIMBER');
       expect(items[13].cost).toBe(12);
+      expect(items[14].type).toBe('DINOSAUR');
+      expect(items[14].cost).toBe(25);
+      expect(items[15].type).toBe('DRAGON');
+      expect(items[15].cost).toBe(30);
+      expect(items[16].type).toBe('MERMAID');
+      expect(items[16].cost).toBe(35);
+      expect(items[17].type).toBe('ALIEN');
+      expect(items[17].cost).toBe(40);
+      expect(items[18].type).toBe('UNICORN');
+      expect(items[18].cost).toBe(45);
+      expect(items[19].type).toBe('LEPRECHAUN');
+      expect(items[19].cost).toBe(50);
+      expect(items[20].type).toBe('SUPERHERO');
+      expect(items[20].cost).toBe(50);
     });
   });
 });
@@ -2613,15 +2627,17 @@ describe('Climber Entrance Effect — GameStore', () => {
      * Test purchasableShopItems() returns CLIMBER last (cost 12, highest)
      * **Validates: Requirements 9.2**
      */
-    it('should return CLIMBER last in purchasableShopItems (cost 12, highest)', () => {
+    it('should return CLIMBER last among non-star guests in purchasableShopItems (cost 12)', () => {
       store.initializeGame();
 
       const items = store.purchasableShopItems();
 
-      expect(items.length).toBe(14);
-      const lastItem = items[items.length - 1];
-      expect(lastItem.type).toBe('CLIMBER');
-      expect(lastItem.cost).toBe(12);
+      expect(items.length).toBe(21);
+      // Star guests (cost 25+) follow Climber
+      const climberIndex = items.findIndex(i => i.type === 'CLIMBER');
+      expect(climberIndex).toBe(13);
+      expect(items[climberIndex].cost).toBe(12);
+      expect(items.slice(climberIndex + 1).every(i => GUEST_TYPE_DEFAULTS[i.type].starValue > 0)).toBe(true);
     });
   });
 
@@ -2637,7 +2653,7 @@ describe('Climber Entrance Effect — GameStore', () => {
       const climber = {
         type: 'CLIMBER' as const,
         name: 'Ascella',
-        properties: { popularityValue: 0, troubleValue: 0, moneyValue: 0, peaceValue: 0 }
+        properties: { popularityValue: 0, troubleValue: 0, moneyValue: 0, peaceValue: 0, starValue: 0 }
       };
       patchState(store, { deck: [climber] });
 
@@ -2659,7 +2675,7 @@ describe('Climber Entrance Effect — GameStore', () => {
       const climber = {
         type: 'CLIMBER' as const,
         name: 'Skye',
-        properties: { popularityValue: 9, troubleValue: 0, moneyValue: 0, peaceValue: 0 }
+        properties: { popularityValue: 9, troubleValue: 0, moneyValue: 0, peaceValue: 0, starValue: 0 }
       };
       patchState(store, { deck: [climber] });
 
@@ -2681,7 +2697,7 @@ describe('Climber Entrance Effect — GameStore', () => {
       const oldFriend = {
         type: 'OLD_FRIEND' as const,
         name: 'Brian',
-        properties: { popularityValue: 1, troubleValue: 0, moneyValue: 0, peaceValue: 0 }
+        properties: { popularityValue: 1, troubleValue: 0, moneyValue: 0, peaceValue: 0, starValue: 0 }
       };
       patchState(store, { deck: [oldFriend] });
 
@@ -2705,7 +2721,7 @@ describe('Climber Entrance Effect — GameStore', () => {
       const climber = {
         type: 'CLIMBER' as const,
         name: 'Icarus',
-        properties: { popularityValue: 3, troubleValue: 0, moneyValue: 0, peaceValue: 0 }
+        properties: { popularityValue: 3, troubleValue: 0, moneyValue: 0, peaceValue: 0, starValue: 0 }
       };
       patchState(store, { deck: [climber] });
 
@@ -2931,5 +2947,268 @@ describe('Auto-invite Entrance Effects — GameStore', () => {
       .map(g => g.name)
       .sort();
     expect(allNames).toEqual(['Anthony', 'Emily', 'Jacco', 'Rachelle', 'Teresa', 'Troy']);
+  });
+});
+
+/**
+ * Star Guests & Winning — Unit Tests
+ *
+ * **Validates: Requirements 6.6, 9.9, 10.2, 12.1–12.3, 13.2, 13.3, 14.2–14.8, 15.5, 18.1, 18.2 (star-guests-winning)**
+ */
+describe('Star Guests & Winning — GameStore', () => {
+  let store: InstanceType<typeof GameStore>;
+
+  const STAR_TYPES: GuestType[] = ['ALIEN', 'LEPRECHAUN', 'DRAGON', 'DINOSAUR', 'MERMAID', 'UNICORN', 'SUPERHERO'];
+
+  const makeGuest = (type: GuestType, name: string): Guest => ({
+    type,
+    name,
+    properties: { ...GUEST_TYPE_DEFAULTS[type] }
+  });
+
+  const aliens = (count: number): Guest[] =>
+    Array.from({ length: count }, (_, i) => makeGuest('ALIEN', `Alien${i}`));
+
+  beforeEach(() => {
+    TestBed.configureTestingModule({});
+    store = TestBed.inject(GameStore);
+    store.initializeGame();
+  });
+
+  describe('initializeGame()', () => {
+    it('should start with isVictory false', () => {
+      expect(store.isVictory()).toBe(false);
+    });
+
+    it('should stock 4 of each star type at the correct cost', () => {
+      const costs: Record<string, number> = {
+        ALIEN: 40, LEPRECHAUN: 50, DRAGON: 30, DINOSAUR: 25, MERMAID: 35, UNICORN: 45, SUPERHERO: 50
+      };
+      for (const type of STAR_TYPES) {
+        const entry = store.shopInventory().find((e: ShopInventoryEntry) => e.type === type);
+        expect(entry).toBeDefined();
+        expect(entry!.guests).toHaveLength(4);
+        expect(entry!.cost).toBe(costs[type]);
+      }
+    });
+
+    it('should have no star guests in the starting deck', () => {
+      expect(store.deck().some(g => STAR_TYPES.includes(g.type))).toBe(false);
+    });
+
+    it('should clear isVictory left over from a previous game', () => {
+      patchState(store, { isVictory: true });
+      store.initializeGame();
+      expect(store.isVictory()).toBe(false);
+    });
+  });
+
+  describe('stars()', () => {
+    it('should be 0 for an empty party', () => {
+      expect(store.stars()).toBe(0);
+    });
+
+    it('should be 3 for three Aliens', () => {
+      patchState(store, { party: aliens(3) });
+      expect(store.stars()).toBe(3);
+    });
+
+    it('should sum stars across mixed star and non-star guests', () => {
+      patchState(store, {
+        party: [
+          makeGuest('DRAGON', 'Smaug'),
+          makeGuest('OLD_FRIEND', 'Brian'),
+          makeGuest('UNICORN', 'Sparkles'),
+          makeGuest('SUPERHERO', 'Batman'),
+          makeGuest('MERMAID', 'Ariel')
+        ]
+      });
+      expect(store.stars()).toBe(4);
+    });
+
+    it('should drop to 0 after a normal party end', () => {
+      patchState(store, { currentPhase: GamePhase.PARTY, party: aliens(2) });
+      store.advancePhase();
+      expect(store.stars()).toBe(0);
+    });
+  });
+
+  describe('advancePhase() win check', () => {
+    it('should enter victory when ending a party with exactly 4 stars', () => {
+      const party = [...aliens(2), makeGuest('SUPERHERO', 'Batman'), makeGuest('DRAGON', 'Smaug')];
+      patchState(store, { currentPhase: GamePhase.PARTY, party, popularity: 10, money: 1 });
+
+      store.advancePhase();
+
+      expect(store.isVictory()).toBe(true);
+      expect(store.isGameComplete()).toBe(false);
+      // No settlement and no next turn: the winning party stays put
+      expect(store.party()).toEqual(party);
+      expect(store.currentTurn()).toBe(1);
+      expect(store.currentPhase()).toBe(GamePhase.PARTY);
+      expect(store.popularity()).toBe(10);
+      expect(store.money()).toBe(1);
+    });
+
+    it('should enter victory with more than 4 stars', () => {
+      patchState(store, { currentPhase: GamePhase.PARTY, party: aliens(5) });
+      store.advancePhase();
+      expect(store.isVictory()).toBe(true);
+    });
+
+    it('should end the party normally with 3 stars', () => {
+      patchState(store, { currentPhase: GamePhase.PARTY, party: aliens(3) });
+      store.advancePhase();
+      expect(store.isVictory()).toBe(false);
+      expect(store.party()).toEqual([]);
+      expect(store.currentTurn()).toBe(2);
+      expect(store.currentPhase()).toBe(GamePhase.BUY);
+    });
+
+    it('should enter victory instead of Game Over on the final turn', () => {
+      store.initializeGame(1);
+      patchState(store, { currentPhase: GamePhase.PARTY, party: aliens(4) });
+      store.advancePhase();
+      expect(store.isVictory()).toBe(true);
+      expect(store.isGameComplete()).toBe(false);
+    });
+
+    it('should not win just by reaching 4 stars mid-party', () => {
+      patchState(store, { currentPhase: GamePhase.PARTY, deck: aliens(4) });
+      for (let i = 0; i < 4; i++) store.inviteGuest();
+      expect(store.stars()).toBe(4);
+      expect(store.isVictory()).toBe(false);
+    });
+
+    it('should apply a Dragon money deficit when ending a party without victory', () => {
+      patchState(store, { currentPhase: GamePhase.PARTY, party: [makeGuest('DRAGON', 'Smaug')], popularity: 20, money: 1 });
+      store.advancePhase();
+      // money 1 - 3 = -2 → clamped to 0, popularity penalized 2 × 7
+      expect(store.money()).toBe(0);
+      expect(store.popularity()).toBe(6);
+    });
+  });
+
+  describe('shutdowns never win', () => {
+    it('should not win after a trouble shutdown with 4 stars in the bust party', () => {
+      const wildBuddies = ['WB1', 'WB2', 'WB3'].map(n => makeGuest('WILD_BUDDY', n));
+      patchState(store, { currentPhase: GamePhase.PARTY, houseCapacity: 10, deck: [...aliens(4), ...wildBuddies] });
+
+      for (let i = 0; i < 7; i++) store.inviteGuest();
+
+      expect(store.isPartyShutdown()).toBe(true);
+      expect(store.isOverflowShutdown()).toBe(false);
+      expect(store.bustPartySnapshot().filter(g => g.type === 'ALIEN')).toHaveLength(4);
+
+      store.acknowledgeShutdown();
+      store.selectGuestToBan(0);
+      store.confirmBan();
+
+      expect(store.isVictory()).toBe(false);
+      expect(store.currentTurn()).toBe(2);
+    });
+
+    it('should not win after a Dinosaur pushes trouble over the limit', () => {
+      const dinos = ['Barney', 'Blue', 'Dino'].map(n => makeGuest('DINOSAUR', n));
+      patchState(store, { currentPhase: GamePhase.PARTY, deck: [...aliens(1), ...dinos] });
+
+      for (let i = 0; i < 4; i++) store.inviteGuest();
+
+      expect(store.isPartyShutdown()).toBe(true);
+      expect(store.isVictory()).toBe(false);
+    });
+
+    it('should not win after a Mermaid causes an overflow with 4+ stars', () => {
+      patchState(store, {
+        currentPhase: GamePhase.PARTY,
+        houseCapacity: 4,
+        deck: [...aliens(3), makeGuest('MERMAID', 'Ariel'), makeGuest('OLD_FRIEND', 'Brian')]
+      });
+
+      for (let i = 0; i < 4; i++) store.inviteGuest();
+
+      expect(store.isPartyShutdown()).toBe(true);
+      expect(store.isOverflowShutdown()).toBe(true);
+      expect(store.bustPartySnapshot().reduce((s, g) => s + g.properties.starValue, 0)).toBe(4);
+
+      store.acknowledgeShutdown();
+
+      expect(store.isVictory()).toBe(false);
+      expect(store.currentTurn()).toBe(2);
+    });
+  });
+
+  describe('while victorious', () => {
+    beforeEach(() => {
+      patchState(store, { currentPhase: GamePhase.PARTY, party: aliens(4) });
+      store.advancePhase();
+      expect(store.isVictory()).toBe(true);
+    });
+
+    it('should ignore inviteGuest()', () => {
+      const deck = store.deck();
+      const party = store.party();
+      store.inviteGuest();
+      expect(store.deck()).toBe(deck);
+      expect(store.party()).toBe(party);
+    });
+
+    it('should report canInviteGuest() as false', () => {
+      expect(store.deck().length).toBeGreaterThan(0);
+      expect(store.canInviteGuest()).toBe(false);
+    });
+
+    it('should ignore advancePhase()', () => {
+      const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      store.advancePhase();
+      expect(store.isVictory()).toBe(true);
+      expect(store.currentTurn()).toBe(1);
+      expect(store.currentPhase()).toBe(GamePhase.PARTY);
+      expect(store.party()).toHaveLength(4);
+      warnSpy.mockRestore();
+    });
+
+    it('should complete the game on claimVictory()', () => {
+      store.claimVictory();
+      expect(store.isVictory()).toBe(false);
+      expect(store.isGameComplete()).toBe(true);
+    });
+
+    it('should clear isVictory on resetGame()', () => {
+      store.resetGame();
+      expect(store.isVictory()).toBe(false);
+    });
+  });
+
+  describe('claimVictory()', () => {
+    it('should do nothing when there is no victory', () => {
+      store.claimVictory();
+      expect(store.isGameComplete()).toBe(false);
+      expect(store.isVictory()).toBe(false);
+    });
+  });
+
+  describe('Mermaid entrance effect', () => {
+    it('should auto-invite exactly one guest from the deck', () => {
+      const mermaid = makeGuest('MERMAID', 'Ariel');
+      const brian = makeGuest('OLD_FRIEND', 'Brian');
+      const khalil = makeGuest('RICH_PAL', 'Khalil');
+      patchState(store, { currentPhase: GamePhase.PARTY, deck: [mermaid, brian, khalil] });
+
+      store.inviteGuest();
+
+      expect(store.party().map(g => g.name)).toEqual(['Ariel', 'Brian']);
+      expect(store.deck().map(g => g.name)).toEqual(['Khalil']);
+    });
+
+    it('should be admitted alone when the deck is empty', () => {
+      patchState(store, { currentPhase: GamePhase.PARTY, deck: [makeGuest('MERMAID', 'Ariel')] });
+
+      store.inviteGuest();
+
+      expect(store.party().map(g => g.name)).toEqual(['Ariel']);
+      expect(store.deck()).toEqual([]);
+      expect(store.isPartyShutdown()).toBe(false);
+    });
   });
 });

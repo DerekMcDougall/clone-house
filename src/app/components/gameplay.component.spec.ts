@@ -1,6 +1,9 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter, Router } from '@angular/router';
+import { patchState } from '@ngrx/signals';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { GamePhase } from '../models';
+import { GUEST_TYPE_DEFAULTS } from '../models/guest.model';
 import { GameStore } from '../stores/game.store';
 import { GameplayComponent } from './gameplay.component';
 
@@ -337,5 +340,52 @@ describe('GameplayComponent', () => {
       // Destroy component before completion
       expect(() => fixture.destroy()).not.toThrow();
     });
+  });
+});
+
+/**
+ * GameplayComponent — Victory Navigation
+ *
+ * **Validates: Requirements 15.6 (star-guests-winning)**
+ */
+describe('GameplayComponent - Victory', () => {
+  let fixture: ComponentFixture<GameplayComponent>;
+  let store: InstanceType<typeof GameStore>;
+  let router: Router;
+
+  beforeEach(async () => {
+    await TestBed.configureTestingModule({
+      imports: [GameplayComponent],
+      providers: [provideRouter([{ path: '', component: GameplayComponent }])]
+    }).compileComponents();
+
+    fixture = TestBed.createComponent(GameplayComponent);
+    store = TestBed.inject(GameStore);
+    router = TestBed.inject(Router);
+    store.resetGame();
+  });
+
+  it('should navigate home only after the victory is claimed', async () => {
+    const navigateSpy = vi.spyOn(router, 'navigate');
+    fixture.detectChanges();
+
+    const aliens = Array.from({ length: 4 }, (_, i) => ({
+      type: 'ALIEN' as const,
+      name: `Alien${i}`,
+      properties: { ...GUEST_TYPE_DEFAULTS['ALIEN'] }
+    }));
+    patchState(store, { currentPhase: GamePhase.PARTY, party: aliens });
+    store.advancePhase();
+    fixture.detectChanges();
+    await new Promise(resolve => setTimeout(resolve, 0));
+
+    expect(store.isVictory()).toBe(true);
+    expect(navigateSpy).not.toHaveBeenCalled();
+
+    store.claimVictory();
+    fixture.detectChanges();
+    await new Promise(resolve => setTimeout(resolve, 0));
+
+    expect(navigateSpy).toHaveBeenCalledWith(['/']);
   });
 });

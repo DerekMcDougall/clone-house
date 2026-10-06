@@ -930,3 +930,47 @@ describe('StatusPaneComponent - Property-Based Tests', () => {
     });
   });
 });
+
+/**
+ * Property 10: Star Display Reflects Party Stars
+ *
+ * **Validates: Requirements 16.1 (star-guests-winning)**
+ */
+describe('StatusPaneComponent - Star Display Property', () => {
+  let fixture: ComponentFixture<StatusPaneComponent>;
+  let store: InstanceType<typeof GameStore>;
+
+  beforeEach(async () => {
+    await TestBed.configureTestingModule({
+      imports: [StatusPaneComponent]
+    }).compileComponents();
+
+    fixture = TestBed.createComponent(StatusPaneComponent);
+    store = TestBed.inject(GameStore);
+  });
+
+  it('should render stars as "{stars} / 4" for any party during PARTY', () => {
+    // Feature: star-guests-winning, Property 10: Star Display Reflects Party Stars
+    const allTypes = Object.keys(GUEST_TYPE_DEFAULTS) as Guest['type'][];
+    fc.assert(
+      fc.property(
+        fc.array(fc.constantFrom(...allTypes), { maxLength: 8 }),
+        (types) => {
+          store.initializeGame();
+          const party: Guest[] = types.map((type, i) => ({
+            type,
+            name: `G${i}`,
+            properties: { ...GUEST_TYPE_DEFAULTS[type] }
+          }));
+          patchState(store, { currentPhase: GamePhase.PARTY, party });
+          fixture.detectChanges();
+
+          const expectedStars = party.reduce((sum, g) => sum + g.properties.starValue, 0);
+          const starCount = fixture.nativeElement.querySelector('.star-count');
+          expect(starCount?.textContent?.trim()).toBe(`${expectedStars} / 4`);
+        }
+      ),
+      { numRuns: 100 }
+    );
+  });
+});

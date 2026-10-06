@@ -91,6 +91,19 @@ import { GuestCardComponent } from './guest-card.component';
     </div>
   </div>
 }
+@if (gameStore.isVictory()) {
+  <div class="victory-modal-overlay" role="dialog" aria-modal="true" aria-labelledby="victory-title">
+    <div class="victory-modal">
+      <p id="victory-title">Congrats! You threw the ultimate party!</p>
+      <button
+        class="victory-button"
+        (click)="gameStore.claimVictory()"
+        aria-label="Victory">
+        Victory
+      </button>
+    </div>
+  </div>
+}
 @if (gameStore.isBanSelectionActive()) {
   <div class="ban-selection">
     <h3 class="blame-prompt">Who takes the blame?</h3>
@@ -283,6 +296,54 @@ import { GuestCardComponent } from './guest-card.component';
 
 .overflow-button:focus {
   outline: 2px solid #e8690a;
+  outline-offset: 2px;
+}
+
+.victory-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.victory-modal {
+  background: white;
+  padding: 2rem;
+  border-radius: 8px;
+  max-width: 400px;
+  text-align: center;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+}
+
+.victory-modal p {
+  font-size: 1.2rem;
+  margin-bottom: 1.5rem;
+  color: #333;
+}
+
+.victory-button {
+  padding: 0.75rem 2rem;
+  font-size: 1rem;
+  font-weight: 600;
+  color: white;
+  background-color: #d4a017;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.victory-button:hover {
+  background-color: #b8860b;
+}
+
+.victory-button:focus {
+  outline: 2px solid #b8860b;
   outline-offset: 2px;
 }
 

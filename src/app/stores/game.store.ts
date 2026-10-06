@@ -2,7 +2,7 @@ import { computed } from '@angular/core';
 import { patchState, signalStore, withComputed, withMethods, withState } from '@ngrx/signals';
 import { GamePhase, GameState } from '../models';
 import { EffectContext, GameEffect } from '../models/effect-context';
-import { admitGuest, Guest, GUEST_TYPE_COSTS, GUEST_TYPE_DEFAULTS, GUEST_TYPE_LABELS, GuestType, INITIAL_GUESTS, SHOP_GUESTS } from '../models/guest.model';
+import { admitGuest, Guest, GUEST_TYPE_COSTS, GUEST_TYPE_DEFAULTS, GUEST_TYPE_LABELS, GuestType, INITIAL_GUESTS, SHOP_GUESTS, WINNING_STAR_COUNT } from '../models/guest.model';
 
 export type { EffectContext };
 
@@ -81,6 +81,7 @@ export interface GameStoreState extends GameState {
   expansionsPurchased: number;
   showHouseFullMessage: boolean;
   isOverflowShutdown: boolean;
+  isVictory: boolean;
 }
 
 const initialState: GameStoreState = {
@@ -103,7 +104,8 @@ const initialState: GameStoreState = {
   houseCapacity: 5,
   expansionsPurchased: 0,
   showHouseFullMessage: false,
-  isOverflowShutdown: false
+  isOverflowShutdown: false,
+  isVictory: false
 };
 
 export const GameStore = signalStore(
@@ -133,12 +135,18 @@ export const GameStore = signalStore(
       store.deck().length > 0 &&
       store.party().length < store.houseCapacity() &&
       !store.isPartyShutdown() &&
-      !store.isBanSelectionActive()
+      !store.isBanSelectionActive() &&
+      !store.isVictory()
     ),
-    
+
     trouble: computed(() => {
       const party = store.party();
       return party.reduce((sum, guest) => sum + guest.properties.troubleValue, 0);
+    }),
+
+    stars: computed(() => {
+      const party = store.party();
+      return party.reduce((sum, guest) => sum + guest.properties.starValue, 0);
     }),
 
     partyTroubleLimitModifier: computed(() => {
@@ -327,13 +335,14 @@ export const GameStore = signalStore(
           houseCapacity: 5,
           expansionsPurchased: 0,
           showHouseFullMessage: false,
-          isOverflowShutdown: false
+          isOverflowShutdown: false,
+          isVictory: false
         });
       },
       
       inviteGuest(): void {
-        // No inviting while a bust is being resolved (shutdown modal or ban selection)
-        if (store.isPartyShutdown() || store.isBanSelectionActive()) {
+        // No inviting while a bust is being resolved (shutdown modal or ban selection) or after a win
+        if (store.isPartyShutdown() || store.isBanSelectionActive() || store.isVictory()) {
           return;
         }
 
@@ -359,7 +368,7 @@ export const GameStore = signalStore(
       },
       
       advancePhase(): void {
-        if (store.isGameComplete()) {
+        if (store.isGameComplete() || store.isVictory()) {
           console.warn('Cannot advance phase: game is already complete');
           return;
         }
@@ -371,6 +380,13 @@ export const GameStore = signalStore(
         if (currentPhase === GamePhase.BUY) {
           patchState(store, { currentPhase: GamePhase.PARTY });
         } else if (currentPhase === GamePhase.PARTY) {
+          // Ending a party with enough stars wins immediately: no settlement, no next turn.
+          // The party stays in place behind the victory dialog until claimVictory().
+          if (store.stars() >= WINNING_STAR_COUNT) {
+            patchState(store, { isVictory: true });
+            return;
+          }
+
           const MONEY_DEFICIT_PENALTY_RATE = 7;
 
           // Step 1: Calculate and apply popularity from party guests
@@ -575,6 +591,11 @@ export const GameStore = signalStore(
         });
 
         return { success: true, guestType: type };
+      },
+
+      claimVictory(): void {
+        if (!store.isVictory()) return;
+        patchState(store, { isVictory: false, isGameComplete: true });
       },
 
       dismissHouseFullMessage(): void {
