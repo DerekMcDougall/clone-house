@@ -1,5 +1,6 @@
 import { Component, inject } from '@angular/core';
 import { GamePhase } from '../models/game-phase.enum';
+import { WINNING_STAR_COUNT } from '../models/guest.model';
 import { GameStore } from '../stores/game.store';
 
 @Component({
@@ -24,10 +25,14 @@ import { GameStore } from '../stores/game.store';
       <h3>Trouble</h3>
       <p class="trouble-count">{{ gameStore.trouble() }} / {{ gameStore.effectiveTroubleLimit() }}</p>
     </div>
-    <button 
+    <div class="status-info">
+      <h3>Stars</h3>
+      <p class="star-count">{{ gameStore.stars() }} / {{ WINNING_STAR_COUNT }}</p>
+    </div>
+    <button
       class="invite-button"
       (click)="onInviteGuest()"
-      [disabled]="gameStore.isPartyShutdown() || gameStore.isBanSelectionActive()"
+      [disabled]="gameStore.isPartyShutdown() || gameStore.isBanSelectionActive() || gameStore.isVictory()"
       aria-label="Invite Guest">
       Invite Guest
     </button>
@@ -35,7 +40,7 @@ import { GameStore } from '../stores/game.store';
   <button 
     class="phase-button"
     (click)="gameStore.advancePhase()"
-    [disabled]="gameStore.isPartyShutdown() || gameStore.isBanSelectionActive()"
+    [disabled]="gameStore.isPartyShutdown() || gameStore.isBanSelectionActive() || gameStore.isVictory()"
     [attr.aria-label]="gameStore.phaseButtonLabel()">
     {{ gameStore.phaseButtonLabel() }}
   </button>
@@ -66,6 +71,7 @@ import { GameStore } from '../stores/game.store';
 .status-info .turn-count,
 .status-info .popularity-count,
 .status-info .trouble-count,
+.status-info .star-count,
 .status-info .money-count {
   margin: 0;
   font-size: 2rem;
@@ -128,6 +134,7 @@ import { GameStore } from '../stores/game.store';
 export class StatusPaneComponent {
   protected readonly gameStore = inject(GameStore);
   protected readonly GamePhase = GamePhase;
+  protected readonly WINNING_STAR_COUNT = WINNING_STAR_COUNT;
 
   onInviteGuest(): void {
     this.gameStore.inviteGuest();

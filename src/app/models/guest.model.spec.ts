@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { GUEST_TYPE_COSTS, GUEST_TYPE_DEFAULTS, GUEST_TYPE_LABELS, INITIAL_GUESTS, SHOP_GUESTS, type Guest } from './guest.model';
+import { GUEST_TYPE_COSTS, GUEST_TYPE_DEFAULTS, GUEST_TYPE_ENTRANCE_EFFECTS, GUEST_TYPE_LABELS, INITIAL_GUESTS, SHOP_GUESTS, WINNING_STAR_COUNT, type Guest, type GuestType } from './guest.model';
 
 /**
  * Unit Tests for Guest Model
@@ -523,11 +523,11 @@ describe('Guest Model - New Guest Types (Auctioneer, Gangster, Rock Star, Gamble
     });
 
     /**
-     * SHOP_GUESTS has exactly 56 total entries (48 previous + 8 new overflow guests)
+     * SHOP_GUESTS has exactly 84 total entries (56 previous + 28 star guests)
      * **Validates: Requirements 5.6**
      */
-    it('should have exactly 56 total entries', () => {
-      expect(SHOP_GUESTS).toHaveLength(56);
+    it('should have exactly 84 total entries', () => {
+      expect(SHOP_GUESTS).toHaveLength(84);
     });
   });
 
@@ -550,5 +550,79 @@ describe('Guest Model - New Guest Types (Auctioneer, Gangster, Rock Star, Gamble
     it('should remain at exactly 10 entries', () => {
       expect(INITIAL_GUESTS).toHaveLength(10);
     });
+  });
+});
+
+/**
+ * Unit Tests for Star Guest Types
+ *
+ * **Validates: Requirements 1.1–1.4, 2–8, 9.1–9.8, 9.10, 10.1, 10.3, 11.1, 14.1 (star-guests-winning)**
+ */
+describe('Guest Model - Star Guests', () => {
+  const STAR_TYPES: GuestType[] = ['ALIEN', 'LEPRECHAUN', 'DRAGON', 'DINOSAUR', 'MERMAID', 'UNICORN', 'SUPERHERO'];
+
+  const expected: Record<string, { label: string; cost: number; props: Guest['properties']; names: string[] }> = {
+    ALIEN: { label: 'Alien', cost: 40, props: { popularityValue: 0, troubleValue: 0, moneyValue: 0, peaceValue: 0, starValue: 1 }, names: ['ET', 'Rocky', 'Olimar', 'Alf'] },
+    LEPRECHAUN: { label: 'Leprechaun', cost: 50, props: { popularityValue: 0, troubleValue: 0, moneyValue: 3, peaceValue: 0, starValue: 1 }, names: ['Lucky', 'Liam', 'Seamus', 'Patrick'] },
+    DRAGON: { label: 'Dragon', cost: 30, props: { popularityValue: 0, troubleValue: 0, moneyValue: -3, peaceValue: 0, starValue: 1 }, names: ['Smaug', 'Clay', 'Malathrax', 'Toothless'] },
+    DINOSAUR: { label: 'Dinosaur', cost: 25, props: { popularityValue: 0, troubleValue: 1, moneyValue: 0, peaceValue: 0, starValue: 1 }, names: ['Barney', 'Blue', 'Dino', 'Rex'] },
+    MERMAID: { label: 'Mermaid', cost: 35, props: { popularityValue: 0, troubleValue: 0, moneyValue: 0, peaceValue: 0, starValue: 1 }, names: ['Ariel', 'Marina', 'Calypso', 'Oceana'] },
+    UNICORN: { label: 'Unicorn', cost: 45, props: { popularityValue: 0, troubleValue: 0, moneyValue: 0, peaceValue: 1, starValue: 1 }, names: ['Sparkles', 'Glitter', 'Stardust', 'Moonbeam'] },
+    SUPERHERO: { label: 'Superhero', cost: 50, props: { popularityValue: 3, troubleValue: 0, moneyValue: 0, peaceValue: 0, starValue: 1 }, names: ['Superman', 'Spider-man', 'Batman', 'Iron Man'] }
+  };
+
+  it('should set WINNING_STAR_COUNT to 4', () => {
+    expect(WINNING_STAR_COUNT).toBe(4);
+  });
+
+  it('should give every non-star guest type a starValue of 0', () => {
+    const nonStarTypes = (Object.keys(GUEST_TYPE_DEFAULTS) as GuestType[]).filter(t => !STAR_TYPES.includes(t));
+    expect(nonStarTypes).toHaveLength(15);
+    for (const type of nonStarTypes) {
+      expect(GUEST_TYPE_DEFAULTS[type].starValue).toBe(0);
+    }
+  });
+
+  for (const type of STAR_TYPES) {
+    describe(type, () => {
+      it('should have the correct defaults, label and cost', () => {
+        expect(GUEST_TYPE_DEFAULTS[type]).toEqual(expected[type].props);
+        expect(GUEST_TYPE_LABELS[type]).toBe(expected[type].label);
+        expect(GUEST_TYPE_COSTS[type]).toBe(expected[type].cost);
+      });
+
+      it('should have exactly 4 shop entries with the correct names', () => {
+        const names = SHOP_GUESTS.filter(g => g.type === type).map(g => g.name);
+        expect(names).toEqual(expected[type].names);
+      });
+
+      it('should not appear in the starting deck', () => {
+        expect(INITIAL_GUESTS.some(g => g.type === type)).toBe(false);
+      });
+    });
+  }
+
+  it('should give only MERMAID an entrance effect among star types', () => {
+    for (const type of STAR_TYPES) {
+      if (type === 'MERMAID') {
+        expect(GUEST_TYPE_ENTRANCE_EFFECTS[type]).toBeDefined();
+      } else {
+        expect(GUEST_TYPE_ENTRANCE_EFFECTS[type]).toBeUndefined();
+      }
+    }
+  });
+
+  it('should price every star type above every non-star purchasable type', () => {
+    const nonStarCosts = (Object.keys(GUEST_TYPE_COSTS) as GuestType[])
+      .filter(t => !STAR_TYPES.includes(t))
+      .map(t => GUEST_TYPE_COSTS[t])
+      .filter((c): c is number => c !== null);
+    const cheapestStar = Math.min(...STAR_TYPES.map(t => GUEST_TYPE_COSTS[t]!));
+    expect(cheapestStar).toBeGreaterThan(Math.max(...nonStarCosts));
+  });
+
+  it('should keep every guest name unique across INITIAL_GUESTS and SHOP_GUESTS', () => {
+    const names = [...INITIAL_GUESTS, ...SHOP_GUESTS].map(g => g.name);
+    expect(new Set(names).size).toBe(names.length);
   });
 });

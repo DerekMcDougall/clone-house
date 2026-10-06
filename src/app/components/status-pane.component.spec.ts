@@ -2,6 +2,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { patchState } from '@ngrx/signals';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { GamePhase } from '../models';
+import { Guest, GUEST_TYPE_DEFAULTS, GuestType } from '../models/guest.model';
 import { GameStore } from '../stores/game.store';
 import { StatusPaneComponent } from './status-pane.component';
 
@@ -642,5 +643,74 @@ describe('StatusPaneComponent', () => {
       const inviteButton: HTMLButtonElement = fixture.nativeElement.querySelector('.invite-button');
       expect(inviteButton.disabled).toBe(false);
     });
+  });
+});
+
+/**
+ * StatusPaneComponent — Stars and Victory
+ *
+ * **Validates: Requirements 15.3, 16.1, 16.2 (star-guests-winning)**
+ */
+describe('StatusPaneComponent - Stars and Victory', () => {
+  let fixture: ComponentFixture<StatusPaneComponent>;
+  let store: InstanceType<typeof GameStore>;
+
+  const makeGuest = (type: GuestType, name: string): Guest => ({
+    type,
+    name,
+    properties: { ...GUEST_TYPE_DEFAULTS[type] }
+  });
+
+  beforeEach(async () => {
+    await TestBed.configureTestingModule({
+      imports: [StatusPaneComponent]
+    }).compileComponents();
+
+    fixture = TestBed.createComponent(StatusPaneComponent);
+    store = TestBed.inject(GameStore);
+    store.initializeGame();
+  });
+
+  it('should show "0 / 4" stars during PARTY with an empty party', () => {
+    patchState(store, { currentPhase: GamePhase.PARTY });
+    fixture.detectChanges();
+
+    const starCount = fixture.nativeElement.querySelector('.star-count');
+    expect(starCount?.textContent?.trim()).toBe('0 / 4');
+  });
+
+  it('should show "2 / 4" stars with two star guests in the party', () => {
+    patchState(store, {
+      currentPhase: GamePhase.PARTY,
+      party: [makeGuest('ALIEN', 'ET'), makeGuest('OLD_FRIEND', 'Brian'), makeGuest('DRAGON', 'Smaug')]
+    });
+    fixture.detectChanges();
+
+    const starCount = fixture.nativeElement.querySelector('.star-count');
+    expect(starCount?.textContent?.trim()).toBe('2 / 4');
+  });
+
+  it('should label the stars section "Stars"', () => {
+    patchState(store, { currentPhase: GamePhase.PARTY });
+    fixture.detectChanges();
+
+    const headings = Array.from(fixture.nativeElement.querySelectorAll('.status-info h3') as NodeListOf<HTMLElement>)
+      .map(h => h.textContent?.trim());
+    expect(headings).toContain('Stars');
+  });
+
+  it('should hide the stars section during BUY', () => {
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('.star-count')).toBeNull();
+  });
+
+  it('should disable the invite and phase buttons during victory', () => {
+    patchState(store, { currentPhase: GamePhase.PARTY, isVictory: true });
+    fixture.detectChanges();
+
+    const inviteButton = fixture.nativeElement.querySelector('.invite-button') as HTMLButtonElement;
+    const phaseButton = fixture.nativeElement.querySelector('.phase-button') as HTMLButtonElement;
+    expect(inviteButton.disabled).toBe(true);
+    expect(phaseButton.disabled).toBe(true);
   });
 });

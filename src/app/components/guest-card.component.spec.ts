@@ -194,3 +194,33 @@ describe('GuestCardComponent', () => {
     expect(caption?.textContent).toBe('Ace');
   });
 });
+
+describe('GuestCardComponent - Star Guests', () => {
+  const cases: [Guest['type'], string, string][] = [
+    ['ALIEN', 'Alien', 'ET'],
+    ['LEPRECHAUN', 'Leprechaun', 'Lucky'],
+    ['DRAGON', 'Dragon', 'Smaug'],
+    ['DINOSAUR', 'Dinosaur', 'Rex'],
+    ['MERMAID', 'Mermaid', 'Ariel'],
+    ['UNICORN', 'Unicorn', 'Sparkles'],
+    ['SUPERHERO', 'Superhero', 'Spider-man']
+  ];
+
+  beforeEach(async () => {
+    await TestBed.configureTestingModule({
+      imports: [GuestCardComponent]
+    }).compileComponents();
+  });
+
+  for (const [type, label, name] of cases) {
+    it(`should render the ${label} header and the guest name`, () => {
+      const fixture = TestBed.createComponent(GuestCardComponent);
+      fixture.componentInstance.guest = { type, name, properties: { ...GUEST_TYPE_DEFAULTS[type] } };
+      fixture.detectChanges();
+
+      const compiled = fixture.nativeElement as HTMLElement;
+      expect(compiled.querySelector('.card-header')?.textContent).toBe(label);
+      expect(compiled.querySelector('.card-caption')?.textContent).toBe(name);
+    });
+  }
+});

@@ -1955,3 +1955,84 @@ describe('Popularity Resource System Integration Tests', () => {
     });
   });
 });
+
+/**
+ * Integration Test: Winning the Game
+ *
+ * Buys four star guests through the shop UI, throws a party with them, ends it,
+ * and claims the victory.
+ *
+ * **Validates: Requirements 14.2, 15.1, 15.5, 15.6 (star-guests-winning)**
+ */
+describe('Star Guests & Winning Integration Test', () => {
+  let fixture: ComponentFixture<GameplayComponent>;
+  let store: InstanceType<typeof GameStore>;
+  let router: Router;
+
+  beforeEach(async () => {
+    await TestBed.configureTestingModule({
+      imports: [GameplayComponent, LandingPageComponent],
+      providers: [
+        provideRouter([
+          { path: '', component: LandingPageComponent },
+          { path: 'game', component: GameplayComponent }
+        ])
+      ]
+    }).compileComponents();
+
+    fixture = TestBed.createComponent(GameplayComponent);
+    store = TestBed.inject(GameStore);
+    router = TestBed.inject(Router);
+    store.resetGame();
+  });
+
+  it('should win after ending a party with four star guests and return home on Victory', async () => {
+    const navigateSpy = vi.spyOn(router, 'navigate');
+    fixture.detectChanges(); // ngOnInit → initializeGame()
+    patchState(store, { popularity: 200 });
+    fixture.detectChanges();
+
+    const element = fixture.nativeElement as HTMLElement;
+
+    // Buy four Aliens (40 popularity each)
+    for (let i = 0; i < 4; i++) {
+      (element.querySelector('.shop-card[aria-label="Buy Alien"]') as HTMLButtonElement).click();
+      fixture.detectChanges();
+    }
+    expect(store.popularity()).toBe(40);
+    expect(store.deck().filter(g => g.type === 'ALIEN')).toHaveLength(4);
+
+    // Start the party
+    (element.querySelector('.phase-button') as HTMLButtonElement).click();
+    fixture.detectChanges();
+    expect(store.currentPhase()).toBe(GamePhase.PARTY);
+
+    // Put the Aliens on top of the deck so the shuffle can't bust the party first
+    const deck = store.deck();
+    patchState(store, { deck: [...deck.filter(g => g.type === 'ALIEN'), ...deck.filter(g => g.type !== 'ALIEN')] });
+
+    for (let i = 0; i < 4; i++) {
+      (element.querySelector('.invite-button') as HTMLButtonElement).click();
+      fixture.detectChanges();
+    }
+    expect(element.querySelector('.star-count')?.textContent?.trim()).toBe('4 / 4');
+    expect(element.querySelector('.victory-modal-overlay')).toBeNull();
+
+    // End the party → victory dialog instead of the next turn's shop
+    (element.querySelector('.phase-button') as HTMLButtonElement).click();
+    fixture.detectChanges();
+
+    expect(store.isVictory()).toBe(true);
+    expect(store.currentTurn()).toBe(1);
+    expect(element.querySelector('#victory-title')?.textContent?.trim()).toBe('Congrats! You threw the ultimate party!');
+    expect(navigateSpy).not.toHaveBeenCalled();
+
+    // Claim victory → home
+    (element.querySelector('.victory-button') as HTMLButtonElement).click();
+    fixture.detectChanges();
+    await new Promise(resolve => setTimeout(resolve, 0));
+
+    expect(store.isGameComplete()).toBe(true);
+    expect(navigateSpy).toHaveBeenCalledWith(['/']);
+  });
+});

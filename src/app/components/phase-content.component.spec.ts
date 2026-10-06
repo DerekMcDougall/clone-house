@@ -369,8 +369,8 @@ describe('PhaseContentComponent', () => {
       const compiled = fixture.nativeElement as HTMLElement;
       const shopCards = compiled.querySelectorAll('.shop-card');
 
-      // Should have 14 purchasable guest types (including MR_POPULAR, CELEBRITY) + 1 Expand House card = 15
-      expect(shopCards.length).toBe(15);
+      // Should have 21 purchasable guest types (including the 7 star types) + 1 Expand House card = 22
+      expect(shopCards.length).toBe(22);
     });
 
     it('should show type labels on shop cards', () => {
@@ -778,7 +778,7 @@ describe('PhaseContentComponent', () => {
       expect(addedFeedback).toBeFalsy();
     });
 
-    it('should display shop cards in correct order: Old Friend, Monkey, Rich Pal, Hippy, Ticket Taker, Caterer, Mr. Popular, Rock Star, Gangster, Cute Dog, Gambler, Auctioneer, Celebrity, Climber, Expand House', () => {
+    it('should display shop cards in correct order: Old Friend, Monkey, Rich Pal, Hippy, Ticket Taker, Caterer, Mr. Popular, Rock Star, Gangster, Cute Dog, Gambler, Auctioneer, Celebrity, Climber, Dinosaur, Dragon, Mermaid, Alien, Unicorn, Leprechaun, Superhero, Expand House', () => {
       // Requirements: 9.2, 9.3
       component.phase = GamePhase.BUY;
       fixture.detectChanges();
@@ -786,7 +786,7 @@ describe('PhaseContentComponent', () => {
       const compiled = fixture.nativeElement as HTMLElement;
       const headers = compiled.querySelectorAll('.shop-card .card-header');
 
-      expect(headers.length).toBe(15);
+      expect(headers.length).toBe(22);
       expect(headers[0].textContent?.trim()).toBe('Old Friend');
       expect(headers[1].textContent?.trim()).toBe('Monkey');
       expect(headers[2].textContent?.trim()).toBe('Rich Pal');
@@ -801,7 +801,14 @@ describe('PhaseContentComponent', () => {
       expect(headers[11].textContent?.trim()).toBe('Auctioneer');
       expect(headers[12].textContent?.trim()).toBe('Celebrity');
       expect(headers[13].textContent?.trim()).toBe('Climber');
-      expect(headers[14].textContent?.trim()).toBe('Expand House');
+      expect(headers[14].textContent?.trim()).toBe('Dinosaur');
+      expect(headers[15].textContent?.trim()).toBe('Dragon');
+      expect(headers[16].textContent?.trim()).toBe('Mermaid');
+      expect(headers[17].textContent?.trim()).toBe('Alien');
+      expect(headers[18].textContent?.trim()).toBe('Unicorn');
+      expect(headers[19].textContent?.trim()).toBe('Leprechaun');
+      expect(headers[20].textContent?.trim()).toBe('Superhero');
+      expect(headers[21].textContent?.trim()).toBe('Expand House');
     });
   });
 
@@ -994,5 +1001,104 @@ describe('PhaseContentComponent', () => {
       // Initial cost is $2 (min(0 + 2, 12))
       expect(price?.textContent?.trim()).toBe('$2');
     });
+  });
+});
+
+/**
+ * PhaseContentComponent — Victory Dialog and Star Shop Cards
+ *
+ * **Validates: Requirements 15.1, 15.2, 15.4, 15.5, 17.1 (star-guests-winning)**
+ */
+describe('PhaseContentComponent - Victory and Star Guests', () => {
+  let component: PhaseContentComponent;
+  let fixture: ComponentFixture<PhaseContentComponent>;
+  let gameStore: InstanceType<typeof GameStore>;
+
+  const aliens = (count: number): Guest[] =>
+    Array.from({ length: count }, (_, i) => ({
+      type: 'ALIEN' as const,
+      name: `Alien${i}`,
+      properties: { ...GUEST_TYPE_DEFAULTS['ALIEN'] }
+    }));
+
+  beforeEach(async () => {
+    await TestBed.configureTestingModule({
+      imports: [PhaseContentComponent]
+    }).compileComponents();
+
+    fixture = TestBed.createComponent(PhaseContentComponent);
+    component = fixture.componentInstance;
+    gameStore = TestBed.inject(GameStore);
+    gameStore.initializeGame();
+  });
+
+  const winParty = () => {
+    patchState(gameStore, { currentPhase: GamePhase.PARTY, party: aliens(4) });
+    gameStore.advancePhase();
+    component.phase = GamePhase.PARTY;
+    fixture.detectChanges();
+  };
+
+  it('should not show the victory dialog before winning', () => {
+    component.phase = GamePhase.PARTY;
+    patchState(gameStore, { currentPhase: GamePhase.PARTY, party: aliens(4) });
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.querySelector('.victory-modal-overlay')).toBeNull();
+  });
+
+  it('should show the victory dialog with the congratulations message', () => {
+    winParty();
+
+    const overlay = fixture.nativeElement.querySelector('.victory-modal-overlay') as HTMLElement;
+    expect(overlay).toBeTruthy();
+    expect(overlay.getAttribute('role')).toBe('dialog');
+    expect(overlay.querySelector('#victory-title')?.textContent?.trim()).toBe('Congrats! You threw the ultimate party!');
+  });
+
+  it('should have exactly one button labeled "Victory"', () => {
+    winParty();
+
+    const buttons = fixture.nativeElement.querySelectorAll('.victory-modal button') as NodeListOf<HTMLButtonElement>;
+    expect(buttons.length).toBe(1);
+    expect(buttons[0].textContent?.trim()).toBe('Victory');
+    expect(buttons[0].getAttribute('aria-label')).toBe('Victory');
+  });
+
+  it('should keep the winning party cards rendered behind the dialog', () => {
+    winParty();
+
+    const captions = Array.from(fixture.nativeElement.querySelectorAll('.guest-cards-container .card-caption') as NodeListOf<HTMLElement>)
+      .map(c => c.textContent?.trim());
+    expect(captions).toHaveLength(4);
+    expect(captions).toContain('Alien0');
+  });
+
+  it('should complete the game and close the dialog when Victory is clicked', () => {
+    winParty();
+
+    (fixture.nativeElement.querySelector('.victory-button') as HTMLButtonElement).click();
+    fixture.detectChanges();
+
+    expect(gameStore.isGameComplete()).toBe(true);
+    expect(gameStore.isVictory()).toBe(false);
+    expect(fixture.nativeElement.querySelector('.victory-modal-overlay')).toBeNull();
+  });
+
+  it('should show a shop card with label, price and stock for each star type', () => {
+    component.phase = GamePhase.BUY;
+    fixture.detectChanges();
+
+    const expected: [string, number][] = [
+      ['Dinosaur', 25], ['Dragon', 30], ['Mermaid', 35], ['Alien', 40],
+      ['Unicorn', 45], ['Leprechaun', 50], ['Superhero', 50]
+    ];
+    for (const [label, cost] of expected) {
+      const card = fixture.nativeElement.querySelector(`.shop-card[aria-label="Buy ${label}"]`) as HTMLElement;
+      expect(card).toBeTruthy();
+      expect(card.querySelector('.card-header')?.textContent?.trim()).toBe(label);
+      expect(card.querySelector('.shop-price')?.textContent?.trim()).toBe(`Price: ${cost}`);
+      expect(card.querySelector('.shop-stock')?.textContent?.trim()).toBe('Available: 4');
+    }
   });
 });
