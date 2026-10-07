@@ -241,12 +241,12 @@ export const GameStore = signalStore(
     // effects an effect enqueues run, in the order enqueued, before any effect that was
     // already waiting, so a newly arrived guest's entrance effect interrupts the effect
     // that admitted it. State is committed after each effect, then checked for overflow
-    // and trouble; a bust shuts the party down and discards any effects still queued.
+    // and trouble; a bust shuts the party down and discards any effects still pending.
     const resolveEffects = (initialEffect: GameEffect): void => {
-      const queue: GameEffect[] = [initialEffect];
+      const stack: GameEffect[] = [initialEffect];
 
-      while (queue.length > 0) {
-        const effect = queue.shift()!;
+      while (stack.length > 0) {
+        const effect = stack.pop()!;
         const enqueued: GameEffect[] = [];
         const ctx = new EffectContextImpl(
           store.deck(),
@@ -258,7 +258,8 @@ export const GameStore = signalStore(
         );
 
         effect(ctx);
-        queue.unshift(...enqueued);
+        // Reversed so the first effect enqueued is popped first
+        stack.push(...enqueued.reverse());
 
         patchState(store, {
           deck: ctx.getDeck(),
@@ -364,7 +365,7 @@ export const GameStore = signalStore(
 
         patchState(store, { showEmptyDeckMessage: false, showHouseFullMessage: false });
 
-        // Draw the top guest; admitting it (and any effects that follow) is handled by the effect queue
+        // Draw the top guest; admitting it (and any effects that follow) is handled by resolveEffects
         const [rawGuest, ...remainingDeck] = deck;
         patchState(store, { deck: remainingDeck });
 

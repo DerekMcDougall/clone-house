@@ -13,7 +13,7 @@ With the current guest types, the party that results from an invite (and the gue
 - **Game_Store**: The NgRx SignalStore managing all game state
 - **Entrance_Effect**: A side effect that triggers when a guest joins the party; defined per guest type in GUEST_TYPE_ENTRANCE_EFFECTS
 - **Auto_Invite**: An action performed by an entrance effect that draws the top guest from the deck and admits it to the party
-- **Effect**: A unit of work resolved by the Game_Store's effect queue; admitting a guest, an Auto_Invite and an Entrance_Effect are each effects
+- **Effect**: A unit of work resolved by the Game_Store's `resolveEffects()`; admitting a guest, an Auto_Invite and an Entrance_Effect are each effects
 - **Interrupting_Effect**: An effect enqueued by the effect currently running; it runs before any effect that was already waiting
 - **Pending_Effect**: An effect that has been enqueued but not yet run
 - **Celebrity**: A guest type whose entrance effect performs two Auto_Invites

@@ -3019,6 +3019,25 @@ describe('Entrance Effect Order — GameStore', () => {
     }
   });
 
+  it('should run the effects enqueued by one effect in the order they were enqueued', () => {
+    const order: string[] = [];
+    GUEST_TYPE_ENTRANCE_EFFECTS.OLD_FRIEND = (ctx) => {
+      ctx.enqueue(() => order.push('first'));
+      ctx.enqueue(() => order.push('second'));
+      ctx.enqueue(() => order.push('third'));
+    };
+
+    try {
+      patchState(store, { deck: [makeGuest('OLD_FRIEND', 'Colin')] });
+
+      store.inviteGuest();
+
+      expect(order).toEqual(['first', 'second', 'third']);
+    } finally {
+      delete GUEST_TYPE_ENTRANCE_EFFECTS.OLD_FRIEND;
+    }
+  });
+
   it('should finish a nested chain of entrance effects before resuming the interrupted effect', () => {
     const mrPopularEffect = GUEST_TYPE_ENTRANCE_EFFECTS.MR_POPULAR!;
     let partyAtRowanEntrance: string[] = [];

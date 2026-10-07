@@ -9,7 +9,8 @@ Switch the store's effect resolution from first-in, first-out to depth-first, so
 - [x] 1. Resolve effects depth-first
   - [x] 1.1 Change `resolveEffects()` in `game.store.ts`
     - Give each effect's context a local `enqueued` list as its `enqueue` target
-    - After the effect runs, `queue.unshift(...enqueued)` so those effects run next, in the order enqueued
+    - Hold pending effects in a stack and take the next with `pop()`
+    - After the effect runs, `stack.push(...enqueued.reverse())` so those effects run next, in the order enqueued
     - Keep the commit and bust check after every effect
     - Update the method comment and the `GameEffect` comment in `effect-context.ts`
     - _Requirements: 1.1, 1.2, 1.3, 1.4, 2.1, 2.2_
@@ -18,6 +19,7 @@ Switch the store's effect resolution from first-in, first-out to depth-first, so
   - [x] 2.1 Add "Entrance Effect Order — GameStore" unit tests to `game.store.spec.ts`
     - Climber auto-invited by a Celebrity has her +1 applied before Celebrity's second Auto_Invite overflows the house
     - A temporary trouble-raising entrance effect busts the party before Celebrity's second Auto_Invite draws
+    - Effects enqueued by one effect run in the order enqueued
     - Mr. Popular auto-invited by a Celebrity sees only `[Celebrity, Mr. Popular]` when his entrance effect runs
     - Confirm each test fails under the previous first-in, first-out order
     - _Requirements: 1.1, 1.2, 1.3, 1.4, 2.1, 2.2_
