@@ -237,24 +237,28 @@ export const GameStore = signalStore(
       });
     };
 
-    // Private method to resolve an effect and every effect it enqueues, in FIFO order.
-    // State is committed after each effect, then checked for overflow and trouble; a bust
-    // shuts the party down and discards any effects still queued.
+    // Private method to resolve an effect and every effect it enqueues, depth-first: the
+    // effects an effect enqueues run, in the order enqueued, before any effect that was
+    // already waiting, so a newly arrived guest's entrance effect interrupts the effect
+    // that admitted it. State is committed after each effect, then checked for overflow
+    // and trouble; a bust shuts the party down and discards any effects still queued.
     const resolveEffects = (initialEffect: GameEffect): void => {
       const queue: GameEffect[] = [initialEffect];
 
       while (queue.length > 0) {
         const effect = queue.shift()!;
+        const enqueued: GameEffect[] = [];
         const ctx = new EffectContextImpl(
           store.deck(),
           store.party(),
           store.discard(),
           store.popularity(),
           store.money(),
-          (next) => queue.push(next)
+          (next) => enqueued.push(next)
         );
 
         effect(ctx);
+        queue.unshift(...enqueued);
 
         patchState(store, {
           deck: ctx.getDeck(),
