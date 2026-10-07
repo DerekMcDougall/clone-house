@@ -237,24 +237,29 @@ export const GameStore = signalStore(
       });
     };
 
-    // Private method to resolve an effect and every effect it enqueues, in FIFO order.
-    // State is committed after each effect, then checked for overflow and trouble; a bust
-    // shuts the party down and discards any effects still queued.
+    // Private method to resolve an effect and every effect it enqueues, depth-first: the
+    // effects an effect enqueues run, in the order enqueued, before any effect that was
+    // already waiting, so a newly arrived guest's entrance effect interrupts the effect
+    // that admitted it. State is committed after each effect, then checked for overflow
+    // and trouble; a bust shuts the party down and discards any effects still pending.
     const resolveEffects = (initialEffect: GameEffect): void => {
-      const queue: GameEffect[] = [initialEffect];
+      const stack: GameEffect[] = [initialEffect];
 
-      while (queue.length > 0) {
-        const effect = queue.shift()!;
+      while (stack.length > 0) {
+        const effect = stack.pop()!;
+        const enqueued: GameEffect[] = [];
         const ctx = new EffectContextImpl(
           store.deck(),
           store.party(),
           store.discard(),
           store.popularity(),
           store.money(),
-          (next) => queue.push(next)
+          (next) => enqueued.push(next)
         );
 
         effect(ctx);
+        // Reversed so the first effect enqueued is popped first
+        stack.push(...enqueued.reverse());
 
         patchState(store, {
           deck: ctx.getDeck(),
@@ -360,7 +365,7 @@ export const GameStore = signalStore(
 
         patchState(store, { showEmptyDeckMessage: false, showHouseFullMessage: false });
 
-        // Draw the top guest; admitting it (and any effects that follow) is handled by the effect queue
+        // Draw the top guest; admitting it (and any effects that follow) is handled by resolveEffects
         const [rawGuest, ...remainingDeck] = deck;
         patchState(store, { deck: remainingDeck });
 

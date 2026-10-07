@@ -2,7 +2,7 @@ import { TestBed } from '@angular/core/testing';
 import { patchState } from '@ngrx/signals';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { GamePhase } from '../models';
-import { Guest, GUEST_TYPE_DEFAULTS, GuestType, INITIAL_GUESTS } from '../models/guest.model';
+import { Guest, GUEST_TYPE_DEFAULTS, GUEST_TYPE_ENTRANCE_EFFECTS, GuestType, INITIAL_GUESTS } from '../models/guest.model';
 import { GameStore, ShopInventoryEntry } from './game.store';
 
 /**
@@ -2784,7 +2784,7 @@ describe('Auto-invite Entrance Effects — GameStore', () => {
     expect(store.deck().map(g => g.name)).toEqual(['Rachelle']);
   });
 
-  it('should run entrance effects of auto-invited guests in FIFO order', () => {
+  it('should admit guests in draw order through a chain of auto-invites', () => {
     patchState(store, {
       deck: [
         makeGuest('MR_POPULAR', 'Rowan'),
@@ -2947,6 +2947,126 @@ describe('Auto-invite Entrance Effects — GameStore', () => {
       .map(g => g.name)
       .sort();
     expect(allNames).toEqual(['Anthony', 'Emily', 'Jacco', 'Rachelle', 'Teresa', 'Troy']);
+  });
+});
+
+/**
+ * Entrance Effect Order — Unit Tests
+ *
+ * **Validates: Requirements 1.1–1.4, 2.1, 2.2 (entrance-effect-order)**
+ */
+describe('Entrance Effect Order — GameStore', () => {
+  let store: InstanceType<typeof GameStore>;
+
+  const makeGuest = (type: GuestType, name: string): Guest => ({
+    type,
+    name,
+    properties: { ...GUEST_TYPE_DEFAULTS[type] }
+  });
+
+  beforeEach(() => {
+    TestBed.configureTestingModule({});
+    store = TestBed.inject(GameStore);
+    store.initializeGame();
+    patchState(store, { currentPhase: GamePhase.PARTY, houseCapacity: 10, party: [] });
+  });
+
+  it('should run an auto-invited guest\'s entrance effect before Celebrity\'s second auto-invite', () => {
+    patchState(store, {
+      houseCapacity: 2,
+      deck: [
+        makeGuest('CELEBRITY', 'Troy'),
+        makeGuest('CLIMBER', 'Skye'),
+        makeGuest('OLD_FRIEND', 'Colin'),
+        makeGuest('OLD_FRIEND', 'Emily')
+      ]
+    });
+
+    // Colin, Celebrity's second auto-invite, overflows the house. Skye's entrance effect
+    // must already have run by then.
+    store.inviteGuest();
+
+    expect(store.isOverflowShutdown()).toBe(true);
+    expect(store.bustPartySnapshot().map(g => g.name)).toEqual(['Troy', 'Skye', 'Colin']);
+    expect(store.bustPartySnapshot()[1].properties.popularityValue).toBe(1);
+  });
+
+  it('should bust before Celebrity\'s second auto-invite when an entrance effect raises trouble', () => {
+    // Stand-in for an upcoming trouble-raising entrance effect
+    GUEST_TYPE_ENTRANCE_EFFECTS.OLD_FRIEND = (ctx, guest) => {
+      ctx.updateGuest(guest, g => ({ ...g, properties: { ...g.properties, troubleValue: 3 } }));
+    };
+
+    try {
+      patchState(store, {
+        deck: [
+          makeGuest('CELEBRITY', 'Troy'),
+          makeGuest('OLD_FRIEND', 'Colin'),
+          makeGuest('OLD_FRIEND', 'Emily'),
+          makeGuest('OLD_FRIEND', 'Rachelle')
+        ]
+      });
+
+      store.inviteGuest();
+
+      expect(store.isPartyShutdown()).toBe(true);
+      expect(store.isOverflowShutdown()).toBe(false);
+      expect(store.bustPartySnapshot().map(g => g.name)).toEqual(['Troy', 'Colin']);
+      // Celebrity's second auto-invite never drew, so Emily is still in the deck
+      expect(store.deck().map(g => g.name)).toEqual(['Emily', 'Rachelle']);
+    } finally {
+      delete GUEST_TYPE_ENTRANCE_EFFECTS.OLD_FRIEND;
+    }
+  });
+
+  it('should run the effects enqueued by one effect in the order they were enqueued', () => {
+    const order: string[] = [];
+    GUEST_TYPE_ENTRANCE_EFFECTS.OLD_FRIEND = (ctx) => {
+      ctx.enqueue(() => order.push('first'));
+      ctx.enqueue(() => order.push('second'));
+      ctx.enqueue(() => order.push('third'));
+    };
+
+    try {
+      patchState(store, { deck: [makeGuest('OLD_FRIEND', 'Colin')] });
+
+      store.inviteGuest();
+
+      expect(order).toEqual(['first', 'second', 'third']);
+    } finally {
+      delete GUEST_TYPE_ENTRANCE_EFFECTS.OLD_FRIEND;
+    }
+  });
+
+  it('should finish a nested chain of entrance effects before resuming the interrupted effect', () => {
+    const mrPopularEffect = GUEST_TYPE_ENTRANCE_EFFECTS.MR_POPULAR!;
+    let partyAtRowanEntrance: string[] = [];
+    GUEST_TYPE_ENTRANCE_EFFECTS.MR_POPULAR = (ctx, guest) => {
+      partyAtRowanEntrance = ctx.getParty().map(g => g.name);
+      mrPopularEffect(ctx, guest);
+    };
+
+    try {
+      patchState(store, {
+        deck: [
+          makeGuest('CELEBRITY', 'Troy'),
+          makeGuest('MR_POPULAR', 'Rowan'),
+          makeGuest('OLD_FRIEND', 'Colin'),
+          makeGuest('OLD_FRIEND', 'Emily'),
+          makeGuest('OLD_FRIEND', 'Rachelle')
+        ]
+      });
+
+      store.inviteGuest();
+
+      // Rowan's entrance effect interrupts Troy's, so it runs before Troy's second
+      // auto-invite draws; Rowan's guest (Colin) arrives before Troy's second guest (Emily)
+      expect(partyAtRowanEntrance).toEqual(['Troy', 'Rowan']);
+      expect(store.party().map(g => g.name)).toEqual(['Troy', 'Rowan', 'Colin', 'Emily']);
+      expect(store.deck().map(g => g.name)).toEqual(['Rachelle']);
+    } finally {
+      GUEST_TYPE_ENTRANCE_EFFECTS.MR_POPULAR = mrPopularEffect;
+    }
   });
 });
 
