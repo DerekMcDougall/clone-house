@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { GUEST_TYPE_COSTS, GUEST_TYPE_DEFAULTS, GUEST_TYPE_ENTRANCE_EFFECTS, GUEST_TYPE_LABELS, INITIAL_GUESTS, SHOP_GUESTS, WINNING_STAR_COUNT, type Guest, type GuestType } from './guest.model';
+import { formatMoney, getGuestDetails, GUEST_TYPE_COSTS, GUEST_TYPE_DEFAULTS, GUEST_TYPE_ENTRANCE_EFFECTS, GUEST_TYPE_ENTRANCE_ICONS, GUEST_TYPE_LABELS, INITIAL_GUESTS, SHOP_GUESTS, WINNING_STAR_COUNT, type Guest, type GuestProperties, type GuestType } from './guest.model';
 
 /**
  * Unit Tests for Guest Model
@@ -624,5 +624,78 @@ describe('Guest Model - Star Guests', () => {
   it('should keep every guest name unique across INITIAL_GUESTS and SHOP_GUESTS', () => {
     const names = [...INITIAL_GUESTS, ...SHOP_GUESTS].map(g => g.name);
     expect(new Set(names).size).toBe(names.length);
+  });
+});
+
+describe('Guest Model - Guest Details', () => {
+  const symbols = (type: GuestType, properties: GuestProperties = GUEST_TYPE_DEFAULTS[type]) =>
+    getGuestDetails(type, properties).icons.map(icon => icon.symbol).join('');
+
+  it('shows popularity only for an Old Friend', () => {
+    expect(getGuestDetails('OLD_FRIEND', GUEST_TYPE_DEFAULTS.OLD_FRIEND)).toEqual({ popularity: 1, money: null, icons: [] });
+  });
+
+  it('shows negative popularity and money for a Ticket Taker', () => {
+    const details = getGuestDetails('TICKET_TAKER', GUEST_TYPE_DEFAULTS.TICKET_TAKER);
+    expect(details.popularity).toBe(-1);
+    expect(details.money).toBe(2);
+    expect(details.icons).toEqual([]);
+  });
+
+  it('shows negative money and a star for a Dragon', () => {
+    const details = getGuestDetails('DRAGON', GUEST_TYPE_DEFAULTS.DRAGON);
+    expect(details.popularity).toBeNull();
+    expect(details.money).toBe(-3);
+    expect(symbols('DRAGON')).toBe('⭐');
+  });
+
+  it('shows peace left of the star for a Unicorn', () => {
+    expect(symbols('UNICORN')).toBe('☮️⭐');
+  });
+
+  it('shows trouble left of the star for a Dinosaur', () => {
+    expect(symbols('DINOSAUR')).toBe('❌⭐');
+  });
+
+  it('shows a Climber with defaults as a plus and no popularity', () => {
+    const details = getGuestDetails('CLIMBER', GUEST_TYPE_DEFAULTS.CLIMBER);
+    expect(details.popularity).toBeNull();
+    expect(symbols('CLIMBER')).toBe('➕');
+  });
+
+  it('shows the current popularity of a Climber that has entered 3 times', () => {
+    const details = getGuestDetails('CLIMBER', { ...GUEST_TYPE_DEFAULTS.CLIMBER, popularityValue: 3 });
+    expect(details.popularity).toBe(3);
+    expect(symbols('CLIMBER')).toBe('➕');
+  });
+
+  it('shows one person per auto-invite', () => {
+    expect(symbols('MR_POPULAR')).toBe('👤');
+    expect(symbols('MERMAID')).toBe('👤⭐');
+    expect(symbols('CELEBRITY')).toBe('👤👤');
+  });
+
+  it('shows one icon per point of peace, trouble and star', () => {
+    const properties: GuestProperties = { popularityValue: 0, moneyValue: 0, peaceValue: 2, troubleValue: 2, starValue: 3 };
+    expect(symbols('OLD_FRIEND', properties)).toBe('☮️☮️❌❌⭐⭐⭐');
+  });
+
+  it('gives every icon an accessible label', () => {
+    for (const type of Object.keys(GUEST_TYPE_DEFAULTS) as GuestType[]) {
+      for (const icon of getGuestDetails(type, GUEST_TYPE_DEFAULTS[type]).icons) {
+        expect(icon.label.length).toBeGreaterThan(0);
+      }
+    }
+  });
+
+  it('has an entrance icon for every entrance effect', () => {
+    for (const type of Object.keys(GUEST_TYPE_ENTRANCE_EFFECTS) as GuestType[]) {
+      expect(GUEST_TYPE_ENTRANCE_ICONS[type]?.length ?? 0).toBeGreaterThan(0);
+    }
+  });
+
+  it('formats money with the minus sign before the dollar sign', () => {
+    expect(formatMoney(3)).toBe('$3');
+    expect(formatMoney(-3)).toBe('-$3');
   });
 });

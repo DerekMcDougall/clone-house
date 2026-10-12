@@ -360,6 +360,56 @@ export const GUEST_TYPE_ENTRANCE_EFFECTS: Partial<Record<GuestType, EffectHandle
   }
 };
 
+// A symbol shown in the top right corner of a guest card.
+export interface GuestIcon {
+  symbol: string;
+  label: string;
+}
+
+// What a guest card shows: popularity and money are null when zero, icons run left to right.
+export interface GuestDetails {
+  popularity: number | null;
+  money: number | null;
+  icons: GuestIcon[];
+}
+
+const INVITE_ICON: GuestIcon = { symbol: '👤', label: 'Invites a guest on entrance' };
+const PEACE_ICON: GuestIcon = { symbol: '☮️', label: 'Peace' };
+const TROUBLE_ICON: GuestIcon = { symbol: '❌', label: 'Trouble' };
+const STAR_ICON: GuestIcon = { symbol: '⭐', label: 'Star' };
+
+// Icons for each type's entrance effect, left to right. Every type in
+// GUEST_TYPE_ENTRANCE_EFFECTS needs an entry here.
+export const GUEST_TYPE_ENTRANCE_ICONS: Partial<Record<GuestType, readonly GuestIcon[]>> = {
+  CLIMBER: [{ symbol: '➕', label: 'Gains 1 popularity on entrance' }],
+  MR_POPULAR: [INVITE_ICON],
+  CELEBRITY: [INVITE_ICON, INVITE_ICON],
+  MERMAID: [INVITE_ICON]
+};
+
+// Works out what a card shows for a guest of the given type with the given properties.
+// Icons: entrance effects, then one per point of peace, trouble and star, in that order.
+export function getGuestDetails(type: GuestType, properties: GuestProperties): GuestDetails {
+  const repeat = (icon: GuestIcon, count: number): GuestIcon[] =>
+    Array.from({ length: Math.max(0, count) }, () => icon);
+
+  return {
+    popularity: properties.popularityValue === 0 ? null : properties.popularityValue,
+    money: properties.moneyValue === 0 ? null : properties.moneyValue,
+    icons: [
+      ...(GUEST_TYPE_ENTRANCE_ICONS[type] ?? []),
+      ...repeat(PEACE_ICON, properties.peaceValue),
+      ...repeat(TROUBLE_ICON, properties.troubleValue),
+      ...repeat(STAR_ICON, properties.starValue)
+    ]
+  };
+}
+
+// Formats money with a dollar sign, putting any minus sign first: 3 -> "$3", -3 -> "-$3".
+export function formatMoney(value: number): string {
+  return value < 0 ? `-$${-value}` : `$${value}`;
+}
+
 // Adds a guest to the party, then enqueues its entrance effect (if any).
 export function admitGuest(guest: Guest): GameEffect {
   return (ctx) => {

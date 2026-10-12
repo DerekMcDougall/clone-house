@@ -1101,4 +1101,48 @@ describe('PhaseContentComponent - Victory and Star Guests', () => {
       expect(card.querySelector('.shop-stock')?.textContent?.trim()).toBe('Available: 4');
     }
   });
+
+  describe('Shop Card Guest Details', () => {
+    function shopCard(label: string): HTMLElement {
+      component.phase = GamePhase.BUY;
+      fixture.detectChanges();
+      const cards = Array.from((fixture.nativeElement as HTMLElement).querySelectorAll<HTMLElement>('.shop-card'));
+      const card = cards.find(c => c.querySelector('.card-header')?.textContent?.trim() === label);
+      expect(card).toBeTruthy();
+      return card!;
+    }
+
+    it('shows the Climber as first added to the deck: a plus and no popularity', () => {
+      const card = shopCard('Climber');
+      expect(card.querySelector('.guest-popularity')).toBeNull();
+      expect(card.querySelector('.guest-icons')?.textContent?.trim()).toBe('➕');
+    });
+
+    it('shows popularity, money and two invite icons on the Celebrity card', () => {
+      const card = shopCard('Celebrity');
+      expect(card.querySelector('.guest-popularity')?.textContent?.trim()).toBe('2');
+      expect(card.querySelector('.guest-money')?.textContent?.trim()).toBe('$3');
+      const icons = Array.from(card.querySelectorAll('.guest-icons [role="img"]')).map(i => i.textContent?.trim());
+      expect(icons).toEqual(['👤', '👤']);
+    });
+
+    it('keeps the "Buy <type>" accessible name', () => {
+      expect(shopCard('Celebrity').getAttribute('aria-label')).toBe('Buy Celebrity');
+    });
+
+    it('does not add details to the Expand House card', () => {
+      component.phase = GamePhase.BUY;
+      fixture.detectChanges();
+      const expand = (fixture.nativeElement as HTMLElement).querySelector('.expand-house-card');
+      expect(expand?.querySelector('app-guest-details')).toBeNull();
+    });
+
+    it('still buys the guest when the card is clicked', () => {
+      patchState(gameStore, { popularity: 100 });
+      const before = gameStore.deck().length;
+      shopCard('Old Friend').click();
+      fixture.detectChanges();
+      expect(gameStore.deck().length).toBe(before + 1);
+    });
+  });
 });

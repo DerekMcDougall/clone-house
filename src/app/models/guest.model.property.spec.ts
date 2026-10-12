@@ -1,6 +1,6 @@
 import * as fc from 'fast-check';
 import { describe, expect, it } from 'vitest';
-import { Guest, GUEST_TYPE_DEFAULTS, GuestType, INITIAL_GUESTS } from './guest.model';
+import { formatMoney, getGuestDetails, Guest, GUEST_TYPE_DEFAULTS, GUEST_TYPE_ENTRANCE_ICONS, GuestType, INITIAL_GUESTS } from './guest.model';
 
 /**
  * Property-Based Tests for Guest Model
@@ -190,5 +190,58 @@ describe('Guest Model - Property-Based Tests', () => {
         { numRuns: 100 }
       );
     });
+  });
+});
+
+describe('Guest Details - Property-Based Tests', () => {
+  const guestTypeArb = fc.constantFrom(...(Object.keys(GUEST_TYPE_DEFAULTS) as GuestType[]));
+  const valueArb = fc.integer({ min: -5, max: 9 });
+  const propertiesArb = fc.record({
+    popularityValue: valueArb,
+    troubleValue: valueArb,
+    moneyValue: valueArb,
+    peaceValue: valueArb,
+    starValue: valueArb
+  });
+
+  // Property 1: popularity and money are null exactly when zero
+  it('hides popularity and money exactly when zero', () => {
+    fc.assert(fc.property(guestTypeArb, propertiesArb, (type, properties) => {
+      const details = getGuestDetails(type, properties);
+      expect(details.popularity).toBe(properties.popularityValue === 0 ? null : properties.popularityValue);
+      expect(details.money).toBe(properties.moneyValue === 0 ? null : properties.moneyValue);
+    }));
+  });
+
+  // Property 2: entrance icons, then one per point of peace, trouble and star
+  it('orders icons as entrance effects, peace, trouble, star', () => {
+    fc.assert(fc.property(guestTypeArb, propertiesArb, (type, properties) => {
+      const entrance = (GUEST_TYPE_ENTRANCE_ICONS[type] ?? []).map(icon => icon.symbol);
+      const repeat = (symbol: string, count: number) => Array(Math.max(0, count)).fill(symbol);
+      const expected = [
+        ...entrance,
+        ...repeat('☮️', properties.peaceValue),
+        ...repeat('❌', properties.troubleValue),
+        ...repeat('⭐', properties.starValue)
+      ];
+      expect(getGuestDetails(type, properties).icons.map(icon => icon.symbol)).toEqual(expected);
+    }));
+  });
+
+  // Property 3: entrance icons depend only on the type
+  it('shows the same entrance icons whatever the properties', () => {
+    fc.assert(fc.property(guestTypeArb, propertiesArb, propertiesArb, (type, a, b) => {
+      const entranceCount = GUEST_TYPE_ENTRANCE_ICONS[type]?.length ?? 0;
+      const first = getGuestDetails(type, a).icons.slice(0, entranceCount);
+      const second = getGuestDetails(type, b).icons.slice(0, entranceCount);
+      expect(first).toEqual(second);
+    }));
+  });
+
+  // Property 4: money format
+  it('formats money as $n or -$n', () => {
+    fc.assert(fc.property(fc.integer({ min: -1000, max: 1000 }).filter(n => n !== 0), (n) => {
+      expect(formatMoney(n)).toBe(n > 0 ? `$${n}` : `-$${-n}`);
+    }));
   });
 });

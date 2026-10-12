@@ -224,3 +224,38 @@ describe('GuestCardComponent - Star Guests', () => {
     });
   }
 });
+
+describe('GuestCardComponent - Guest Details', () => {
+  let fixture: ComponentFixture<GuestCardComponent>;
+
+  beforeEach(async () => {
+    await TestBed.configureTestingModule({
+      imports: [GuestCardComponent]
+    }).compileComponents();
+
+    fixture = TestBed.createComponent(GuestCardComponent);
+  });
+
+  it('shows the current popularity of a Climber that has entered 3 times', () => {
+    const guest: Guest = { type: 'CLIMBER', name: 'Skye', properties: { ...GUEST_TYPE_DEFAULTS['CLIMBER'], popularityValue: 3 } };
+    fixture.componentRef.setInput('guest', guest);
+    fixture.detectChanges();
+
+    const compiled = fixture.nativeElement as HTMLElement;
+    expect(compiled.querySelector('.guest-card app-guest-details')).toBeTruthy();
+    expect(compiled.querySelector('.guest-popularity')?.textContent?.trim()).toBe('3');
+    expect(compiled.querySelector('.guest-icons')?.textContent?.trim()).toBe('➕');
+  });
+
+  it('updates when its guest changes', () => {
+    const guest: Guest = { type: 'CLIMBER', name: 'Skye', properties: { ...GUEST_TYPE_DEFAULTS['CLIMBER'] } };
+    fixture.componentRef.setInput('guest', guest);
+    fixture.detectChanges();
+    const compiled = fixture.nativeElement as HTMLElement;
+    expect(compiled.querySelector('.guest-popularity')).toBeNull();
+
+    fixture.componentRef.setInput('guest', { ...guest, properties: { ...guest.properties, popularityValue: 1 } });
+    fixture.detectChanges();
+    expect(compiled.querySelector('.guest-popularity')?.textContent?.trim()).toBe('1');
+  });
+});
