@@ -87,6 +87,8 @@ This feature introduces the overflow mechanic and two new guest types — Mr. Po
 
 ### Requirement 6: Entrance Effect Sequencing
 
+> **Superseded:** Requirements 5.5, 6.1, 6.2 and 6.3 are replaced by the `entrance-effect-order` spec. An arriving guest's entrance effect now interrupts the current effect instead of waiting for it to complete. Requirement 6.4 still applies.
+
 **User Story:** As a player, I want each entrance effect to fully complete before the next one begins, so that the order of guest arrivals is predictable and consistent.
 
 #### Acceptance Criteria

@@ -12,7 +12,7 @@ This feature introduces the overflow mechanic and two new guest types — Mr. Po
 
 3. **autoInvite() enqueues a draw**: `autoInvite(ctx)` (a helper in `guest.model.ts`, not a context method) enqueues one effect that draws the top guest from the deck and admits it. The draw happens when that effect runs, not when it is enqueued. If an earlier effect busts the party, the queue is discarded, the draw never happens, and the guest stays in the deck. An empty deck makes the draw a no-op.
 
-4. **Sequencing falls out of FIFO order**: Celebrity's handler enqueues two draws. Each draw, when it runs, admits a guest and enqueues that guest's entrance effect at the back of the queue. So both of Celebrity's guests arrive before either of their entrance effects runs, and entrance effects run in arrival order (Requirement 6).
+4. **Sequencing falls out of FIFO order**: Celebrity's handler enqueues two draws. Each draw, when it runs, admits a guest and enqueues that guest's entrance effect at the back of the queue. So both of Celebrity's guests arrive before either of their entrance effects runs, and entrance effects run in arrival order (Requirement 6). **Superseded by the `entrance-effect-order` spec:** effects are now resolved depth-first, so an arriving guest's entrance effect runs before Celebrity's second draw.
 
 5. **isOverflowShutdown State Flag**: A new `isOverflowShutdown: boolean` field is added to `GameStoreState`. When true, `acknowledgeShutdown()` skips ban selection and advances directly to the next turn Buy phase (or marks game complete on the final turn). The existing `isPartyShutdown` flag remains the primary "shutdown modal is showing" signal; `isOverflowShutdown` is the discriminator between the two shutdown types.
 
@@ -644,6 +644,8 @@ This covers both MR_POPULAR (1 auto-invite) and CELEBRITY (2 auto-invites), and 
 **Validates: Requirements 4.1, 4.2, 4.3, 5.1, 5.2, 5.3, 5.4**
 
 ### Property 2: Effect Sequencing — Current Effect Completes Before Chained Effects Fire
+
+> **Superseded by the `entrance-effect-order` spec.** The arrival order below still holds, but the third guest is now MR_POPULAR's auto-invite and the fourth is Celebrity's second auto-invite.
 
 *For any* deck where CELEBRITY is first, a guest with an entrance effect (e.g., MR_POPULAR) is second, and at least two more guests follow, after calling `inviteGuest()` with no shutdown triggered, the party SHALL contain CELEBRITY, the second guest, the third guest (Celebrity's second auto-invite), and the fourth guest (MR_POPULAR's auto-invite) — in that arrival order. The fourth guest SHALL have arrived after Celebrity's second auto-invite completed.
 
