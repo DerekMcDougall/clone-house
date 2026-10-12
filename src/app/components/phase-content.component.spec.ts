@@ -1120,8 +1120,8 @@ describe('PhaseContentComponent - Victory and Star Guests', () => {
 
     it('shows popularity, money and two invite icons on the Celebrity card', () => {
       const card = shopCard('Celebrity');
-      expect(card.querySelector('.guest-popularity')?.textContent?.trim()).toBe('2');
-      expect(card.querySelector('.guest-money')?.textContent?.trim()).toBe('$3');
+      expect(card.querySelector('.guest-popularity .guest-value')?.textContent?.trim()).toBe('2');
+      expect(card.querySelector('.guest-money .guest-value')?.textContent?.trim()).toBe('$3');
       const icons = Array.from(card.querySelectorAll('.guest-icons [role="img"]')).map(i => i.textContent?.trim());
       expect(icons).toEqual(['👤', '👤']);
     });
@@ -1130,11 +1130,22 @@ describe('PhaseContentComponent - Victory and Star Guests', () => {
       expect(shopCard('Celebrity').getAttribute('aria-label')).toBe('Buy Celebrity');
     });
 
+    it('describes the button with its guest details', () => {
+      const card = shopCard('Celebrity');
+      const describedBy = card.getAttribute('aria-describedby');
+      expect(describedBy).toBe('shop-details-CELEBRITY');
+
+      const details = (fixture.nativeElement as HTMLElement).querySelector(`#${describedBy}`);
+      expect(details?.tagName.toLowerCase()).toBe('app-guest-details');
+      expect(card.contains(details)).toBe(true);
+    });
+
     it('does not add details to the Expand House card', () => {
       component.phase = GamePhase.BUY;
       fixture.detectChanges();
       const expand = (fixture.nativeElement as HTMLElement).querySelector('.expand-house-card');
       expect(expand?.querySelector('app-guest-details')).toBeNull();
+      expect(expand?.querySelector('.shop-price')?.textContent?.trim()).toBe(`$${gameStore.expansionCost()}`);
     });
 
     it('still buys the guest when the card is clicked', () => {

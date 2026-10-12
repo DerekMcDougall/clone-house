@@ -14,10 +14,14 @@ import { formatMoney, getGuestDetails, GuestDetails, GuestProperties, GuestType 
   </div>
 }
 @if (details.popularity !== null) {
-  <div class="guest-popularity" [attr.aria-label]="'Popularity ' + details.popularity">{{ details.popularity }}</div>
+  <div class="guest-popularity" [class.negative]="details.popularity < 0">
+    <span class="visually-hidden">Popularity </span><span class="guest-value">{{ details.popularity }}</span>
+  </div>
 }
 @if (money !== null) {
-  <div class="guest-money" [attr.aria-label]="'Money ' + money">{{ money }}</div>
+  <div class="guest-money" [class.negative]="details.money! < 0">
+    <span class="visually-hidden">Money </span><span class="guest-value">{{ money }}</span>
+  </div>
 }
   `,
   styles: [`
@@ -30,11 +34,19 @@ import { formatMoney, getGuestDetails, GuestDetails, GuestProperties, GuestType 
 .guest-icons {
   position: absolute;
   top: 0.3rem;
+  left: 0.4rem;
   right: 0.4rem;
   display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
   gap: 0.1rem;
   font-size: 0.85rem;
   line-height: 1;
+}
+
+/* Re-enable hover on icons so their title tooltips show; clicks still reach the card. */
+.guest-icons span {
+  pointer-events: auto;
 }
 
 .guest-popularity {
@@ -54,6 +66,23 @@ import { formatMoney, getGuestDetails, GuestDetails, GuestProperties, GuestType 
   font-size: 0.95rem;
   font-weight: 700;
   color: #2e7d32;
+}
+
+.guest-popularity.negative,
+.guest-money.negative {
+  color: #c62828;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
 }
   `]
 })

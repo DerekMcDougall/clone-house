@@ -83,6 +83,8 @@ The details appear wherever a guest or guest type is shown as a card. Today that
 #### Acceptance Criteria
 
 1. THE Guest_Details SHALL NOT overlap the card's type label, image, name, price or stock text
-2. EACH icon SHALL have an accessible name that describes its meaning (for example, "Star", "Trouble", "Peace", "Gains 1 popularity on entrance", "Invites a guest on entrance")
-3. THE popularity and money values SHALL have accessible names that say what they are (for example, "Popularity 3", "Money -$3")
-4. ON a Shop_Card, THE button's existing accessible name ("Buy <type>") SHALL be kept
+2. EACH icon SHALL have an accessible name and a hover tooltip that describe its meaning (for example, "Star", "Trouble", "Peace", "Gains 1 popularity on entrance", "Invites a guest on entrance")
+3. THE popularity and money values SHALL be announced with what they are (for example, "Popularity 3", "Money -$3")
+4. ON a Shop_Card, THE button's existing accessible name ("Buy <type>") SHALL be kept, and THE Guest_Details SHALL be its accessible description
+5. THE icon row SHALL stay within the card's width, wrapping onto more rows if needed
+6. NEGATIVE popularity and money values SHALL be shown in red, and positive money in green, so a cost cannot be mistaken for a gain

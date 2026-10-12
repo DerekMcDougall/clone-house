@@ -24,13 +24,16 @@ describe('GuestDetailsComponent', () => {
   it('shows popularity, money and icons for a Celebrity', () => {
     const el = render('CELEBRITY');
 
+    // Visible value plus visually hidden prefix, so screen readers announce "Popularity 2" and "Money $3"
     const popularity = el.querySelector('.guest-popularity');
-    expect(popularity?.textContent?.trim()).toBe('2');
-    expect(popularity?.getAttribute('aria-label')).toBe('Popularity 2');
+    expect(popularity?.querySelector('.guest-value')?.textContent?.trim()).toBe('2');
+    expect(popularity?.querySelector('.visually-hidden')?.textContent?.trim()).toBe('Popularity');
+    expect(popularity?.textContent?.replace(/\s+/g, ' ').trim()).toBe('Popularity 2');
 
     const money = el.querySelector('.guest-money');
-    expect(money?.textContent?.trim()).toBe('$3');
-    expect(money?.getAttribute('aria-label')).toBe('Money $3');
+    expect(money?.querySelector('.guest-value')?.textContent?.trim()).toBe('$3');
+    expect(money?.textContent?.replace(/\s+/g, ' ').trim()).toBe('Money $3');
+    expect(money?.classList.contains('negative')).toBe(false);
 
     const icons = Array.from(el.querySelectorAll('.guest-icons [role="img"]'));
     expect(icons.map(i => i.textContent?.trim())).toEqual(['👤', '👤']);
@@ -38,9 +41,17 @@ describe('GuestDetailsComponent', () => {
     expect(icons[0].getAttribute('title')).toBe('Invites a guest on entrance');
   });
 
-  it('shows negative money with the minus sign first', () => {
+  it('shows negative money with the minus sign first, marked as negative', () => {
     const el = render('DRAGON');
-    expect(el.querySelector('.guest-money')?.textContent?.trim()).toBe('-$3');
+    expect(el.querySelector('.guest-money .guest-value')?.textContent?.trim()).toBe('-$3');
+    expect(el.querySelector('.guest-money')?.classList.contains('negative')).toBe(true);
+  });
+
+  it('marks negative popularity as negative', () => {
+    const el = render('TICKET_TAKER');
+    expect(el.querySelector('.guest-popularity .guest-value')?.textContent?.trim()).toBe('-1');
+    expect(el.querySelector('.guest-popularity')?.classList.contains('negative')).toBe(true);
+    expect(el.querySelector('.guest-money')?.classList.contains('negative')).toBe(false);
   });
 
   it('hides zero popularity and money and shows no icons when there are none', () => {
@@ -61,6 +72,6 @@ describe('GuestDetailsComponent', () => {
     expect(el.querySelector('.guest-popularity')).toBeNull();
 
     el = render('CLIMBER', { ...GUEST_TYPE_DEFAULTS.CLIMBER, popularityValue: 3 });
-    expect(el.querySelector('.guest-popularity')?.textContent?.trim()).toBe('3');
+    expect(el.querySelector('.guest-popularity .guest-value')?.textContent?.trim()).toBe('3');
   });
 });

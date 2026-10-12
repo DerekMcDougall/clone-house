@@ -79,10 +79,12 @@ Emoji code points: ⭐ U+2B50, ❌ U+274C, ☮️ U+262E U+FE0F, ➕ U+2795, �
 - Selector `app-guest-details`. Required inputs: `type: GuestType` and `properties: GuestProperties`.
 - Uses `@Input` decorators like the other components, and computes the details with `getGuestDetails` in getters, so they update when the inputs change (Requirement 1.4). Signal inputs (`input.required()`) don't work in this project's Vitest setup, which compiles components just in time (JIT), so they fail with NG0950.
 - Template (each part rendered only when there is something to show):
-  - `.guest-icons` in the top right: one `<span role="img" [attr.aria-label]="icon.label" [title]="icon.label">` per icon
-  - `.guest-popularity` on the right edge, centered vertically, with `aria-label="Popularity N"`
-  - `.guest-money` in the bottom right, showing `formatMoney(money)`, with `aria-label="Money $N"`
-- Styles: `:host { position: absolute; inset: 0; pointer-events: none; }`. Children are absolutely positioned within the host. `pointer-events: none` keeps the overlay from blocking clicks on Shop_Card and ban selection buttons.
+  - `.guest-icons` in the top right: one `<span role="img" [attr.aria-label]="icon.label" [title]="icon.label">` per icon. The row spans the card's width and wraps, right-aligned (Requirement 6.5). A second row would overlap the header, but no current guest has more than 2 icons.
+  - `.guest-popularity` on the right edge, centered vertically
+  - `.guest-money` in the bottom right, showing `formatMoney(money)`
+  - Each value is a `.guest-value` span after a visually hidden "Popularity " or "Money " prefix, so screen readers announce "Popularity 2" (Requirement 6.3). `aria-label` is not used here, because ARIA prohibits it on a `<div>` with no role.
+  - Negative values get a `.negative` class and show in red. Positive money shows in green (Requirement 6.6).
+- Styles: `:host { position: absolute; inset: 0; pointer-events: none; }`. Children are absolutely positioned within the host. `pointer-events: none` keeps the overlay from blocking clicks on Shop_Card and ban selection buttons. The icon spans set `pointer-events: auto` again, because the property is inherited and their `title` tooltips would otherwise never show (Requirement 6.2). A click on an icon still reaches the card, because the span is inside it.
 
 ### `GuestCardComponent`
 
@@ -94,7 +96,8 @@ Emoji code points: ⭐ U+2B50, ❌ U+274C, ☮️ U+262E U+FE0F, ➕ U+2795, �
 - Add `position: relative` to `.shop-card`, and include `<app-guest-details [type]="item.type" [properties]="GUEST_TYPE_DEFAULTS[item.type]" />`.
 - Use the same `1.75rem 1rem` padding as the guest card, which keeps the money clear of the "Price" and "Available" lines (Requirement 6.1).
 - The Expand House card does not get details.
-- The button's `aria-label` ("Buy <type>") is kept (Requirement 6.4). Because it overrides the names of the button's contents, screen readers announce only that label on shop cards. The `title` tooltips still show the icon meanings to sighted users.
+- The button's `aria-label` ("Buy <type>") is kept, and `aria-describedby` points at the overlay (`id="shop-details-<TYPE>"`). Screen readers then announce, for example, "Buy Dragon", then "Star Money -$3" (Requirement 6.4).
+- The Expand House price uses `formatMoney` too, so all money on the page has one format.
 
 ## Correctness Properties
 

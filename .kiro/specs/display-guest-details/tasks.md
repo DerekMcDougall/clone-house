@@ -19,7 +19,7 @@ Add a pure `getGuestDetails()` function and an entrance icon map to the guest mo
     - Absolutely positioned overlay with `pointer-events: none`
     - Icons in the top right, popularity on the right edge centered vertically, money in the bottom right
     - Accessible names and `title` tooltips on icons; accessible names on values
-    - _Requirements: 1.4, 2.1, 3.1, 4.1, 4.2, 5.1, 6.2, 6.3_
+    - _Requirements: 1.4, 2.1, 3.1, 4.1, 4.2, 5.1, 6.2, 6.3, 6.5, 6.6_
   - [x] 2.2 Add component tests in `guest-details.component.spec.ts`
 
 - [x] 3. Use the overlay on cards

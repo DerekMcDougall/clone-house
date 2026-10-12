@@ -664,9 +664,9 @@ describe('Guest Model - Guest Details', () => {
   });
 
   it('shows the current popularity of a Climber that has entered 3 times', () => {
-    const details = getGuestDetails('CLIMBER', { ...GUEST_TYPE_DEFAULTS.CLIMBER, popularityValue: 3 });
-    expect(details.popularity).toBe(3);
-    expect(symbols('CLIMBER')).toBe('➕');
+    const properties: GuestProperties = { ...GUEST_TYPE_DEFAULTS.CLIMBER, popularityValue: 3 };
+    expect(getGuestDetails('CLIMBER', properties).popularity).toBe(3);
+    expect(symbols('CLIMBER', properties)).toBe('➕');
   });
 
   it('shows one person per auto-invite', () => {

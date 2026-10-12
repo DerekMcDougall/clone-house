@@ -1,6 +1,6 @@
 import { Component, Input, inject, signal } from '@angular/core';
 import { GamePhase } from '../models';
-import { GUEST_TYPE_DEFAULTS, GUEST_TYPE_LABELS, GuestType } from '../models/guest.model';
+import { formatMoney, GUEST_TYPE_DEFAULTS, GUEST_TYPE_LABELS, GuestType } from '../models/guest.model';
 import { GameStore } from '../stores/game.store';
 import { GuestCardComponent } from './guest-card.component';
 import { GuestDetailsComponent } from './guest-details.component';
@@ -17,7 +17,8 @@ import { GuestDetailsComponent } from './guest-details.component';
         <button
           class="shop-card"
           (click)="onPurchaseGuest(item.type)"
-          [attr.aria-label]="'Buy ' + GUEST_TYPE_LABELS[item.type]">
+          [attr.aria-label]="'Buy ' + GUEST_TYPE_LABELS[item.type]"
+          [attr.aria-describedby]="'shop-details-' + item.type">
           <div class="card-header">{{ GUEST_TYPE_LABELS[item.type] }}</div>
           <div class="card-image">
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"
@@ -27,7 +28,7 @@ import { GuestDetailsComponent } from './guest-details.component';
           </div>
           <div class="shop-price">Price: {{ item.cost }}</div>
           <div class="shop-stock">Available: {{ item.guests.length }}</div>
-          <app-guest-details [type]="item.type" [properties]="GUEST_TYPE_DEFAULTS[item.type]" />
+          <app-guest-details [attr.id]="'shop-details-' + item.type" [type]="item.type" [properties]="GUEST_TYPE_DEFAULTS[item.type]" />
           @if (shopAddedFeedback() === item.type) {
             <div class="added-feedback">Added!</div>
           }
@@ -45,7 +46,7 @@ import { GuestDetailsComponent } from './guest-details.component';
               <path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/>
             </svg>
           </div>
-          <div class="shop-price">{{ '$' + gameStore.expansionCost() }}</div>
+          <div class="shop-price">{{ formatMoney(gameStore.expansionCost()) }}</div>
           <div class="shop-stock">Available: {{ gameStore.expansionStock() }}</div>
         </button>
       }
@@ -652,6 +653,7 @@ export class PhaseContentComponent {
   readonly GamePhase = GamePhase;
   readonly GUEST_TYPE_LABELS = GUEST_TYPE_LABELS;
   readonly GUEST_TYPE_DEFAULTS = GUEST_TYPE_DEFAULTS;
+  readonly formatMoney = formatMoney;
   
   // Inject GameStore to access party and showEmptyDeckMessage signals
   protected readonly gameStore = inject(GameStore);

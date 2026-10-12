@@ -243,7 +243,7 @@ describe('GuestCardComponent - Guest Details', () => {
 
     const compiled = fixture.nativeElement as HTMLElement;
     expect(compiled.querySelector('.guest-card app-guest-details')).toBeTruthy();
-    expect(compiled.querySelector('.guest-popularity')?.textContent?.trim()).toBe('3');
+    expect(compiled.querySelector('.guest-popularity .guest-value')?.textContent?.trim()).toBe('3');
     expect(compiled.querySelector('.guest-icons')?.textContent?.trim()).toBe('➕');
   });
 
@@ -256,6 +256,6 @@ describe('GuestCardComponent - Guest Details', () => {
 
     fixture.componentRef.setInput('guest', { ...guest, properties: { ...guest.properties, popularityValue: 1 } });
     fixture.detectChanges();
-    expect(compiled.querySelector('.guest-popularity')?.textContent?.trim()).toBe('1');
+    expect(compiled.querySelector('.guest-popularity .guest-value')?.textContent?.trim()).toBe('1');
   });
 });
