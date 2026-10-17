@@ -1,11 +1,13 @@
 import { TestBed } from '@angular/core/testing';
 import { patchState } from '@ngrx/signals';
 import * as fc from 'fast-check';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { GamePhase } from '../models';
-import { Guest, GUEST_TYPE_COSTS, GUEST_TYPE_DEFAULTS, GUEST_TYPE_ENTRANCE_EFFECTS, GUEST_TYPE_LABELS, GuestType, INITIAL_GUESTS, SHOP_GUESTS } from '../models/guest.model';
+import { EffectContext, Guest, GUEST_TYPE_COSTS, GUEST_TYPE_DEFAULTS, GUEST_TYPE_ENTRANCE_EFFECTS, GUEST_TYPE_LABELS, GuestType, INITIAL_GUESTS, SHOP_GUESTS } from '../models/guest.model';
+import { registerGuestType, resetGuestTypesForTesting } from '../models/guest-type-registry';
 import { GameStore, ShopInventoryEntry } from './game.store';
-import { testGuest } from '../../testing/guests';
+import { registerTestGuestType, testGuest } from '../../testing/guests';
+import { arbGuestTypeDefinition } from '../../testing/guest-type-arbitraries';
 
 /**
  * Property-Based Tests for GameStore
@@ -5188,6 +5190,8 @@ describe('GameStore - Star Guests & Winning Property Tests', () => {
 describe('GameStore Property Tests - Guest Identity', () => {
   let store: InstanceType<typeof GameStore>;
 
+  afterEach(() => resetGuestTypesForTesting());
+
   const purchasableTypes = (Object.keys(GUEST_TYPE_COSTS) as GuestType[]).filter(t => GUEST_TYPE_COSTS[t] !== null);
 
   const allIds = (): string[] => [
@@ -5263,6 +5267,14 @@ describe('GameStore Property Tests - Guest Identity', () => {
   describe('Property 3: updateGuest Pins the Id and Matches by Id', () => {
     it('should replace exactly the matching party guest and keep its id', () => {
       // Feature: guest-identity, Property 3: updateGuest Pins the Id and Matches by Id
+      // Registered once; each run sets what the trigger's entrance effect does
+      let entrance: (ctx: EffectContext) => void = () => {};
+      const triggerType = registerTestGuestType({
+        id: 'TEST_TRIGGER',
+        entranceEffect: (ctx) => entrance(ctx),
+        entranceIcons: [{ symbol: '🧪', label: 'Test effect' }]
+      });
+
       fc.assert(
         fc.property(
           fc.integer({ min: 1, max: 6 }).chain(size => fc.tuple(
@@ -5273,19 +5285,15 @@ describe('GameStore Property Tests - Guest Identity', () => {
           ([size, target, otherId]) => {
             store.initializeGame();
             const party = Array.from({ length: size }, () => testGuest('RICH_PAL', 'Same Name'));
-            const trigger = testGuest('OLD_FRIEND', 'Trigger');
+            const trigger = testGuest(triggerType, 'Trigger');
             patchState(store, { currentPhase: GamePhase.PARTY, houseCapacity: 10, party, deck: [trigger] });
 
-            GUEST_TYPE_ENTRANCE_EFFECTS.OLD_FRIEND = (ctx) => {
+            entrance = (ctx) => {
               const copy = { ...party[target] };
               ctx.updateGuest(copy, g => ({ ...g, id: otherId, properties: { ...g.properties, moneyValue: 42 } }));
             };
 
-            try {
-              store.inviteGuest();
-            } finally {
-              delete GUEST_TYPE_ENTRANCE_EFFECTS.OLD_FRIEND;
-            }
+            store.inviteGuest();
 
             const after = store.party();
             expect(after.map(g => g.id)).toEqual([...party.map(g => g.id), trigger.id]);
@@ -5322,6 +5330,99 @@ describe('GameStore Property Tests - Guest Identity', () => {
             expect(store.deck().map(g => g.id).sort()).toEqual(expectedDeck);
           }
         ),
+        { numRuns: 100 }
+      );
+    });
+  });
+});
+
+/**
+ * Property-Based Tests for the Guest Type Registry
+ *
+ * **Validates: guest-type-registry Requirements 4.1, 4.2, 5.1, 5.2, 5.3**
+ */
+describe('GameStore Property Tests - Guest Type Registry', () => {
+  let store: InstanceType<typeof GameStore>;
+
+  beforeEach(() => {
+    TestBed.configureTestingModule({});
+    store = TestBed.inject(GameStore);
+  });
+
+  afterEach(() => resetGuestTypesForTesting());
+
+  describe('Property 4: Runtime Types Join the Next Game', () => {
+    it('should put a type registered before initializeGame in the deck and shop', () => {
+      // Feature: guest-type-registry, Property 4: Runtime Types Join the Next Game
+      fc.assert(
+        fc.property(arbGuestTypeDefinition(), (def) => {
+          resetGuestTypesForTesting();
+          registerGuestType(def);
+          store.initializeGame();
+
+          const deckNames = store.deck().filter(g => g.type === def.id).map(g => g.name).sort();
+          expect(deckNames).toEqual([...def.roster.starting].sort());
+
+          const entry = store.shopInventory().find(e => e.type === def.id);
+          if (def.cost === null || def.roster.shop.length === 0) {
+            expect(entry).toBeUndefined();
+          } else {
+            expect(entry?.cost).toBe(def.cost);
+            expect(entry?.guests.map(g => g.name)).toEqual(def.roster.shop);
+          }
+
+          [...store.deck(), ...(entry?.guests ?? [])].filter(g => g.type === def.id)
+            .forEach(g => expect(g.properties).toEqual(def.properties));
+        }),
+        { numRuns: 100 }
+      );
+    });
+  });
+
+  describe('Property 5: Mid-Game Registration Doesn\'t Touch the Current Game', () => {
+    it('should leave every zone unchanged', () => {
+      // Feature: guest-type-registry, Property 5: Mid-Game Registration Doesn't Touch the Current Game
+      fc.assert(
+        fc.property(arbGuestTypeDefinition(), (def) => {
+          resetGuestTypesForTesting();
+          store.initializeGame();
+          const before = {
+            deck: store.deck(), party: store.party(), discard: store.discard(), shop: store.shopInventory()
+          };
+
+          registerGuestType(def);
+
+          expect({
+            deck: store.deck(), party: store.party(), discard: store.discard(), shop: store.shopInventory()
+          }).toEqual(before);
+        }),
+        { numRuns: 100 }
+      );
+    });
+  });
+
+  describe('Property 6: Runtime Types Score Like Built-ins', () => {
+    it('should count a runtime guest exactly like a built-in guest with the same properties', () => {
+      // Feature: guest-type-registry, Property 6: Runtime Types Score Like Built-ins
+      const outcome = (guest: Guest) => {
+        store.initializeGame();
+        patchState(store, { currentPhase: GamePhase.PARTY, popularity: 20, money: 5, party: [guest] });
+        const during = {
+          trouble: store.trouble(), stars: store.stars(), limit: store.effectiveTroubleLimit()
+        };
+        store.advancePhase();
+        return { ...during, popularity: store.popularity(), money: store.money(), victory: store.isVictory() };
+      };
+
+      fc.assert(
+        fc.property(arbGuestTypeDefinition(), (def) => {
+          resetGuestTypesForTesting();
+          registerGuestType({ ...def, roster: { starting: [], shop: [] } });
+
+          const runtime = outcome(testGuest(def.id, 'Runtime'));
+          const builtIn = outcome(testGuest('OLD_FRIEND', 'Built-in', def.properties));
+          expect(runtime).toEqual(builtIn);
+        }),
         { numRuns: 100 }
       );
     });

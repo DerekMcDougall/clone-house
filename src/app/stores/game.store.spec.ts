@@ -1,10 +1,13 @@
 import { TestBed } from '@angular/core/testing';
 import { patchState } from '@ngrx/signals';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { GamePhase } from '../models';
-import { Guest, GUEST_TYPE_DEFAULTS, GUEST_TYPE_ENTRANCE_EFFECTS, GuestType, INITIAL_GUESTS } from '../models/guest.model';
+import { Guest, GUEST_TYPE_DEFAULTS, GuestType, INITIAL_GUESTS } from '../models/guest.model';
+import { getGuestType, resetGuestTypesForTesting } from '../models/guest-type-registry';
 import { GameStore, ShopInventoryEntry } from './game.store';
-import { testGuest } from '../../testing/guests';
+import { registerTestGuestType, testGuest } from '../../testing/guests';
+
+const TEST_ICON = { symbol: '🧪', label: 'Test effect' };
 
 /**
  * Unit Tests for GameStore
@@ -2929,6 +2932,8 @@ describe('Auto-invite Entrance Effects — GameStore', () => {
 describe('Entrance Effect Order — GameStore', () => {
   let store: InstanceType<typeof GameStore>;
 
+  afterEach(() => resetGuestTypesForTesting());
+
 
   beforeEach(() => {
     TestBed.configureTestingModule({});
@@ -2959,80 +2964,82 @@ describe('Entrance Effect Order — GameStore', () => {
 
   it('should bust before Celebrity\'s second auto-invite when an entrance effect raises trouble', () => {
     // Stand-in for an upcoming trouble-raising entrance effect
-    GUEST_TYPE_ENTRANCE_EFFECTS.OLD_FRIEND = (ctx, guest) => {
-      ctx.updateGuest(guest, g => ({ ...g, properties: { ...g.properties, troubleValue: 3 } }));
-    };
+    const troublemaker = registerTestGuestType({
+      id: 'TEST_TROUBLEMAKER',
+      entranceEffect: (ctx, guest) => {
+        ctx.updateGuest(guest, g => ({ ...g, properties: { ...g.properties, troubleValue: 3 } }));
+      },
+      entranceIcons: [TEST_ICON]
+    });
 
-    try {
-      patchState(store, {
-        deck: [
-          testGuest('CELEBRITY', 'Troy'),
-          testGuest('OLD_FRIEND', 'Colin'),
-          testGuest('OLD_FRIEND', 'Emily'),
-          testGuest('OLD_FRIEND', 'Rachelle')
-        ]
-      });
+    patchState(store, {
+      deck: [
+        testGuest('CELEBRITY', 'Troy'),
+        testGuest(troublemaker, 'Colin'),
+        testGuest(troublemaker, 'Emily'),
+        testGuest(troublemaker, 'Rachelle')
+      ]
+    });
 
-      store.inviteGuest();
+    store.inviteGuest();
 
-      expect(store.isPartyShutdown()).toBe(true);
-      expect(store.isOverflowShutdown()).toBe(false);
-      expect(store.bustPartySnapshot().map(g => g.name)).toEqual(['Troy', 'Colin']);
-      // Celebrity's second auto-invite never drew, so Emily is still in the deck
-      expect(store.deck().map(g => g.name)).toEqual(['Emily', 'Rachelle']);
-    } finally {
-      delete GUEST_TYPE_ENTRANCE_EFFECTS.OLD_FRIEND;
-    }
+    expect(store.isPartyShutdown()).toBe(true);
+    expect(store.isOverflowShutdown()).toBe(false);
+    expect(store.bustPartySnapshot().map(g => g.name)).toEqual(['Troy', 'Colin']);
+    // Celebrity's second auto-invite never drew, so Emily is still in the deck
+    expect(store.deck().map(g => g.name)).toEqual(['Emily', 'Rachelle']);
   });
 
   it('should run the effects enqueued by one effect in the order they were enqueued', () => {
     const order: string[] = [];
-    GUEST_TYPE_ENTRANCE_EFFECTS.OLD_FRIEND = (ctx) => {
-      ctx.enqueue(() => order.push('first'));
-      ctx.enqueue(() => order.push('second'));
-      ctx.enqueue(() => order.push('third'));
-    };
+    const enqueuer = registerTestGuestType({
+      id: 'TEST_ENQUEUER',
+      entranceEffect: (ctx) => {
+        ctx.enqueue(() => order.push('first'));
+        ctx.enqueue(() => order.push('second'));
+        ctx.enqueue(() => order.push('third'));
+      },
+      entranceIcons: [TEST_ICON]
+    });
 
-    try {
-      patchState(store, { deck: [testGuest('OLD_FRIEND', 'Colin')] });
+    patchState(store, { deck: [testGuest(enqueuer, 'Colin')] });
 
-      store.inviteGuest();
+    store.inviteGuest();
 
-      expect(order).toEqual(['first', 'second', 'third']);
-    } finally {
-      delete GUEST_TYPE_ENTRANCE_EFFECTS.OLD_FRIEND;
-    }
+    expect(order).toEqual(['first', 'second', 'third']);
   });
 
   it('should finish a nested chain of entrance effects before resuming the interrupted effect', () => {
-    const mrPopularEffect = GUEST_TYPE_ENTRANCE_EFFECTS.MR_POPULAR!;
+    // A Mr. Popular that also records the party when its entrance effect runs
+    const mrPopular = getGuestType('MR_POPULAR');
     let partyAtRowanEntrance: string[] = [];
-    GUEST_TYPE_ENTRANCE_EFFECTS.MR_POPULAR = (ctx, guest) => {
-      partyAtRowanEntrance = ctx.getParty().map(g => g.name);
-      mrPopularEffect(ctx, guest);
-    };
+    const recordingMrPopular = registerTestGuestType({
+      ...mrPopular,
+      id: 'TEST_RECORDING_MR_POPULAR',
+      roster: { starting: [], shop: [] },
+      entranceEffect: (ctx, guest) => {
+        partyAtRowanEntrance = ctx.getParty().map(g => g.name);
+        mrPopular.entranceEffect!(ctx, guest);
+      }
+    });
 
-    try {
-      patchState(store, {
-        deck: [
-          testGuest('CELEBRITY', 'Troy'),
-          testGuest('MR_POPULAR', 'Rowan'),
-          testGuest('OLD_FRIEND', 'Colin'),
-          testGuest('OLD_FRIEND', 'Emily'),
-          testGuest('OLD_FRIEND', 'Rachelle')
-        ]
-      });
+    patchState(store, {
+      deck: [
+        testGuest('CELEBRITY', 'Troy'),
+        testGuest(recordingMrPopular, 'Rowan'),
+        testGuest('OLD_FRIEND', 'Colin'),
+        testGuest('OLD_FRIEND', 'Emily'),
+        testGuest('OLD_FRIEND', 'Rachelle')
+      ]
+    });
 
-      store.inviteGuest();
+    store.inviteGuest();
 
-      // Rowan's entrance effect interrupts Troy's, so it runs before Troy's second
-      // auto-invite draws; Rowan's guest (Colin) arrives before Troy's second guest (Emily)
-      expect(partyAtRowanEntrance).toEqual(['Troy', 'Rowan']);
-      expect(store.party().map(g => g.name)).toEqual(['Troy', 'Rowan', 'Colin', 'Emily']);
-      expect(store.deck().map(g => g.name)).toEqual(['Rachelle']);
-    } finally {
-      GUEST_TYPE_ENTRANCE_EFFECTS.MR_POPULAR = mrPopularEffect;
-    }
+    // Rowan's entrance effect interrupts Troy's, so it runs before Troy's second
+    // auto-invite draws; Rowan's guest (Colin) arrives before Troy's second guest (Emily)
+    expect(partyAtRowanEntrance).toEqual(['Troy', 'Rowan']);
+    expect(store.party().map(g => g.name)).toEqual(['Troy', 'Rowan', 'Colin', 'Emily']);
+    expect(store.deck().map(g => g.name)).toEqual(['Rachelle']);
   });
 });
 
@@ -3302,6 +3309,8 @@ describe('Star Guests & Winning — GameStore', () => {
 describe('Guest Identity — GameStore', () => {
   let store: InstanceType<typeof GameStore>;
 
+  afterEach(() => resetGuestTypesForTesting());
+
   beforeEach(() => {
     TestBed.configureTestingModule({});
     store = TestBed.inject(GameStore);
@@ -3325,37 +3334,37 @@ describe('Guest Identity — GameStore', () => {
   });
 
   it('should update the party guest when updateGuest is given a copy of it', () => {
-    GUEST_TYPE_ENTRANCE_EFFECTS.OLD_FRIEND = (ctx, guest) => {
-      ctx.updateGuest({ ...guest }, g => ({ ...g, properties: { ...g.properties, popularityValue: 7 } }));
-    };
+    const copier = registerTestGuestType({
+      id: 'TEST_COPIER',
+      entranceEffect: (ctx, guest) => {
+        ctx.updateGuest({ ...guest }, g => ({ ...g, properties: { ...g.properties, popularityValue: 7 } }));
+      },
+      entranceIcons: [TEST_ICON]
+    });
+    patchState(store, { deck: [testGuest(copier, 'Colin')] });
 
-    try {
-      patchState(store, { deck: [testGuest('OLD_FRIEND', 'Colin')] });
+    store.inviteGuest();
 
-      store.inviteGuest();
-
-      expect(store.party()).toHaveLength(1);
-      expect(store.party()[0].properties.popularityValue).toBe(7);
-    } finally {
-      delete GUEST_TYPE_ENTRANCE_EFFECTS.OLD_FRIEND;
-    }
+    expect(store.party()).toHaveLength(1);
+    expect(store.party()[0].properties.popularityValue).toBe(7);
   });
 
   it('should keep the original id when an updater returns a different one', () => {
-    GUEST_TYPE_ENTRANCE_EFFECTS.OLD_FRIEND = (ctx, guest) => {
-      ctx.updateGuest(guest, g => ({ ...g, id: 'someone-else' }));
-    };
+    const renamer = registerTestGuestType({
+      id: 'TEST_RENAMER',
+      entranceEffect: (ctx, guest) => {
+        ctx.updateGuest(guest, g => ({ ...g, id: 'someone-else', properties: { ...g.properties, popularityValue: 7 } }));
+      },
+      entranceIcons: [TEST_ICON]
+    });
+    const colin = testGuest(renamer, 'Colin');
+    patchState(store, { deck: [colin] });
 
-    try {
-      const colin = testGuest('OLD_FRIEND', 'Colin');
-      patchState(store, { deck: [colin] });
+    store.inviteGuest();
 
-      store.inviteGuest();
-
-      expect(store.party().map(g => g.id)).toEqual([colin.id]);
-    } finally {
-      delete GUEST_TYPE_ENTRANCE_EFFECTS.OLD_FRIEND;
-    }
+    expect(store.party().map(g => g.id)).toEqual([colin.id]);
+    // The update itself still applied
+    expect(store.party()[0].properties.popularityValue).toBe(7);
   });
 
   it('should ban only the selected guest when two bust guests share a name', () => {

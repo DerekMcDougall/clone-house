@@ -6,9 +6,9 @@
         <button
           class="shop-card"
           (click)="onPurchaseGuest(item.type)"
-          [attr.aria-label]="'Buy ' + GUEST_TYPE_LABELS[item.type]"
+          [attr.aria-label]="'Buy ' + guestTypeLabel(item.type)"
           [attr.aria-describedby]="'shop-details-' + item.type">
-          <div class="card-header">{{ GUEST_TYPE_LABELS[item.type] }}</div>
+          <div class="card-header">{{ guestTypeLabel(item.type) }}</div>
           <div class="card-image">
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"
                  fill="currentColor" aria-hidden="true">
@@ -17,7 +17,7 @@
           </div>
           <div class="shop-price">Price: {{ item.cost }}</div>
           <div class="shop-stock">Available: {{ item.guests.length }}</div>
-          <app-guest-details [attr.id]="'shop-details-' + item.type" [type]="item.type" [properties]="GUEST_TYPE_DEFAULTS[item.type]" />
+          <app-guest-details [attr.id]="'shop-details-' + item.type" [type]="item.type" [properties]="getGuestType(item.type).properties" />
           @if (shopAddedFeedback() === item.type) {
             <div class="added-feedback">Added!</div>
           }

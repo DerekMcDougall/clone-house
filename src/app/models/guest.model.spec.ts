@@ -613,18 +613,18 @@ describe('Guest Model - Guest Details', () => {
     getGuestDetails(type, properties).icons.map(icon => icon.symbol).join('');
 
   it('shows popularity only for an Old Friend', () => {
-    expect(getGuestDetails('OLD_FRIEND', GUEST_TYPE_DEFAULTS.OLD_FRIEND)).toEqual({ popularity: 1, money: null, icons: [] });
+    expect(getGuestDetails('OLD_FRIEND', GUEST_TYPE_DEFAULTS['OLD_FRIEND'])).toEqual({ popularity: 1, money: null, icons: [] });
   });
 
   it('shows negative popularity and money for a Ticket Taker', () => {
-    const details = getGuestDetails('TICKET_TAKER', GUEST_TYPE_DEFAULTS.TICKET_TAKER);
+    const details = getGuestDetails('TICKET_TAKER', GUEST_TYPE_DEFAULTS['TICKET_TAKER']);
     expect(details.popularity).toBe(-1);
     expect(details.money).toBe(2);
     expect(details.icons).toEqual([]);
   });
 
   it('shows negative money and a star for a Dragon', () => {
-    const details = getGuestDetails('DRAGON', GUEST_TYPE_DEFAULTS.DRAGON);
+    const details = getGuestDetails('DRAGON', GUEST_TYPE_DEFAULTS['DRAGON']);
     expect(details.popularity).toBeNull();
     expect(details.money).toBe(-3);
     expect(symbols('DRAGON')).toBe('⭐');
@@ -639,13 +639,13 @@ describe('Guest Model - Guest Details', () => {
   });
 
   it('shows a Climber with defaults as a plus and no popularity', () => {
-    const details = getGuestDetails('CLIMBER', GUEST_TYPE_DEFAULTS.CLIMBER);
+    const details = getGuestDetails('CLIMBER', GUEST_TYPE_DEFAULTS['CLIMBER']);
     expect(details.popularity).toBeNull();
     expect(symbols('CLIMBER')).toBe('➕');
   });
 
   it('shows the current popularity of a Climber that has entered 3 times', () => {
-    const properties: GuestProperties = { ...GUEST_TYPE_DEFAULTS.CLIMBER, popularityValue: 3 };
+    const properties: GuestProperties = { ...GUEST_TYPE_DEFAULTS['CLIMBER'], popularityValue: 3 };
     expect(getGuestDetails('CLIMBER', properties).popularity).toBe(3);
     expect(symbols('CLIMBER', properties)).toBe('➕');
   });
@@ -698,13 +698,13 @@ describe('Guest Model - Guest Identity', () => {
   it('creates a guest with a fresh id, its type and name, and the type defaults', () => {
     const nextId = createGuestIdSource();
     const guest = createGuest('CLIMBER', 'Skye', nextId);
-    expect(guest).toEqual({ id: 'g1', type: 'CLIMBER', name: 'Skye', properties: GUEST_TYPE_DEFAULTS.CLIMBER });
+    expect(guest).toEqual({ id: 'g1', type: 'CLIMBER', name: 'Skye', properties: GUEST_TYPE_DEFAULTS['CLIMBER'] });
   });
 
   it('copies the type defaults rather than sharing them', () => {
     const guest = createGuest('OLD_FRIEND', 'Brian', createGuestIdSource());
     guest.properties.popularityValue = 99;
-    expect(GUEST_TYPE_DEFAULTS.OLD_FRIEND.popularityValue).toBe(1);
+    expect(GUEST_TYPE_DEFAULTS['OLD_FRIEND'].popularityValue).toBe(1);
   });
 
   it('gives guests with the same type and name different ids', () => {

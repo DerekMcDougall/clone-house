@@ -1,6 +1,7 @@
 import { Component, Input, inject, signal } from '@angular/core';
 import { GamePhase } from '../models';
-import { formatMoney, GUEST_TYPE_DEFAULTS, GUEST_TYPE_LABELS, GuestType } from '../models/guest.model';
+import { formatMoney, GuestType } from '../models/guest.model';
+import { getGuestType, guestTypeLabel } from '../models/guest-type-registry';
 import { GameStore } from '../stores/game.store';
 import { GuestCardComponent } from './guest-card.component';
 import { GuestDetailsComponent } from './guest-details.component';
@@ -14,8 +15,8 @@ import { GuestDetailsComponent } from './guest-details.component';
 export class PhaseContentComponent {
   @Input({ required: true }) phase!: GamePhase;
   readonly GamePhase = GamePhase;
-  readonly GUEST_TYPE_LABELS = GUEST_TYPE_LABELS;
-  readonly GUEST_TYPE_DEFAULTS = GUEST_TYPE_DEFAULTS;
+  readonly guestTypeLabel = guestTypeLabel;
+  readonly getGuestType = getGuestType;
   readonly formatMoney = formatMoney;
   
   // Inject GameStore to access party and showEmptyDeckMessage signals

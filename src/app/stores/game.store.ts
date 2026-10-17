@@ -2,7 +2,8 @@ import { computed } from '@angular/core';
 import { patchState, signalStore, withComputed, withMethods, withState } from '@ngrx/signals';
 import { GamePhase, GameState } from '../models';
 import { EffectContext, GameEffect } from '../models/effect-context';
-import { admitGuest, createGuest, createGuestIdSource, Guest, GUEST_TYPE_COSTS, GUEST_TYPE_LABELS, GuestType, INITIAL_GUESTS, SHOP_GUESTS, WINNING_STAR_COUNT } from '../models/guest.model';
+import { admitGuest, createGuest, createGuestIdSource, Guest, GuestType, WINNING_STAR_COUNT } from '../models/guest.model';
+import { guestTypeLabel, listGuestTypes } from '../models/guest-type-registry';
 
 export type { EffectContext };
 
@@ -163,7 +164,7 @@ export const GameStore = signalStore(
     banConfirmationMessage: computed(() => {
       const guest = store.selectedBanGuest();
       if (!guest) return '';
-      const typeLabel = GUEST_TYPE_LABELS[guest.type] ?? guest.type;
+      const typeLabel = guestTypeLabel(guest.type);
       return `${typeLabel} ${guest.name} will be banned from the next party.`;
     }),
 
@@ -171,8 +172,8 @@ export const GameStore = signalStore(
       const inventory = store.shopInventory();
       return [...inventory].sort((a, b) => {
         if (a.cost !== b.cost) return a.cost - b.cost;
-        const labelA = GUEST_TYPE_LABELS[a.type] ?? a.type;
-        const labelB = GUEST_TYPE_LABELS[b.type] ?? b.type;
+        const labelA = guestTypeLabel(a.type);
+        const labelB = guestTypeLabel(b.type);
         return labelA.localeCompare(labelB);
       });
     }),
@@ -295,25 +296,21 @@ export const GameStore = signalStore(
         // One id source for the whole game, so every guest's id is unique
         const nextId = createGuestIdSource();
 
-        // Create 10 guests from INITIAL_GUESTS (4 Old Friends + 4 Wild Buddies + 2 Rich Pals)
-        const deck: Guest[] = INITIAL_GUESTS.map(entry => createGuest(entry.type, entry.name, nextId));
-        
-        // Shuffle the deck
-        shuffleDeck(deck);
-        
-        // Build shop inventory from SHOP_GUESTS, filtering to purchasable types
-        const shopMap = new Map<GuestType, Guest[]>();
-        for (const entry of SHOP_GUESTS) {
-          const cost = GUEST_TYPE_COSTS[entry.type];
-          if (cost === null) continue; // Skip non-purchasable types
-          if (!shopMap.has(entry.type)) shopMap.set(entry.type, []);
-          shopMap.get(entry.type)!.push(createGuest(entry.type, entry.name, nextId));
-        }
+        // Read the registry once, so types registered mid-game wait for the next game
+        const types = listGuestTypes();
 
-        const shopInventory: ShopInventoryEntry[] = [];
-        for (const [type, guests] of shopMap) {
-          shopInventory.push({ type, guests, cost: GUEST_TYPE_COSTS[type]! });
-        }
+        // Starting deck: every type's starting roster, in registration order, then shuffled
+        const deck: Guest[] = types.flatMap(t => t.roster.starting.map(name => createGuest(t.id, name, nextId)));
+        shuffleDeck(deck);
+
+        // Shop: every type that is sold and has a shop roster
+        const shopInventory: ShopInventoryEntry[] = types
+          .filter(t => t.cost !== null && t.roster.shop.length > 0)
+          .map(t => ({
+            type: t.id,
+            guests: t.roster.shop.map(name => createGuest(t.id, name, nextId)),
+            cost: t.cost!
+          }));
 
         patchState(store, {
           currentTurn: 1,
@@ -557,7 +554,7 @@ export const GameStore = signalStore(
         const entry = inventory.find(e => e.type === type);
 
         if (!entry || entry.guests.length === 0) {
-          const label = GUEST_TYPE_LABELS[type] ?? type;
+          const label = guestTypeLabel(type);
           return { success: false, error: 'sold_out', message: `No ${label} available!` };
         }
 

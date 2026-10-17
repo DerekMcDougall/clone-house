@@ -60,7 +60,9 @@ components/guest-card.component.ts, phase-content.component.ts
 
 ### Module Load Order
 
-`built-in-guest-types.ts` defines the list. `guest-type-registry.ts` imports it and registers every built-in when the module first loads, so the registry is never empty. The built-in definitions refer to `autoInvite` from `guest.model.ts`; to avoid a circular import, `autoInvite` and `admitGuest` move to a new `models/guest-effects.ts`, which imports the registry.
+`built-in-guest-types.ts` defines the list. `guest-type-registry.ts` imports it and registers every built-in on first use: every public function calls `ensureBuiltIns()` first, so the registry is never seen empty. The built-in definitions refer to `autoInvite` from `guest.model.ts`; to avoid a circular import, `autoInvite` and `admitGuest` move to a new `models/guest-effects.ts`, which imports the registry.
+
+> **Implementation note:** registering at module load, as first planned, doesn't work. When `guest-effects.ts` or `guest.model.ts` is loaded first, the registry's body runs while `built-in-guest-types.ts` is still waiting on the cycle, so `BUILT_IN_GUEST_TYPES` is undefined and startup crashes. Lazy registration works in any load order. The "Module load order" tests in `guest-type-registry.spec.ts` cover this, and fail if registration is made eager again.
 
 ```mermaid
 graph LR
@@ -142,7 +144,8 @@ export function resetGuestTypesForTesting(): void {
   BUILT_IN_GUEST_TYPES.forEach(registerGuestType);
 }
 
-BUILT_IN_GUEST_TYPES.forEach(registerGuestType);
+// As built: no top-level registration. Each function above calls ensureBuiltIns() first,
+// which registers the built-ins once (see the implementation note under Module Load Order).
 ```
 
 Both checks (duplicate id, then Requirement 3 validation) run before `registry.set`, so a rejected definition never lands in the map.
