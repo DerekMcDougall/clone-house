@@ -8,6 +8,8 @@ export default defineConfig({
     environment: 'jsdom',
     // The Angular plugin defaults to vmThreads, where jsdom's location can't be stubbed.
     pool: 'forks',
+    // Vitest stubs CSS by default; specs assert computed styles from component styleUrls.
+    css: true,
     include: ['src/**/*.spec.ts'],
     setupFiles: ['src/test-setup.ts'],
   },

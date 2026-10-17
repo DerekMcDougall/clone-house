@@ -5,19 +5,19 @@
   background: #ffffff;
   border-radius: 8px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
 
-  h2 {
-    margin-top: 0;
-    color: #1976d2;
-    font-size: 1.75rem;
-  }
+.pwa-demo h2 {
+  margin-top: 0;
+  color: #1976d2;
+  font-size: 1.75rem;
+}
 
-  h3 {
-    margin-top: 1.5rem;
-    margin-bottom: 1rem;
-    color: #333;
-    font-size: 1.25rem;
-  }
+.pwa-demo h3 {
+  margin-top: 1.5rem;
+  margin-bottom: 1rem;
+  color: #333;
+  font-size: 1.25rem;
 }
 
 .status-section {
@@ -43,70 +43,68 @@
   font-weight: 600;
   padding: 0.25rem 0.75rem;
   border-radius: 4px;
-  
-  &.installed {
-    background: #4caf50;
-    color: white;
-  }
-  
-  &.online {
-    background: #4caf50;
-    color: white;
-  }
-  
-  &.offline {
-    background: #f44336;
-    color: white;
-  }
 }
 
-.actions-section {
-  button {
-    width: 100%;
-    padding: 0.75rem 1.5rem;
-    margin-bottom: 0.75rem;
-    font-size: 1rem;
-    font-weight: 500;
-    border: none;
-    border-radius: 4px;
-    cursor: pointer;
-    transition: background-color 0.3s ease;
-    
-    &:hover {
-      opacity: 0.9;
-    }
-    
-    &:active {
-      transform: translateY(1px);
-    }
-  }
-  
-  .install-button {
-    background: #1976d2;
-    color: white;
-    
-    &:hover {
-      background: #1565c0;
-    }
-  }
-  
-  .check-updates-button {
-    background: #757575;
-    color: white;
-    
-    &:hover {
-      background: #616161;
-    }
-  }
-  
-  .update-button {
-    background: #ff9800;
-    color: white;
-    
-    &:hover {
-      background: #f57c00;
-    }
-  }
+.status-value.installed {
+  background: #4caf50;
+  color: white;
+}
+
+.status-value.online {
+  background: #4caf50;
+  color: white;
+}
+
+.status-value.offline {
+  background: #f44336;
+  color: white;
+}
+
+.actions-section button {
+  width: 100%;
+  padding: 0.75rem 1.5rem;
+  margin-bottom: 0.75rem;
+  font-size: 1rem;
+  font-weight: 500;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+}
+
+.actions-section button:hover {
+  opacity: 0.9;
+}
+
+.actions-section button:active {
+  transform: translateY(1px);
+}
+
+.install-button {
+  background: #1976d2;
+  color: white;
+}
+
+.install-button:hover {
+  background: #1565c0;
+}
+
+.check-updates-button {
+  background: #757575;
+  color: white;
+}
+
+.check-updates-button:hover {
+  background: #616161;
+}
+
+.update-button {
+  background: #ff9800;
+  color: white;
+}
+
+.update-button:hover {
+  background: #f57c00;
 }
 
 .info-text {
@@ -121,10 +119,10 @@
   background: #fff3e0;
   border-left: 4px solid #ff9800;
   border-radius: 4px;
-  
-  p {
-    margin: 0 0 0.75rem 0;
-    color: #e65100;
-    font-weight: 500;
-  }
+}
+
+.update-notification p {
+  margin: 0 0 0.75rem 0;
+  color: #e65100;
+  font-weight: 500;
 }
