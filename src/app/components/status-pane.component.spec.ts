@@ -1,5 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { patchState } from '@ngrx/signals';
+import { unprotected } from '@ngrx/signals/testing';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { GamePhase } from '../models';
 import { Guest, GUEST_TYPE_DEFAULTS, GuestType } from '../models/guest.model';
@@ -38,8 +39,8 @@ describe('StatusPaneComponent', () => {
     });
 
     it('should inject GameStore correctly', () => {
-      expect(component.gameStore).toBeDefined();
-      expect(component.gameStore).toBe(store);
+      expect(component['gameStore']).toBeDefined();
+      expect(component['gameStore']).toBe(store);
     });
 
     it('should render the status pane element', () => {
@@ -383,7 +384,7 @@ describe('StatusPaneComponent', () => {
       store.initializeGame();
       
       // Raise capacity and trouble limit so we can invite many guests per turn without a bust
-      patchState(store, { houseCapacity: 100, baseTroubleLimit: 100 });
+      patchState(unprotected(store), { houseCapacity: 100, baseTroubleLimit: 100 });
       
       // Manually set a large popularity value by simulating multiple party phases
       // We'll use the store's internal state update mechanism
@@ -487,7 +488,7 @@ describe('StatusPaneComponent', () => {
       store.advancePhase(); // Move to PARTY phase
       
       // Raise capacity and trouble limit so we can drain the entire deck without a bust
-      patchState(store, { houseCapacity: 100, baseTroubleLimit: 100 });
+      patchState(unprotected(store), { houseCapacity: 100, baseTroubleLimit: 100 });
       
       // Invite all 10 guests to empty the deck
       for (let i = 0; i < 10; i++) {
@@ -578,7 +579,7 @@ describe('StatusPaneComponent', () => {
     it('should disable phase button when isPartyShutdown is true', () => {
       store.initializeGame();
       store.advancePhase(); // Move to PARTY phase
-      patchState(store, { isPartyShutdown: true });
+      patchState(unprotected(store), { isPartyShutdown: true });
       fixture.detectChanges();
 
       const button: HTMLButtonElement = fixture.nativeElement.querySelector('.phase-button');
@@ -588,7 +589,7 @@ describe('StatusPaneComponent', () => {
     it('should disable invite button when isPartyShutdown is true', () => {
       store.initializeGame();
       store.advancePhase(); // Move to PARTY phase
-      patchState(store, { isPartyShutdown: true });
+      patchState(unprotected(store), { isPartyShutdown: true });
       fixture.detectChanges();
 
       const inviteButton: HTMLButtonElement = fixture.nativeElement.querySelector('.invite-button');
@@ -599,7 +600,7 @@ describe('StatusPaneComponent', () => {
     it('should enable buttons when isPartyShutdown is false', () => {
       store.initializeGame();
       store.advancePhase(); // Move to PARTY phase
-      patchState(store, { isPartyShutdown: false });
+      patchState(unprotected(store), { isPartyShutdown: false });
       fixture.detectChanges();
 
       const phaseButton: HTMLButtonElement = fixture.nativeElement.querySelector('.phase-button');
@@ -614,7 +615,7 @@ describe('StatusPaneComponent', () => {
     it('should disable invite button when isBanSelectionActive is true', () => {
       store.initializeGame();
       store.advancePhase(); // Move to PARTY phase
-      patchState(store, { isBanSelectionActive: true });
+      patchState(unprotected(store), { isBanSelectionActive: true });
       fixture.detectChanges();
 
       const inviteButton: HTMLButtonElement = fixture.nativeElement.querySelector('.invite-button');
@@ -625,7 +626,7 @@ describe('StatusPaneComponent', () => {
     it('should disable phase button when isBanSelectionActive is true', () => {
       store.initializeGame();
       store.advancePhase(); // Move to PARTY phase
-      patchState(store, { isBanSelectionActive: true });
+      patchState(unprotected(store), { isBanSelectionActive: true });
       fixture.detectChanges();
 
       const phaseButton: HTMLButtonElement = fixture.nativeElement.querySelector('.phase-button');
@@ -635,7 +636,7 @@ describe('StatusPaneComponent', () => {
     it('should enable buttons when both isPartyShutdown and isBanSelectionActive are false', () => {
       store.initializeGame();
       store.advancePhase(); // Move to PARTY phase
-      patchState(store, { isPartyShutdown: false, isBanSelectionActive: false });
+      patchState(unprotected(store), { isPartyShutdown: false, isBanSelectionActive: false });
       fixture.detectChanges();
 
       const phaseButton: HTMLButtonElement = fixture.nativeElement.querySelector('.phase-button');
@@ -668,7 +669,7 @@ describe('StatusPaneComponent - Stars and Victory', () => {
   });
 
   it('should show "0 / 4" stars during PARTY with an empty party', () => {
-    patchState(store, { currentPhase: GamePhase.PARTY });
+    patchState(unprotected(store), { currentPhase: GamePhase.PARTY });
     fixture.detectChanges();
 
     const starCount = fixture.nativeElement.querySelector('.star-count');
@@ -676,7 +677,7 @@ describe('StatusPaneComponent - Stars and Victory', () => {
   });
 
   it('should show "2 / 4" stars with two star guests in the party', () => {
-    patchState(store, {
+    patchState(unprotected(store), {
       currentPhase: GamePhase.PARTY,
       party: [testGuest('ALIEN', 'ET'), testGuest('OLD_FRIEND', 'Brian'), testGuest('DRAGON', 'Smaug')]
     });
@@ -687,7 +688,7 @@ describe('StatusPaneComponent - Stars and Victory', () => {
   });
 
   it('should label the stars section "Stars"', () => {
-    patchState(store, { currentPhase: GamePhase.PARTY });
+    patchState(unprotected(store), { currentPhase: GamePhase.PARTY });
     fixture.detectChanges();
 
     const headings = Array.from(fixture.nativeElement.querySelectorAll('.status-info h3') as NodeListOf<HTMLElement>)
@@ -701,7 +702,7 @@ describe('StatusPaneComponent - Stars and Victory', () => {
   });
 
   it('should disable the invite and phase buttons during victory', () => {
-    patchState(store, { currentPhase: GamePhase.PARTY, isVictory: true });
+    patchState(unprotected(store), { currentPhase: GamePhase.PARTY, isVictory: true });
     fixture.detectChanges();
 
     const inviteButton = fixture.nativeElement.querySelector('.invite-button') as HTMLButtonElement;

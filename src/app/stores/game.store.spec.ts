@@ -1,5 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import { patchState } from '@ngrx/signals';
+import { unprotected } from '@ngrx/signals/testing';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { GamePhase } from '../models';
 import { Guest, GUEST_TYPE_DEFAULTS, GuestType, INITIAL_GUESTS } from '../models/guest.model';
@@ -371,7 +372,7 @@ describe('GameStore - Unit Tests', () => {
       // (two Wild Buddies keep trouble at the limit without busting)
       const byName = (name: string) => store.deck().find(g => g.name === name)!;
       const top = ['Brian', 'Anthony', 'Teresa', 'Khalil'];
-      patchState(store, {
+      patchState(unprotected(store), {
         deck: [...top.map(byName), ...store.deck().filter(g => !top.includes(g.name))]
       });
 
@@ -492,7 +493,7 @@ describe('GameStore - Unit Tests', () => {
 
       // Manually set popularity to a non-zero value to simulate game progression
       // Note: This will be set properly once popularity calculation is implemented
-      patchState(store, { popularity: 10 });
+      patchState(unprotected(store), { popularity: 10 });
 
       expect(store.popularity()).toBe(10);
 
@@ -674,7 +675,7 @@ describe('GameStore - Unit Tests', () => {
     it('should return false for canInviteGuest when deck is empty', () => {
       store.initializeGame();
       // Raise house capacity and trouble limit so all 10 guests can be invited without a bust
-      patchState(store, { houseCapacity: 10, baseTroubleLimit: 100 });
+      patchState(unprotected(store), { houseCapacity: 10, baseTroubleLimit: 100 });
 
       // Invite all 10 guests
       for (let i = 0; i < 10; i++) {
@@ -692,7 +693,7 @@ describe('GameStore - Unit Tests', () => {
     it('should update canInviteGuest as guests are invited and returned', () => {
       store.initializeGame();
       // Raise house capacity and trouble limit so all 10 guests can be invited without a bust
-      patchState(store, { houseCapacity: 10, baseTroubleLimit: 100 });
+      patchState(unprotected(store), { houseCapacity: 10, baseTroubleLimit: 100 });
       store.advancePhase(); // Move to PARTY phase
 
       expect(store.canInviteGuest()).toBe(true);
@@ -721,7 +722,7 @@ describe('GameStore - Unit Tests', () => {
       // Draw only non-trouble guests so the party fills the house without a bust
       const byName = (name: string) => store.deck().find(g => g.name === name)!;
       const top = ['Brian', 'Colin', 'Emily', 'Rachelle', 'Khalil'];
-      patchState(store, {
+      patchState(unprotected(store), {
         deck: [...top.map(byName), ...store.deck().filter(g => !top.includes(g.name))]
       });
 
@@ -749,7 +750,7 @@ describe('GameStore - Unit Tests', () => {
 
       // Start from an empty deck with a couple of guests already at the party
       const [first, second] = store.deck();
-      patchState(store, { deck: [], party: [first, second] });
+      patchState(unprotected(store), { deck: [], party: [first, second] });
 
       // Attempt to invite from empty deck
       store.inviteGuest();
@@ -771,7 +772,7 @@ describe('GameStore - Unit Tests', () => {
 
         const byName = (name: string) => store.deck().find(g => g.name === name)!;
         const top = ['Anthony', 'Teresa', 'Jacco', 'Brian'];
-        patchState(store, {
+        patchState(unprotected(store), {
           deck: [...top.map(byName), ...store.deck().filter(g => !top.includes(g.name))]
         });
 
@@ -819,7 +820,7 @@ describe('GameStore - Unit Tests', () => {
       // Fix the draw order so no trouble bust can occur (bust needs 3 Wild Buddies)
       const byName = (name: string) => store.deck().find(g => g.name === name)!;
       const top = ['Brian', 'Anthony', 'Khalil'];
-      patchState(store, {
+      patchState(unprotected(store), {
         deck: [...top.map(byName), ...store.deck().filter(g => !top.includes(g.name))]
       });
 
@@ -855,7 +856,7 @@ describe('GameStore - Unit Tests', () => {
     it('should return all 10 guests to deck when entire party transitions', () => {
       store.initializeGame();
       // Raise house capacity and trouble limit so all 10 guests can be invited without a bust
-      patchState(store, { houseCapacity: 10, baseTroubleLimit: 100 });
+      patchState(unprotected(store), { houseCapacity: 10, baseTroubleLimit: 100 });
       store.advancePhase(); // Move to PARTY phase
       
       // Invite all 10 guests
@@ -919,7 +920,7 @@ describe('GameStore - Unit Tests', () => {
      */
     it('should preserve guest names through invite and return operations', () => {
       store.initializeGame();
-      patchState(store, { baseTroubleLimit: 100 }); // Prevent a bust while inviting
+      patchState(unprotected(store), { baseTroubleLimit: 100 }); // Prevent a bust while inviting
       store.advancePhase(); // Move to PARTY phase
       
       // Get initial deck names
@@ -1075,7 +1076,7 @@ describe('GameStore - Unit Tests', () => {
       // Swap Wild Buddy to top of deck so inviteGuest picks it
       const reordered = [...deck];
       [reordered[0], reordered[wildBuddyIndex]] = [reordered[wildBuddyIndex], reordered[0]];
-      patchState(store, { deck: reordered });
+      patchState(unprotected(store), { deck: reordered });
 
       store.inviteGuest();
 
@@ -1094,7 +1095,7 @@ describe('GameStore - Unit Tests', () => {
       const oldFriendIndex = deck.findIndex(g => g.type === 'OLD_FRIEND');
       const reordered = [...deck];
       [reordered[0], reordered[oldFriendIndex]] = [reordered[oldFriendIndex], reordered[0]];
-      patchState(store, { deck: reordered });
+      patchState(unprotected(store), { deck: reordered });
 
       store.inviteGuest();
 
@@ -1132,7 +1133,7 @@ describe('GameStore - Unit Tests', () => {
 
       const byName = (name: string) => store.deck().find(g => g.name === name)!;
       const top = ['Anthony', 'Brian', 'Teresa', 'Jacco'];
-      patchState(store, {
+      patchState(unprotected(store), {
         deck: [...top.map(byName), ...store.deck().filter(g => !top.includes(g.name))]
       });
 
@@ -1158,7 +1159,7 @@ describe('GameStore - Unit Tests', () => {
     it('should track trouble and popularity independently', () => {
       store.initializeGame(5);
       // Raise house capacity and trouble limit so all 10 guests can be invited without a bust
-      patchState(store, { houseCapacity: 100, baseTroubleLimit: 100 });
+      patchState(unprotected(store), { houseCapacity: 100, baseTroubleLimit: 100 });
       store.advancePhase(); // BUY -> PARTY
 
       // Invite all 10 guests
@@ -1222,7 +1223,7 @@ describe('GameStore - Unit Tests', () => {
       if (richPalIndex > 0) {
         const reordered = [...deck];
         [reordered[0], reordered[richPalIndex]] = [reordered[richPalIndex], reordered[0]];
-        patchState(store, { deck: reordered });
+        patchState(unprotected(store), { deck: reordered });
       }
       store.inviteGuest();
       store.advancePhase(); // PARTY -> BUY, money calculated
@@ -1247,7 +1248,7 @@ describe('GameStore - Unit Tests', () => {
       const deck = store.deck();
       const oldFriends = deck.filter(g => g.type === 'OLD_FRIEND');
       const rest = deck.filter(g => g.type !== 'OLD_FRIEND');
-      patchState(store, { deck: [...oldFriends, ...rest] });
+      patchState(unprotected(store), { deck: [...oldFriends, ...rest] });
 
       // Invite 2 Old Friends
       store.inviteGuest();
@@ -1274,7 +1275,7 @@ describe('GameStore - Unit Tests', () => {
       const richPalIndex = deck.findIndex(g => g.type === 'RICH_PAL');
       const reordered = [...deck];
       [reordered[0], reordered[richPalIndex]] = [reordered[richPalIndex], reordered[0]];
-      patchState(store, { deck: reordered });
+      patchState(unprotected(store), { deck: reordered });
 
       store.inviteGuest();
 
@@ -1324,7 +1325,7 @@ describe('GameStore - Unit Tests', () => {
       store.initializeGame(5);
 
       // Set some initial popularity and money to verify they don't change
-      patchState(store, { popularity: 7, money: 3 });
+      patchState(unprotected(store), { popularity: 7, money: 3 });
 
       store.advancePhase(); // BUY -> PARTY
 
@@ -1348,7 +1349,7 @@ describe('GameStore - Unit Tests', () => {
      */
     it('should snapshot party, clear party, and return discard to deck when triggerPartyShutdown is called', () => {
       store.initializeGame(5);
-      patchState(store, { baseTroubleLimit: 100 }); // Prevent a bust while inviting
+      patchState(unprotected(store), { baseTroubleLimit: 100 }); // Prevent a bust while inviting
       store.advancePhase(); // BUY -> PARTY
 
       store.inviteGuest();
@@ -1361,7 +1362,7 @@ describe('GameStore - Unit Tests', () => {
 
       // Put a guest in discard to verify it returns to deck
       const discardGuest = partyBefore[0];
-      patchState(store, { discard: [discardGuest] });
+      patchState(unprotected(store), { discard: [discardGuest] });
 
       store.triggerPartyShutdown();
 
@@ -1382,7 +1383,7 @@ describe('GameStore - Unit Tests', () => {
     it('should enter ban selection when acknowledgeShutdown is called on non-final turn', () => {
       store.initializeGame(5);
 
-      patchState(store, {
+      patchState(unprotected(store), {
         currentTurn: 2,
         totalTurns: 5,
         currentPhase: GamePhase.PARTY,
@@ -1405,7 +1406,7 @@ describe('GameStore - Unit Tests', () => {
     it('should mark game complete when acknowledgeShutdown is called on final turn', () => {
       store.initializeGame(5);
 
-      patchState(store, {
+      patchState(unprotected(store), {
         currentTurn: 5,
         totalTurns: 5,
         currentPhase: GamePhase.PARTY,
@@ -1432,7 +1433,7 @@ describe('GameStore - Unit Tests', () => {
         testGuest('HIPPY', 'Bob'),
         testGuest('CUTE_DOG', 'Lily'),
       ];
-      patchState(store, { party: peaceGuests });
+      patchState(unprotected(store), { party: peaceGuests });
       expect(store.partyTroubleLimitModifier()).toBe(3);
 
       store.advancePhase(); // PARTY -> BUY (turn 2)
@@ -1462,7 +1463,7 @@ describe('GameStore - Unit Tests', () => {
       store.initializeGame(5);
 
       // Modify state to non-default values
-      patchState(store, {
+      patchState(unprotected(store), {
         baseTroubleLimit: 5,
         isPartyShutdown: true,
         party: [
@@ -1510,7 +1511,7 @@ describe('GameStore - Unit Tests', () => {
       it('should set discard to empty array after resetGame()', () => {
         store.initializeGame();
         // Put something in discard first
-        patchState(store, { discard: [testGuest('OLD_FRIEND', 'Brian')] });
+        patchState(unprotected(store), { discard: [testGuest('OLD_FRIEND', 'Brian')] });
         expect(store.discard().length).toBe(1);
 
         store.resetGame();
@@ -1526,7 +1527,7 @@ describe('GameStore - Unit Tests', () => {
        */
       it('should snapshot party, clear party, and return discard to deck', () => {
         store.initializeGame(5);
-        patchState(store, { baseTroubleLimit: 100 }); // Prevent a bust while inviting
+        patchState(unprotected(store), { baseTroubleLimit: 100 }); // Prevent a bust while inviting
         store.advancePhase(); // BUY -> PARTY
 
         // Invite 3 guests
@@ -1539,7 +1540,7 @@ describe('GameStore - Unit Tests', () => {
 
         // Place a guest in discard to verify it returns to deck
         const discardGuest = testGuest('OLD_FRIEND', 'TestDiscard');
-        patchState(store, { discard: [discardGuest] });
+        patchState(unprotected(store), { discard: [discardGuest] });
         const deckSizeBefore = store.deck().length;
 
         store.triggerPartyShutdown();
@@ -1565,7 +1566,7 @@ describe('GameStore - Unit Tests', () => {
        */
       it('should set isBanSelectionActive on non-final turn', () => {
         store.initializeGame(5);
-        patchState(store, {
+        patchState(unprotected(store), {
           currentTurn: 3,
           currentPhase: GamePhase.PARTY,
           isPartyShutdown: true,
@@ -1586,7 +1587,7 @@ describe('GameStore - Unit Tests', () => {
        */
       it('should NOT set isBanSelectionActive on final turn', () => {
         store.initializeGame(5);
-        patchState(store, {
+        patchState(unprotected(store), {
           currentTurn: 5,
           totalTurns: 5,
           currentPhase: GamePhase.PARTY,
@@ -1616,7 +1617,7 @@ describe('GameStore - Unit Tests', () => {
           testGuest('WILD_BUDDY', 'Anthony'),
           testGuest('RICH_PAL', 'Khalil')
         ];
-        patchState(store, {
+        patchState(unprotected(store), {
           isBanSelectionActive: true,
           bustPartySnapshot: guests
         });
@@ -1634,7 +1635,7 @@ describe('GameStore - Unit Tests', () => {
       it('should be a no-op when index is out of bounds', () => {
         store.initializeGame(5);
         const guests = [testGuest('OLD_FRIEND', 'Brian')];
-        patchState(store, {
+        patchState(unprotected(store), {
           isBanSelectionActive: true,
           bustPartySnapshot: guests,
           selectedBanGuest: null
@@ -1662,7 +1663,7 @@ describe('GameStore - Unit Tests', () => {
         ];
         const selected = guests[1]; // Anthony
 
-        patchState(store, {
+        patchState(unprotected(store), {
           currentTurn: 2,
           currentPhase: GamePhase.PARTY,
           isBanSelectionActive: true,
@@ -1695,7 +1696,7 @@ describe('GameStore - Unit Tests', () => {
        */
       it('should be a no-op when no guest is selected', () => {
         store.initializeGame(5);
-        patchState(store, {
+        patchState(unprotected(store), {
           currentTurn: 2,
           currentPhase: GamePhase.PARTY,
           isBanSelectionActive: true,
@@ -1731,7 +1732,7 @@ describe('GameStore - Unit Tests', () => {
 
         // Place a banned guest in discard
         const discardGuest = testGuest('OLD_FRIEND', 'TestBanned');
-        patchState(store, { discard: [discardGuest] });
+        patchState(unprotected(store), { discard: [discardGuest] });
 
         store.advancePhase(); // PARTY -> BUY (turn 2)
 
@@ -1753,7 +1754,7 @@ describe('GameStore - Unit Tests', () => {
        */
       it('should return correct message for Old Friend guest', () => {
         store.initializeGame();
-        patchState(store, {
+        patchState(unprotected(store), {
           selectedBanGuest: testGuest('OLD_FRIEND', 'Brian')
         });
 
@@ -1768,7 +1769,7 @@ describe('GameStore - Unit Tests', () => {
        */
       it('should return correct message for Wild Buddy guest', () => {
         store.initializeGame();
-        patchState(store, {
+        patchState(unprotected(store), {
           selectedBanGuest: testGuest('WILD_BUDDY', 'Anthony')
         });
 
@@ -1783,7 +1784,7 @@ describe('GameStore - Unit Tests', () => {
        */
       it('should return correct message for Rich Pal guest', () => {
         store.initializeGame();
-        patchState(store, {
+        patchState(unprotected(store), {
           selectedBanGuest: testGuest('RICH_PAL', 'Khalil')
         });
 
@@ -1798,7 +1799,7 @@ describe('GameStore - Unit Tests', () => {
        */
       it('should return empty string when no guest is selected', () => {
         store.initializeGame();
-        patchState(store, { selectedBanGuest: null });
+        patchState(unprotected(store), { selectedBanGuest: null });
 
         expect(store.banConfirmationMessage()).toBe('');
       });
@@ -1861,7 +1862,7 @@ describe('GameStore - Unit Tests', () => {
     it('should succeed when money equals exactly the expansion cost', () => {
       store.initializeGame();
       // First expansion costs min(0 + 2, 12) = $2
-      patchState(store, { money: 2, expansionsPurchased: 0 });
+      patchState(unprotected(store), { money: 2, expansionsPurchased: 0 });
 
       const result = store.purchaseExpansion();
 
@@ -1878,7 +1879,7 @@ describe('GameStore - Unit Tests', () => {
     it('should fail with insufficient_money when 1 short of expansion cost', () => {
       store.initializeGame();
       // First expansion costs $2, set money to $1
-      patchState(store, { money: 1, expansionsPurchased: 0 });
+      patchState(unprotected(store), { money: 1, expansionsPurchased: 0 });
 
       const capacityBefore = store.houseCapacity();
       const moneyBefore = store.money();
@@ -1903,7 +1904,7 @@ describe('GameStore - Unit Tests', () => {
      */
     it('should return sold_out when all 29 expansions have been purchased', () => {
       store.initializeGame();
-      patchState(store, { money: 100, expansionsPurchased: 29, houseCapacity: 34 });
+      patchState(unprotected(store), { money: 100, expansionsPurchased: 29, houseCapacity: 34 });
 
       const capacityBefore = store.houseCapacity();
       const moneyBefore = store.money();
@@ -1928,7 +1929,7 @@ describe('GameStore - Unit Tests', () => {
     it('should cap expansion cost at $12 when 10 or more expansions have been purchased', () => {
       store.initializeGame();
       // After 10 purchases, cost = min(10 + 2, 12) = $12
-      patchState(store, { money: 12, expansionsPurchased: 10, houseCapacity: 15 });
+      patchState(unprotected(store), { money: 12, expansionsPurchased: 10, houseCapacity: 15 });
 
       const result = store.purchaseExpansion();
 
@@ -2010,7 +2011,7 @@ describe('Shop Buy Guests', () => {
     it('should return success and add guest to deck when state is valid', () => {
       store.initializeGame();
       // Give enough popularity to buy an Old Friend (cost 2)
-      patchState(store, { popularity: 10 });
+      patchState(unprotected(store), { popularity: 10 });
 
       const deckSizeBefore = store.deck().length;
       const result = store.purchaseGuest('OLD_FRIEND');
@@ -2034,13 +2035,13 @@ describe('Shop Buy Guests', () => {
      */
     it('should return sold_out when stock is 0', () => {
       store.initializeGame();
-      patchState(store, { popularity: 10 });
+      patchState(unprotected(store), { popularity: 10 });
 
       // Empty the OLD_FRIEND stock
       const inventory = store.shopInventory().map((e: ShopInventoryEntry) =>
         e.type === 'OLD_FRIEND' ? { ...e, guests: [] } : e
       );
-      patchState(store, { shopInventory: inventory });
+      patchState(unprotected(store), { shopInventory: inventory });
 
       const deckSizeBefore = store.deck().length;
       const popularityBefore = store.popularity();
@@ -2063,7 +2064,7 @@ describe('Shop Buy Guests', () => {
     it('should return insufficient_popularity when popularity is less than cost', () => {
       store.initializeGame();
       // Set popularity to 1, which is less than OLD_FRIEND cost of 2
-      patchState(store, { popularity: 1 });
+      patchState(unprotected(store), { popularity: 1 });
 
       const deckSizeBefore = store.deck().length;
       const result = store.purchaseGuest('OLD_FRIEND');
@@ -2085,7 +2086,7 @@ describe('Shop Buy Guests', () => {
     it('should succeed when popularity equals exactly the cost', () => {
       store.initializeGame();
       // Set popularity to exactly 3 (RICH_PAL cost)
-      patchState(store, { popularity: 3 });
+      patchState(unprotected(store), { popularity: 3 });
 
       const result = store.purchaseGuest('RICH_PAL');
 
@@ -2099,14 +2100,14 @@ describe('Shop Buy Guests', () => {
      */
     it('should deterministically select the last remaining guest of a type', () => {
       store.initializeGame();
-      patchState(store, { popularity: 10 });
+      patchState(unprotected(store), { popularity: 10 });
 
       // Set up shop with exactly 1 OLD_FRIEND remaining (Matt)
       const singleGuest = testGuest('OLD_FRIEND', 'Matt');
       const inventory = store.shopInventory().map((e: ShopInventoryEntry) =>
         e.type === 'OLD_FRIEND' ? { ...e, guests: [singleGuest] } : e
       );
-      patchState(store, { shopInventory: inventory });
+      patchState(unprotected(store), { shopInventory: inventory });
 
       const result = store.purchaseGuest('OLD_FRIEND');
 
@@ -2182,7 +2183,7 @@ describe('inviteGuest() capacity guard', () => {
     store.initializeGame();
     // Set capacity to 3 and fill the party with 3 guests via patchState
     const deck = store.deck();
-    patchState(store, {
+    patchState(unprotected(store), {
       houseCapacity: 3,
       party: deck.slice(0, 3),
       deck: deck.slice(3)
@@ -2211,7 +2212,7 @@ describe('inviteGuest() capacity guard', () => {
   it('should clear showHouseFullMessage on a successful invite', () => {
     store.initializeGame();
     // Manually set the flag to true, then invite with room available
-    patchState(store, { showHouseFullMessage: true });
+    patchState(unprotected(store), { showHouseFullMessage: true });
     expect(store.showHouseFullMessage()).toBe(true);
 
     store.inviteGuest();
@@ -2227,7 +2228,7 @@ describe('inviteGuest() capacity guard', () => {
   it('should keep showHouseFullMessage true on repeated blocked invites', () => {
     store.initializeGame();
     const deck = store.deck();
-    patchState(store, {
+    patchState(unprotected(store), {
       houseCapacity: 2,
       party: deck.slice(0, 2),
       deck: deck.slice(2)
@@ -2266,7 +2267,7 @@ describe('House Capacity Reset and Persistence', () => {
   it('should reset houseCapacity to 5 after resetGame()', () => {
     store.initializeGame();
     // Simulate expanded capacity
-    patchState(store, { houseCapacity: 12, expansionsPurchased: 7 });
+    patchState(unprotected(store), { houseCapacity: 12, expansionsPurchased: 7 });
     expect(store.houseCapacity()).toBe(12);
 
     store.resetGame();
@@ -2280,7 +2281,7 @@ describe('House Capacity Reset and Persistence', () => {
    */
   it('should reset expansionsPurchased to 0 after resetGame()', () => {
     store.initializeGame();
-    patchState(store, { houseCapacity: 12, expansionsPurchased: 7 });
+    patchState(unprotected(store), { houseCapacity: 12, expansionsPurchased: 7 });
     expect(store.expansionsPurchased()).toBe(7);
 
     store.resetGame();
@@ -2295,7 +2296,7 @@ describe('House Capacity Reset and Persistence', () => {
   it('should preserve houseCapacity across advancePhase() BUY→PARTY→BUY', () => {
     store.initializeGame(5);
     // Expand house to capacity 8
-    patchState(store, { houseCapacity: 8, expansionsPurchased: 3 });
+    patchState(unprotected(store), { houseCapacity: 8, expansionsPurchased: 3 });
 
     // BUY → PARTY
     store.advancePhase();
@@ -2316,7 +2317,7 @@ describe('House Capacity Reset and Persistence', () => {
    */
   it('should preserve houseCapacity through triggerPartyShutdown()', () => {
     store.initializeGame(5);
-    patchState(store, { houseCapacity: 10, expansionsPurchased: 5 });
+    patchState(unprotected(store), { houseCapacity: 10, expansionsPurchased: 5 });
 
     store.advancePhase(); // BUY → PARTY
     store.inviteGuest();
@@ -2646,7 +2647,7 @@ describe('Climber Entrance Effect — GameStore', () => {
 
       // Patch deck with a Climber at popularityValue 0
       const climber = testGuest('CLIMBER', 'Ascella', { popularityValue: 0, troubleValue: 0, moneyValue: 0, peaceValue: 0, starValue: 0 });
-      patchState(store, { deck: [climber] });
+      patchState(unprotected(store), { deck: [climber] });
 
       store.inviteGuest();
 
@@ -2664,7 +2665,7 @@ describe('Climber Entrance Effect — GameStore', () => {
 
       // Patch deck with a Climber at popularityValue 9 (already at cap)
       const climber = testGuest('CLIMBER', 'Skye', { popularityValue: 9, troubleValue: 0, moneyValue: 0, peaceValue: 0, starValue: 0 });
-      patchState(store, { deck: [climber] });
+      patchState(unprotected(store), { deck: [climber] });
 
       store.inviteGuest();
 
@@ -2682,7 +2683,7 @@ describe('Climber Entrance Effect — GameStore', () => {
 
       // Patch deck with an Old Friend (popularityValue 1 by default)
       const oldFriend = testGuest('OLD_FRIEND', 'Brian', { popularityValue: 1, troubleValue: 0, moneyValue: 0, peaceValue: 0, starValue: 0 });
-      patchState(store, { deck: [oldFriend] });
+      patchState(unprotected(store), { deck: [oldFriend] });
 
       store.inviteGuest();
 
@@ -2702,7 +2703,7 @@ describe('Climber Entrance Effect — GameStore', () => {
 
       // Patch deck with a Climber at popularityValue 3
       const climber = testGuest('CLIMBER', 'Icarus', { popularityValue: 3, troubleValue: 0, moneyValue: 0, peaceValue: 0, starValue: 0 });
-      patchState(store, { deck: [climber] });
+      patchState(unprotected(store), { deck: [climber] });
 
       // Invite the Climber — entrance effect increments popularityValue to 4
       store.inviteGuest();
@@ -2728,11 +2729,11 @@ describe('Auto-invite Entrance Effects — GameStore', () => {
     TestBed.configureTestingModule({});
     store = TestBed.inject(GameStore);
     store.initializeGame();
-    patchState(store, { houseCapacity: 10, party: [] });
+    patchState(unprotected(store), { houseCapacity: 10, party: [] });
   });
 
   it('should admit exactly one extra guest, once, when Mr. Popular is invited', () => {
-    patchState(store, {
+    patchState(unprotected(store), {
       deck: [testGuest('MR_POPULAR', 'Rowan'), testGuest('OLD_FRIEND', 'Colin'), testGuest('OLD_FRIEND', 'Emily')]
     });
 
@@ -2743,7 +2744,7 @@ describe('Auto-invite Entrance Effects — GameStore', () => {
   });
 
   it('should admit exactly two extra guests, once each, when a Celebrity is invited', () => {
-    patchState(store, {
+    patchState(unprotected(store), {
       deck: [
         testGuest('CELEBRITY', 'Troy'),
         testGuest('OLD_FRIEND', 'Colin'),
@@ -2759,7 +2760,7 @@ describe('Auto-invite Entrance Effects — GameStore', () => {
   });
 
   it('should admit guests in draw order through a chain of auto-invites', () => {
-    patchState(store, {
+    patchState(unprotected(store), {
       deck: [
         testGuest('MR_POPULAR', 'Rowan'),
         testGuest('MR_POPULAR', 'Oscar'),
@@ -2775,7 +2776,7 @@ describe('Auto-invite Entrance Effects — GameStore', () => {
   });
 
   it('should not over-count auto-invited guests against house capacity', () => {
-    patchState(store, {
+    patchState(unprotected(store), {
       houseCapacity: 2,
       deck: [testGuest('MR_POPULAR', 'Rowan'), testGuest('OLD_FRIEND', 'Colin'), testGuest('OLD_FRIEND', 'Emily')]
     });
@@ -2787,7 +2788,7 @@ describe('Auto-invite Entrance Effects — GameStore', () => {
   });
 
   it('should run the entrance effect of a second Celebrity invited into the same party', () => {
-    patchState(store, {
+    patchState(unprotected(store), {
       deck: [
         testGuest('CELEBRITY', 'Troy'),
         testGuest('OLD_FRIEND', 'Colin'),
@@ -2808,7 +2809,7 @@ describe('Auto-invite Entrance Effects — GameStore', () => {
   });
 
   it('should run the entrance effect of a Celebrity auto-invited by another Celebrity', () => {
-    patchState(store, {
+    patchState(unprotected(store), {
       deck: [
         testGuest('CELEBRITY', 'Troy'),
         testGuest('CELEBRITY', 'Gemma'),
@@ -2827,7 +2828,7 @@ describe('Auto-invite Entrance Effects — GameStore', () => {
   });
 
   it('should run a Celebrity\'s entrance effect again when she returns in a later party', () => {
-    patchState(store, {
+    patchState(unprotected(store), {
       currentPhase: GamePhase.PARTY,
       deck: [
         testGuest('CELEBRITY', 'Troy'),
@@ -2847,7 +2848,7 @@ describe('Auto-invite Entrance Effects — GameStore', () => {
 
     // Put the same Troy back on top of the deck in a known order
     const byName = (name: string) => store.deck().find(g => g.name === name)!;
-    patchState(store, { deck: ['Troy', 'Colin', 'Emily', 'Rachelle'].map(byName) });
+    patchState(unprotected(store), { deck: ['Troy', 'Colin', 'Emily', 'Rachelle'].map(byName) });
 
     store.inviteGuest();
 
@@ -2856,7 +2857,7 @@ describe('Auto-invite Entrance Effects — GameStore', () => {
   });
 
   it('should return all bust party guests to the deck after acknowledging an overflow shutdown', () => {
-    patchState(store, {
+    patchState(unprotected(store), {
       currentPhase: GamePhase.PARTY,
       currentTurn: 1,
       houseCapacity: 2,
@@ -2879,7 +2880,7 @@ describe('Auto-invite Entrance Effects — GameStore', () => {
   });
 
   it('should not lose a guest whose admission is still queued when an overflow shutdown occurs', () => {
-    patchState(store, {
+    patchState(unprotected(store), {
       currentPhase: GamePhase.PARTY,
       currentTurn: 1,
       houseCapacity: 1,
@@ -2901,7 +2902,7 @@ describe('Auto-invite Entrance Effects — GameStore', () => {
   });
 
   it('should not lose a guest whose admission is still queued when a trouble shutdown occurs', () => {
-    patchState(store, {
+    patchState(unprotected(store), {
       currentPhase: GamePhase.PARTY,
       party: [testGuest('WILD_BUDDY', 'Anthony'), testGuest('WILD_BUDDY', 'Teresa')],
       deck: [
@@ -2939,11 +2940,11 @@ describe('Entrance Effect Order — GameStore', () => {
     TestBed.configureTestingModule({});
     store = TestBed.inject(GameStore);
     store.initializeGame();
-    patchState(store, { currentPhase: GamePhase.PARTY, houseCapacity: 10, party: [] });
+    patchState(unprotected(store), { currentPhase: GamePhase.PARTY, houseCapacity: 10, party: [] });
   });
 
   it('should run an auto-invited guest\'s entrance effect before Celebrity\'s second auto-invite', () => {
-    patchState(store, {
+    patchState(unprotected(store), {
       houseCapacity: 2,
       deck: [
         testGuest('CELEBRITY', 'Troy'),
@@ -2972,7 +2973,7 @@ describe('Entrance Effect Order — GameStore', () => {
       entranceIcons: [TEST_ICON]
     });
 
-    patchState(store, {
+    patchState(unprotected(store), {
       deck: [
         testGuest('CELEBRITY', 'Troy'),
         testGuest(troublemaker, 'Colin'),
@@ -3002,7 +3003,7 @@ describe('Entrance Effect Order — GameStore', () => {
       entranceIcons: [TEST_ICON]
     });
 
-    patchState(store, { deck: [testGuest(enqueuer, 'Colin')] });
+    patchState(unprotected(store), { deck: [testGuest(enqueuer, 'Colin')] });
 
     store.inviteGuest();
 
@@ -3022,7 +3023,7 @@ describe('Entrance Effect Order — GameStore', () => {
       }
     });
 
-    patchState(store, {
+    patchState(unprotected(store), {
       deck: [
         testGuest('CELEBRITY', 'Troy'),
         testGuest(recordingMrPopular, 'Rowan'),
@@ -3084,7 +3085,7 @@ describe('Star Guests & Winning — GameStore', () => {
     });
 
     it('should clear isVictory left over from a previous game', () => {
-      patchState(store, { isVictory: true });
+      patchState(unprotected(store), { isVictory: true });
       store.initializeGame();
       expect(store.isVictory()).toBe(false);
     });
@@ -3096,12 +3097,12 @@ describe('Star Guests & Winning — GameStore', () => {
     });
 
     it('should be 3 for three Aliens', () => {
-      patchState(store, { party: aliens(3) });
+      patchState(unprotected(store), { party: aliens(3) });
       expect(store.stars()).toBe(3);
     });
 
     it('should sum stars across mixed star and non-star guests', () => {
-      patchState(store, {
+      patchState(unprotected(store), {
         party: [
           testGuest('DRAGON', 'Smaug'),
           testGuest('OLD_FRIEND', 'Brian'),
@@ -3114,7 +3115,7 @@ describe('Star Guests & Winning — GameStore', () => {
     });
 
     it('should drop to 0 after a normal party end', () => {
-      patchState(store, { currentPhase: GamePhase.PARTY, party: aliens(2) });
+      patchState(unprotected(store), { currentPhase: GamePhase.PARTY, party: aliens(2) });
       store.advancePhase();
       expect(store.stars()).toBe(0);
     });
@@ -3123,7 +3124,7 @@ describe('Star Guests & Winning — GameStore', () => {
   describe('advancePhase() win check', () => {
     it('should enter victory when ending a party with exactly 4 stars', () => {
       const party = [...aliens(2), testGuest('SUPERHERO', 'Batman'), testGuest('DRAGON', 'Smaug')];
-      patchState(store, { currentPhase: GamePhase.PARTY, party, popularity: 10, money: 1 });
+      patchState(unprotected(store), { currentPhase: GamePhase.PARTY, party, popularity: 10, money: 1 });
 
       store.advancePhase();
 
@@ -3138,13 +3139,13 @@ describe('Star Guests & Winning — GameStore', () => {
     });
 
     it('should enter victory with more than 4 stars', () => {
-      patchState(store, { currentPhase: GamePhase.PARTY, party: aliens(5) });
+      patchState(unprotected(store), { currentPhase: GamePhase.PARTY, party: aliens(5) });
       store.advancePhase();
       expect(store.isVictory()).toBe(true);
     });
 
     it('should end the party normally with 3 stars', () => {
-      patchState(store, { currentPhase: GamePhase.PARTY, party: aliens(3) });
+      patchState(unprotected(store), { currentPhase: GamePhase.PARTY, party: aliens(3) });
       store.advancePhase();
       expect(store.isVictory()).toBe(false);
       expect(store.party()).toEqual([]);
@@ -3154,21 +3155,21 @@ describe('Star Guests & Winning — GameStore', () => {
 
     it('should enter victory instead of Game Over on the final turn', () => {
       store.initializeGame(1);
-      patchState(store, { currentPhase: GamePhase.PARTY, party: aliens(4) });
+      patchState(unprotected(store), { currentPhase: GamePhase.PARTY, party: aliens(4) });
       store.advancePhase();
       expect(store.isVictory()).toBe(true);
       expect(store.isGameComplete()).toBe(false);
     });
 
     it('should not win just by reaching 4 stars mid-party', () => {
-      patchState(store, { currentPhase: GamePhase.PARTY, deck: aliens(4) });
+      patchState(unprotected(store), { currentPhase: GamePhase.PARTY, deck: aliens(4) });
       for (let i = 0; i < 4; i++) store.inviteGuest();
       expect(store.stars()).toBe(4);
       expect(store.isVictory()).toBe(false);
     });
 
     it('should apply a Dragon money deficit when ending a party without victory', () => {
-      patchState(store, { currentPhase: GamePhase.PARTY, party: [testGuest('DRAGON', 'Smaug')], popularity: 20, money: 1 });
+      patchState(unprotected(store), { currentPhase: GamePhase.PARTY, party: [testGuest('DRAGON', 'Smaug')], popularity: 20, money: 1 });
       store.advancePhase();
       // money 1 - 3 = -2 → clamped to 0, popularity penalized 2 × 7
       expect(store.money()).toBe(0);
@@ -3179,7 +3180,7 @@ describe('Star Guests & Winning — GameStore', () => {
   describe('shutdowns never win', () => {
     it('should not win after a trouble shutdown with 4 stars in the bust party', () => {
       const wildBuddies = ['WB1', 'WB2', 'WB3'].map(n => testGuest('WILD_BUDDY', n));
-      patchState(store, { currentPhase: GamePhase.PARTY, houseCapacity: 10, deck: [...aliens(4), ...wildBuddies] });
+      patchState(unprotected(store), { currentPhase: GamePhase.PARTY, houseCapacity: 10, deck: [...aliens(4), ...wildBuddies] });
 
       for (let i = 0; i < 7; i++) store.inviteGuest();
 
@@ -3197,7 +3198,7 @@ describe('Star Guests & Winning — GameStore', () => {
 
     it('should not win after a Dinosaur pushes trouble over the limit', () => {
       const dinos = ['Barney', 'Blue', 'Dino'].map(n => testGuest('DINOSAUR', n));
-      patchState(store, { currentPhase: GamePhase.PARTY, deck: [...aliens(1), ...dinos] });
+      patchState(unprotected(store), { currentPhase: GamePhase.PARTY, deck: [...aliens(1), ...dinos] });
 
       for (let i = 0; i < 4; i++) store.inviteGuest();
 
@@ -3206,7 +3207,7 @@ describe('Star Guests & Winning — GameStore', () => {
     });
 
     it('should not win after a Mermaid causes an overflow with 4+ stars', () => {
-      patchState(store, {
+      patchState(unprotected(store), {
         currentPhase: GamePhase.PARTY,
         houseCapacity: 4,
         deck: [...aliens(3), testGuest('MERMAID', 'Ariel'), testGuest('OLD_FRIEND', 'Brian')]
@@ -3227,7 +3228,7 @@ describe('Star Guests & Winning — GameStore', () => {
 
   describe('while victorious', () => {
     beforeEach(() => {
-      patchState(store, { currentPhase: GamePhase.PARTY, party: aliens(4) });
+      patchState(unprotected(store), { currentPhase: GamePhase.PARTY, party: aliens(4) });
       store.advancePhase();
       expect(store.isVictory()).toBe(true);
     });
@@ -3280,7 +3281,7 @@ describe('Star Guests & Winning — GameStore', () => {
       const mermaid = testGuest('MERMAID', 'Ariel');
       const brian = testGuest('OLD_FRIEND', 'Brian');
       const khalil = testGuest('RICH_PAL', 'Khalil');
-      patchState(store, { currentPhase: GamePhase.PARTY, deck: [mermaid, brian, khalil] });
+      patchState(unprotected(store), { currentPhase: GamePhase.PARTY, deck: [mermaid, brian, khalil] });
 
       store.inviteGuest();
 
@@ -3289,7 +3290,7 @@ describe('Star Guests & Winning — GameStore', () => {
     });
 
     it('should be admitted alone when the deck is empty', () => {
-      patchState(store, { currentPhase: GamePhase.PARTY, deck: [testGuest('MERMAID', 'Ariel')] });
+      patchState(unprotected(store), { currentPhase: GamePhase.PARTY, deck: [testGuest('MERMAID', 'Ariel')] });
 
       store.inviteGuest();
 
@@ -3314,7 +3315,7 @@ describe('Guest Identity — GameStore', () => {
     TestBed.configureTestingModule({});
     store = TestBed.inject(GameStore);
     store.initializeGame();
-    patchState(store, { currentPhase: GamePhase.PARTY, houseCapacity: 10, party: [] });
+    patchState(unprotected(store), { currentPhase: GamePhase.PARTY, houseCapacity: 10, party: [] });
   });
 
   it('should give every guest in the deck and shop an id', () => {
@@ -3324,7 +3325,7 @@ describe('Guest Identity — GameStore', () => {
 
   it('should keep a Climber\'s id through her entrance effect', () => {
     const climber = testGuest('CLIMBER', 'Skye');
-    patchState(store, { deck: [climber] });
+    patchState(unprotected(store), { deck: [climber] });
 
     store.inviteGuest();
 
@@ -3340,7 +3341,7 @@ describe('Guest Identity — GameStore', () => {
       },
       entranceIcons: [TEST_ICON]
     });
-    patchState(store, { deck: [testGuest(copier, 'Colin')] });
+    patchState(unprotected(store), { deck: [testGuest(copier, 'Colin')] });
 
     store.inviteGuest();
 
@@ -3357,7 +3358,7 @@ describe('Guest Identity — GameStore', () => {
       entranceIcons: [TEST_ICON]
     });
     const colin = testGuest(renamer, 'Colin');
-    patchState(store, { deck: [colin] });
+    patchState(unprotected(store), { deck: [colin] });
 
     store.inviteGuest();
 
@@ -3369,7 +3370,7 @@ describe('Guest Identity — GameStore', () => {
   it('should ban only the selected guest when two bust guests share a name', () => {
     const first = testGuest('WILD_BUDDY', 'Matt');
     const second = testGuest('WILD_BUDDY', 'Matt');
-    patchState(store, { deck: [], bustPartySnapshot: [first, second], isBanSelectionActive: true });
+    patchState(unprotected(store), { deck: [], bustPartySnapshot: [first, second], isBanSelectionActive: true });
 
     store.selectGuestToBan(1);
     store.confirmBan();

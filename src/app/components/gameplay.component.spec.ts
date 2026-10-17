@@ -1,6 +1,7 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter, Router } from '@angular/router';
 import { patchState } from '@ngrx/signals';
+import { unprotected } from '@ngrx/signals/testing';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { GamePhase } from '../models';
 import { GUEST_TYPE_DEFAULTS } from '../models/guest.model';
@@ -371,7 +372,7 @@ describe('GameplayComponent - Victory', () => {
     fixture.detectChanges();
 
     const aliens = Array.from({ length: 4 }, (_, i) => testGuest('ALIEN', `Alien${i}`));
-    patchState(store, { currentPhase: GamePhase.PARTY, party: aliens });
+    patchState(unprotected(store), { currentPhase: GamePhase.PARTY, party: aliens });
     store.advancePhase();
     fixture.detectChanges();
     await new Promise(resolve => setTimeout(resolve, 0));

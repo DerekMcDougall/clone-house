@@ -59,6 +59,6 @@ describe('App Component', () => {
 
   it('should have title property', () => {
     const component = new App();
-    expect(component.title).toBeDefined();
+    expect(component['title']).toBeDefined();
   });
 });

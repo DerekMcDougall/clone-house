@@ -1,5 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { patchState } from '@ngrx/signals';
+import { unprotected } from '@ngrx/signals/testing';
 import * as fc from 'fast-check';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { GamePhase } from '../models';
@@ -18,6 +19,7 @@ import { testGuest } from '../../testing/guests';
 describe('PhaseContentComponent - Property-Based Tests', () => {
   let component: PhaseContentComponent;
   let fixture: ComponentFixture<PhaseContentComponent>;
+  let gameStore: InstanceType<typeof GameStore>;
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
@@ -26,6 +28,7 @@ describe('PhaseContentComponent - Property-Based Tests', () => {
     
     fixture = TestBed.createComponent(PhaseContentComponent);
     component = fixture.componentInstance;
+    gameStore = TestBed.inject(GameStore);
   });
 
   /**
@@ -131,28 +134,28 @@ describe('PhaseContentComponent - Property-Based Tests', () => {
           fc.integer({ min: 0, max: 10 }),
           (partySize) => {
             // Reset the store before each iteration
-            component.gameStore.resetGame();
+            gameStore.resetGame();
             
             // Initialize the game
-            component.gameStore.initializeGame();
+            gameStore.initializeGame();
             
             // Raise capacity and trouble limit so we can invite up to 10 guests without a bust
-            patchState(component.gameStore, { houseCapacity: 100, baseTroubleLimit: 100 });
+            patchState(unprotected(gameStore), { houseCapacity: 100, baseTroubleLimit: 100 });
             
             // Advance to PARTY phase
-            component.gameStore.advancePhase();
-            expect(component.gameStore.currentPhase()).toBe('PARTY');
+            gameStore.advancePhase();
+            expect(gameStore.currentPhase()).toBe('PARTY');
             
             // Set the phase input to PARTY
             component.phase = GamePhase.PARTY;
             
             // Invite the specified number of guests to create the party
             for (let i = 0; i < partySize; i++) {
-              component.gameStore.inviteGuest();
+              gameStore.inviteGuest();
             }
             
             // Verify the party has the expected size
-            const actualPartySize = component.gameStore.party().length;
+            const actualPartySize = gameStore.party().length;
             expect(actualPartySize).toBe(partySize);
             
             // Trigger change detection to render the guest cards
@@ -170,7 +173,7 @@ describe('PhaseContentComponent - Property-Based Tests', () => {
               expect(guestCards.length).toBeGreaterThan(0);
               
               // Verify each card corresponds to a guest in the party
-              const party = component.gameStore.party();
+              const party = gameStore.party();
               expect(guestCards.length).toBe(party.length);
             }
           }
@@ -208,14 +211,14 @@ describe('PhaseContentComponent - Property-Based Tests', () => {
             const testComponent = testFixture.componentInstance;
             
             // Initialize the game
-            testComponent.gameStore.initializeGame();
+            gameStore.initializeGame();
             
             // Raise capacity and trouble limit so we can invite up to 10 guests without a bust
-            patchState(testComponent.gameStore, { houseCapacity: 100, baseTroubleLimit: 100 });
+            patchState(unprotected(gameStore), { houseCapacity: 100, baseTroubleLimit: 100 });
             
             // Advance to PARTY phase
-            testComponent.gameStore.advancePhase();
-            expect(testComponent.gameStore.currentPhase()).toBe('PARTY');
+            gameStore.advancePhase();
+            expect(gameStore.currentPhase()).toBe('PARTY');
             
             // Set the phase input to PARTY
             testComponent.phase = GamePhase.PARTY;
@@ -225,23 +228,23 @@ describe('PhaseContentComponent - Property-Based Tests', () => {
             
             // Invite the specified number of guests to create the party
             for (let i = 0; i < partySize; i++) {
-              const deckBeforeInvite = testComponent.gameStore.deck();
+              const deckBeforeInvite = gameStore.deck();
               if (deckBeforeInvite.length > 0) {
                 const guestToInvite = deckBeforeInvite[0];
                 invitedGuestNames.push(guestToInvite.name);
-                testComponent.gameStore.inviteGuest();
+                gameStore.inviteGuest();
               }
             }
             
             // Verify the party has the expected size
-            const actualPartySize = testComponent.gameStore.party().length;
+            const actualPartySize = gameStore.party().length;
             expect(actualPartySize).toBe(partySize);
             
             // Trigger change detection to render the guest cards
             testFixture.detectChanges();
             
             // Get the party in chronological order (oldest first)
-            const party = testComponent.gameStore.party();
+            const party = gameStore.party();
             
             // Get the reversed party (newest first) - this is what should be displayed
             const reversedParty = [...party].reverse();
@@ -284,7 +287,7 @@ describe('PhaseContentComponent - Property-Based Tests', () => {
             }
             
             // Reset the store and clean up fixture for the next iteration
-            testComponent.gameStore.resetGame();
+            gameStore.resetGame();
             testFixture.destroy();
           }
         ),
@@ -322,7 +325,7 @@ describe('PhaseContentComponent - Property-Based Tests', () => {
             store.advancePhase();
 
             // Set isPartyShutdown to true and currentTurn via patchState
-            patchState(store, {
+            patchState(unprotected(store), {
               isPartyShutdown: true,
               currentTurn: currentTurn
             });
@@ -373,7 +376,7 @@ describe('PhaseContentComponent - Property-Based Tests', () => {
             store.advancePhase();
 
             // Set shutdown state with specific turn values
-            patchState(store, {
+            patchState(unprotected(store), {
               isPartyShutdown: true,
               currentTurn: currentTurn
             });
@@ -438,7 +441,7 @@ describe('PhaseContentComponent - Property-Based Tests', () => {
             store.advancePhase();
 
             // Set ban selection active with the generated snapshot
-            patchState(store, {
+            patchState(unprotected(store), {
               isBanSelectionActive: true,
               bustPartySnapshot: snapshot,
               isPartyShutdown: false,
@@ -507,7 +510,7 @@ describe('PhaseContentComponent - Shop Buy Guests Property Tests', () => {
             const store = TestBed.inject(GameStore);
             store.initializeGame();
 
-            patchState(store, { shopInventory: inventory });
+            patchState(unprotected(store), { shopInventory: inventory });
 
             const sorted = store.purchasableShopItems();
 
