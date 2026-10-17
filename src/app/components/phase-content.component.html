@@ -1,7 +1,155 @@
 <div class="phase-content">
   @if (phase === GamePhase.BUY) {
     <h2>Shop</h2>
+    <div class="shop-cards-container">
+      @for (item of gameStore.purchasableShopItems(); track item.type) {
+        <button
+          class="shop-card"
+          (click)="onPurchaseGuest(item.type)"
+          [attr.aria-label]="'Buy ' + GUEST_TYPE_LABELS[item.type]"
+          [attr.aria-describedby]="'shop-details-' + item.type">
+          <div class="card-header">{{ GUEST_TYPE_LABELS[item.type] }}</div>
+          <div class="card-image">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"
+                 fill="currentColor" aria-hidden="true">
+              <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/>
+            </svg>
+          </div>
+          <div class="shop-price">Price: {{ item.cost }}</div>
+          <div class="shop-stock">Available: {{ item.guests.length }}</div>
+          <app-guest-details [attr.id]="'shop-details-' + item.type" [type]="item.type" [properties]="GUEST_TYPE_DEFAULTS[item.type]" />
+          @if (shopAddedFeedback() === item.type) {
+            <div class="added-feedback">Added!</div>
+          }
+        </button>
+      }
+      @if (gameStore.expansionStock() > 0) {
+        <button
+          class="shop-card expand-house-card"
+          (click)="onPurchaseExpansion()"
+          aria-label="Expand House">
+          <div class="card-header">Expand House</div>
+          <div class="card-image">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"
+                 fill="currentColor" aria-hidden="true">
+              <path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/>
+            </svg>
+          </div>
+          <div class="shop-price">{{ formatMoney(gameStore.expansionCost()) }}</div>
+          <div class="shop-stock">Available: {{ gameStore.expansionStock() }}</div>
+        </button>
+      }
+    </div>
   } @else {
     <h2>Party</h2>
+    @if (phase === GamePhase.PARTY) {
+      <div class="guest-cards-container">
+        @for (guest of reversedParty(); track guest.name) {
+          <app-guest-card [guest]="guest" />
+        }
+        @for (i of emptySlotArray(); track i) {
+          <div class="card-shadow" aria-hidden="true"></div>
+        }
+      </div>
+      @if (showEmptyDeckMessage()) {
+        <div class="empty-deck-message">No more guests!</div>
+      }
+    }
   }
 </div>
+@if (gameStore.isPartyShutdown() && !gameStore.isOverflowShutdown()) {
+  <div class="shutdown-modal-overlay" role="dialog" aria-modal="true" aria-labelledby="shutdown-title">
+    <div class="shutdown-modal">
+      <p id="shutdown-title">The party has gotten out of control and has been shut down!</p>
+      <button
+        class="shutdown-button"
+        (click)="gameStore.acknowledgeShutdown()"
+        [attr.aria-label]="gameStore.isFinalTurn() ? 'Game Over' : 'End Party'">
+        {{ gameStore.isFinalTurn() ? 'Game Over' : 'End Party' }}
+      </button>
+    </div>
+  </div>
+}
+@if (gameStore.isPartyShutdown() && gameStore.isOverflowShutdown()) {
+  <div class="overflow-modal-overlay" role="dialog" aria-modal="true" aria-labelledby="overflow-title">
+    <div class="overflow-modal">
+      <p id="overflow-title">Party exceeded capacity! Fire department has shut it down!</p>
+      <button
+        class="overflow-button"
+        (click)="gameStore.acknowledgeShutdown()"
+        [attr.aria-label]="gameStore.isFinalTurn() ? 'Game Over' : 'End Party'">
+        {{ gameStore.isFinalTurn() ? 'Game Over' : 'End Party' }}
+      </button>
+    </div>
+  </div>
+}
+@if (gameStore.isVictory()) {
+  <div class="victory-modal-overlay" role="dialog" aria-modal="true" aria-labelledby="victory-title">
+    <div class="victory-modal">
+      <p id="victory-title">Congrats! You threw the ultimate party!</p>
+      <button
+        class="victory-button"
+        (click)="gameStore.claimVictory()"
+        aria-label="Victory">
+        Victory
+      </button>
+    </div>
+  </div>
+}
+@if (gameStore.isBanSelectionActive()) {
+  <div class="ban-selection">
+    <h3 class="blame-prompt">Who takes the blame?</h3>
+    <div class="guest-cards-container">
+      @for (guest of gameStore.bustPartySnapshot(); track $index) {
+        <button
+          class="ban-guest-button"
+          (click)="gameStore.selectGuestToBan($index)"
+          [attr.aria-label]="'Ban ' + guest.name">
+          <app-guest-card [guest]="guest" />
+        </button>
+      }
+    </div>
+  </div>
+}
+@if (gameStore.selectedBanGuest()) {
+  <div class="ban-modal-overlay" role="dialog" aria-modal="true" aria-labelledby="ban-title">
+    <div class="ban-modal">
+      <p id="ban-title">{{ gameStore.banConfirmationMessage() }}</p>
+      <button
+        class="ban-confirm-button"
+        (click)="gameStore.confirmBan()"
+        aria-label="OK">
+        OK
+      </button>
+    </div>
+  </div>
+}
+@if (shopErrorMessage()) {
+  <div class="shop-error-overlay" role="dialog" aria-modal="true" aria-labelledby="shop-error-title">
+    <div class="shop-error-modal">
+      <p id="shop-error-title">{{ shopErrorMessage() }}</p>
+      <button
+        class="shop-error-button"
+        (click)="dismissShopError()"
+        aria-label="OK">
+        OK
+      </button>
+    </div>
+  </div>
+}
+@if (gameStore.showHouseFullMessage()) {
+  <div class="house-full-overlay" role="dialog" aria-modal="true" aria-labelledby="house-full-title">
+    <div class="house-full-modal">
+      <p id="house-full-title">The house is full!</p>
+      <button class="house-full-button" (click)="dismissHouseFullMessage()" aria-label="OK">OK</button>
+    </div>
+  </div>
+}
+@if (expansionErrorMessage()) {
+  <div class="expansion-error-overlay" role="dialog" aria-modal="true" aria-labelledby="expansion-error-title">
+    <div class="expansion-error-modal">
+      <p id="expansion-error-title">{{ expansionErrorMessage() }}</p>
+      <button class="expansion-error-button" (click)="dismissExpansionError()" aria-label="OK">OK</button>
+    </div>
+  </div>
+}

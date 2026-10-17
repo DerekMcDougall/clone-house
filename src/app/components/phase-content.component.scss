@@ -1,14 +1,91 @@
 .phase-content {
   padding: 2rem;
-  
-  h2 {
-    margin: 0;
-    font-size: 2rem;
-    font-weight: bold;
-  }
 }
 
-// Overflow modal styles (tasks 9.1, 9.2)
+.phase-content h2 {
+  margin: 0 0 1.5rem 0;
+  font-size: 2rem;
+  font-weight: 600;
+  color: #333;
+}
+
+.guest-cards-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  margin-top: 1.5rem;
+}
+
+.card-shadow {
+  min-width: 150px;
+  max-width: 200px;
+  min-height: 140px;
+  padding: 1rem;
+  border: 2px dashed #ccc;
+  border-radius: 8px;
+  background-color: #f5f5f5;
+  box-sizing: border-box;
+}
+
+.empty-deck-message {
+  margin-top: 1.5rem;
+  padding: 1rem;
+  background-color: #fff3cd;
+  border: 1px solid #ffc107;
+  border-radius: 4px;
+  color: #856404;
+  font-weight: 500;
+  text-align: center;
+}
+
+.shutdown-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.shutdown-modal {
+  background: white;
+  padding: 2rem;
+  border-radius: 8px;
+  max-width: 400px;
+  text-align: center;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+}
+
+.shutdown-modal p {
+  font-size: 1.2rem;
+  margin-bottom: 1.5rem;
+  color: #333;
+}
+
+.shutdown-button {
+  padding: 0.75rem 2rem;
+  font-size: 1rem;
+  font-weight: 600;
+  color: white;
+  background-color: #dc3545;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.shutdown-button:hover {
+  background-color: #c82333;
+}
+
+.shutdown-button:focus {
+  outline: 2px solid #c82333;
+  outline-offset: 2px;
+}
+
 .overflow-modal-overlay {
   position: fixed;
   top: 0;
@@ -17,8 +94,8 @@
   height: 100%;
   background-color: rgba(0, 0, 0, 0.5);
   display: flex;
-  justify-content: center;
   align-items: center;
+  justify-content: center;
   z-index: 1000;
 }
 
@@ -28,7 +105,7 @@
   border-radius: 8px;
   max-width: 400px;
   text-align: center;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
 }
 
 .overflow-modal p {
@@ -55,4 +132,349 @@
 .overflow-button:focus {
   outline: 2px solid #e8690a;
   outline-offset: 2px;
+}
+
+.victory-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.victory-modal {
+  background: white;
+  padding: 2rem;
+  border-radius: 8px;
+  max-width: 400px;
+  text-align: center;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+}
+
+.victory-modal p {
+  font-size: 1.2rem;
+  margin-bottom: 1.5rem;
+  color: #333;
+}
+
+.victory-button {
+  padding: 0.75rem 2rem;
+  font-size: 1rem;
+  font-weight: 600;
+  color: white;
+  background-color: #d4a017;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.victory-button:hover {
+  background-color: #b8860b;
+}
+
+.victory-button:focus {
+  outline: 2px solid #b8860b;
+  outline-offset: 2px;
+}
+
+.ban-selection {
+  padding: 2rem;
+}
+
+.blame-prompt {
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: #333;
+  margin: 0 0 1.5rem 0;
+  text-align: center;
+}
+
+.ban-guest-button {
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  border-radius: 8px;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.ban-guest-button:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.ban-guest-button:focus {
+  outline: 2px solid #007bff;
+  outline-offset: 2px;
+}
+
+.ban-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.ban-modal {
+  background: white;
+  padding: 2rem;
+  border-radius: 8px;
+  max-width: 400px;
+  text-align: center;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+}
+
+.ban-modal p {
+  font-size: 1.2rem;
+  margin-bottom: 1.5rem;
+  color: #333;
+}
+
+.ban-confirm-button {
+  padding: 0.75rem 2rem;
+  font-size: 1rem;
+  font-weight: 600;
+  color: white;
+  background-color: #dc3545;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.ban-confirm-button:hover {
+  background-color: #c82333;
+}
+
+.ban-confirm-button:focus {
+  outline: 2px solid #c82333;
+  outline-offset: 2px;
+}
+
+.shop-cards-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  margin-top: 1.5rem;
+}
+
+.shop-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 1.75rem 1rem;
+  border: 2px solid #ddd;
+  border-radius: 8px;
+  background: white;
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  min-width: 120px;
+  position: relative;
+}
+
+.shop-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.shop-card:focus {
+  outline: 2px solid #007bff;
+  outline-offset: 2px;
+}
+
+.shop-card .card-header {
+  font-weight: 600;
+  font-size: 1rem;
+  margin-bottom: 0.5rem;
+}
+
+.shop-card .card-image {
+  width: 48px;
+  height: 48px;
+  margin-bottom: 0.5rem;
+  color: #666;
+}
+
+.shop-price {
+  font-size: 0.9rem;
+  color: #555;
+  margin-bottom: 0.25rem;
+}
+
+.shop-stock {
+  font-size: 0.85rem;
+  color: #888;
+}
+
+.shop-error-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.shop-error-modal {
+  background: white;
+  padding: 2rem;
+  border-radius: 8px;
+  max-width: 400px;
+  text-align: center;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+}
+
+.shop-error-modal p {
+  font-size: 1.2rem;
+  margin-bottom: 1.5rem;
+  color: #333;
+}
+
+.shop-error-button {
+  padding: 0.75rem 2rem;
+  font-size: 1rem;
+  font-weight: 600;
+  color: white;
+  background-color: #dc3545;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.shop-error-button:hover {
+  background-color: #c82333;
+}
+
+.shop-error-button:focus {
+  outline: 2px solid #c82333;
+  outline-offset: 2px;
+}
+
+.house-full-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.house-full-modal {
+  background: white;
+  padding: 2rem;
+  border-radius: 8px;
+  max-width: 400px;
+  text-align: center;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+}
+
+.house-full-modal p {
+  font-size: 1.2rem;
+  margin-bottom: 1.5rem;
+  color: #333;
+}
+
+.house-full-button {
+  padding: 0.75rem 2rem;
+  font-size: 1rem;
+  font-weight: 600;
+  color: white;
+  background-color: #dc3545;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.house-full-button:hover {
+  background-color: #c82333;
+}
+
+.house-full-button:focus {
+  outline: 2px solid #c82333;
+  outline-offset: 2px;
+}
+
+.expansion-error-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.expansion-error-modal {
+  background: white;
+  padding: 2rem;
+  border-radius: 8px;
+  max-width: 400px;
+  text-align: center;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+}
+
+.expansion-error-modal p {
+  font-size: 1.2rem;
+  margin-bottom: 1.5rem;
+  color: #333;
+}
+
+.expansion-error-button {
+  padding: 0.75rem 2rem;
+  font-size: 1rem;
+  font-weight: 600;
+  color: white;
+  background-color: #dc3545;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.expansion-error-button:hover {
+  background-color: #c82333;
+}
+
+.expansion-error-button:focus {
+  outline: 2px solid #c82333;
+  outline-offset: 2px;
+}
+
+.added-feedback {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background-color: rgba(40, 167, 69, 0.9);
+  color: white;
+  padding: 0.5rem 1rem;
+  border-radius: 4px;
+  font-weight: 600;
+  animation: fadeOut 1.5s ease-out forwards;
+}
+
+@keyframes fadeOut {
+  0% { opacity: 1; }
+  70% { opacity: 1; }
+  100% { opacity: 0; }
 }

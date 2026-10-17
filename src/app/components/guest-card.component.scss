@@ -2,7 +2,8 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 1rem;
+  position: relative;
+  padding: 1.75rem 1rem;
   background-color: white;
   border: 2px solid #ddd;
   border-radius: 8px;
@@ -10,16 +11,16 @@
   min-width: 150px;
   max-width: 200px;
   transition: box-shadow 0.2s ease, transform 0.2s ease;
+}
 
-  &:hover {
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
-    transform: translateY(-2px);
-  }
+.guest-card:hover {
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+  transform: translateY(-2px);
+}
 
-  &:focus-within {
-    outline: 2px solid #007bff;
-    outline-offset: 2px;
-  }
+.guest-card:focus-within {
+  outline: 2px solid #007bff;
+  outline-offset: 2px;
 }
 
 .card-header {
@@ -41,11 +42,11 @@
   border-radius: 50%;
   margin-bottom: 0.75rem;
   color: #999;
+}
 
-  svg {
-    width: 50px;
-    height: 50px;
-  }
+.card-image svg {
+  width: 50px;
+  height: 50px;
 }
 
 .card-caption {
