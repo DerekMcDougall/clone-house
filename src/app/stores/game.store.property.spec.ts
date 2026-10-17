@@ -8,7 +8,7 @@ import { EffectContext, Guest, GUEST_TYPE_COSTS, GUEST_TYPE_DEFAULTS, GUEST_TYPE
 import { getGuestType, registerGuestType, resetGuestTypesForTesting } from '../models/guest-type-registry';
 import { DEFAULT_GAME_SETUP, GameSetup } from '../models/game-setup';
 import { GameStore, ShopInventoryEntry } from './game.store';
-import { registerTestGuestType, testGuest } from '../../testing/guests';
+import { customEntrance, registerTestGuestType, testGuest } from '../../testing/guests';
 import { arbGuestNames, arbGuestTypeDefinition } from '../../testing/guest-type-arbitraries';
 
 /**
@@ -5273,8 +5273,7 @@ describe('GameStore Property Tests - Guest Identity', () => {
       let entrance: (ctx: EffectContext) => void = () => {};
       const triggerType = registerTestGuestType({
         id: 'TEST_TRIGGER',
-        entranceEffect: (ctx) => entrance(ctx),
-        entranceIcons: [{ symbol: '🧪', label: 'Test effect' }]
+        effects: customEntrance((ctx) => entrance(ctx), [{ symbol: '🧪', label: 'Test effect' }])
       });
 
       fc.assert(

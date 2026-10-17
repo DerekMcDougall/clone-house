@@ -5,8 +5,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { GamePhase } from '../models';
 import { Guest, GUEST_TYPE_DEFAULTS, GuestType, INITIAL_GUESTS } from '../models/guest.model';
 import { getGuestType, resetGuestTypesForTesting } from '../models/guest-type-registry';
+import { runEffect } from '../models/action-kinds';
 import { GameStore, ShopInventoryEntry } from './game.store';
-import { registerTestGuestType, testGuest } from '../../testing/guests';
+import { customEntrance, registerTestGuestType, testGuest } from '../../testing/guests';
 
 const TEST_ICON = { symbol: '🧪', label: 'Test effect' };
 
@@ -2967,10 +2968,9 @@ describe('Entrance Effect Order — GameStore', () => {
     // Stand-in for an upcoming trouble-raising entrance effect
     const troublemaker = registerTestGuestType({
       id: 'TEST_TROUBLEMAKER',
-      entranceEffect: (ctx, guest) => {
+      effects: customEntrance((ctx, guest) => {
         ctx.updateGuest(guest, g => ({ ...g, properties: { ...g.properties, troubleValue: 3 } }));
-      },
-      entranceIcons: [TEST_ICON]
+      }, [TEST_ICON])
     });
 
     patchState(unprotected(store), {
@@ -2995,12 +2995,11 @@ describe('Entrance Effect Order — GameStore', () => {
     const order: string[] = [];
     const enqueuer = registerTestGuestType({
       id: 'TEST_ENQUEUER',
-      entranceEffect: (ctx) => {
+      effects: customEntrance((ctx) => {
         ctx.enqueue(() => order.push('first'));
         ctx.enqueue(() => order.push('second'));
         ctx.enqueue(() => order.push('third'));
-      },
-      entranceIcons: [TEST_ICON]
+      }, [TEST_ICON])
     });
 
     patchState(unprotected(store), { deck: [testGuest(enqueuer, 'Colin')] });
@@ -3017,10 +3016,10 @@ describe('Entrance Effect Order — GameStore', () => {
     const recordingMrPopular = registerTestGuestType({
       ...mrPopular,
       id: 'TEST_RECORDING_MR_POPULAR',
-      entranceEffect: (ctx, guest) => {
+      effects: customEntrance((ctx, guest) => {
         partyAtRowanEntrance = ctx.getParty().map(g => g.name);
-        mrPopular.entranceEffect!(ctx, guest);
-      }
+        runEffect(ctx, guest, mrPopular.effects![0]);
+      })
     });
 
     patchState(unprotected(store), {
@@ -3336,10 +3335,9 @@ describe('Guest Identity — GameStore', () => {
   it('should update the party guest when updateGuest is given a copy of it', () => {
     const copier = registerTestGuestType({
       id: 'TEST_COPIER',
-      entranceEffect: (ctx, guest) => {
+      effects: customEntrance((ctx, guest) => {
         ctx.updateGuest({ ...guest }, g => ({ ...g, properties: { ...g.properties, popularityValue: 7 } }));
-      },
-      entranceIcons: [TEST_ICON]
+      }, [TEST_ICON])
     });
     patchState(unprotected(store), { deck: [testGuest(copier, 'Colin')] });
 
@@ -3352,10 +3350,9 @@ describe('Guest Identity — GameStore', () => {
   it('should keep the original id when an updater returns a different one', () => {
     const renamer = registerTestGuestType({
       id: 'TEST_RENAMER',
-      entranceEffect: (ctx, guest) => {
+      effects: customEntrance((ctx, guest) => {
         ctx.updateGuest(guest, g => ({ ...g, id: 'someone-else', properties: { ...g.properties, popularityValue: 7 } }));
-      },
-      entranceIcons: [TEST_ICON]
+      }, [TEST_ICON])
     });
     const colin = testGuest(renamer, 'Colin');
     patchState(unprotected(store), { deck: [colin] });

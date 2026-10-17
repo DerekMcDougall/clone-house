@@ -1,9 +1,10 @@
+import { findActionKind } from './action-kinds';
 import type { EffectContext } from './effect-context';
+import { EffectDefinition, TRIGGERS } from './effect-definition';
 import type { Guest, GuestProperties } from './guest.model';
-import type { GuestIcon } from './guest-icons';
 
-// Runs when a guest joins the party. `guest` is the guest as admitted; use
-// ctx.updateGuest(guest, ...) to change it in the party.
+// The function behind a custom action. `guest` is the guest whose effect this is, as it was
+// when the effect was enqueued; use ctx.updateGuest(guest, ...) to change it in the party.
 export type EffectHandler = (ctx: EffectContext, guest: Guest) => void;
 
 // What a guest of one type is. Which guests are in a game is up to the game setup
@@ -14,15 +15,46 @@ export interface GuestTypeDefinition {
   // Popularity to buy one from the shop; null when the type is never sold.
   cost: number | null;
   properties: GuestProperties;
-  // Runs when a guest of this type joins the party. Requires entranceIcons.
-  entranceEffect?: EffectHandler;
-  entranceIcons?: readonly GuestIcon[];
+  // What guests of this type do, and when. Run, and shown on cards, in this order.
+  effects?: readonly EffectDefinition[];
 }
 
-const PROPERTY_KEYS: readonly (keyof GuestProperties)[] =
+export const PROPERTY_KEYS: readonly (keyof GuestProperties)[] =
   ['popularityValue', 'troubleValue', 'moneyValue', 'peaceValue', 'starValue'];
 
-// Throws on the first problem found, naming the type.
+const isObject = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null && !Array.isArray(value);
+
+// Every problem with a list of effects, each starting with its path (effects[1].action.count).
+// With dataOnly, kinds that can't be written in JSON are rejected too.
+export function effectProblems(effects: unknown, dataOnly = false): string[] {
+  if (!Array.isArray(effects)) return ['effects: expected a list'];
+
+  return effects.flatMap((effect: unknown, i): string[] => {
+    const path = `effects[${i}]`;
+    if (!isObject(effect)) return [`${path}: expected an object`];
+
+    const problems = Object.keys(effect)
+      .filter(key => key !== 'trigger' && key !== 'action')
+      .map(key => `${path}.${key}: unknown field`);
+
+    if (!TRIGGERS.includes(effect['trigger'] as never)) {
+      problems.push(`${path}.trigger: expected one of ${TRIGGERS.join(', ')}`);
+    }
+
+    const action = effect['action'];
+    if (!isObject(action)) return [...problems, `${path}.action: expected an object`];
+
+    const kind = typeof action['kind'] === 'string' ? findActionKind(action['kind']) : undefined;
+    if (!kind) return [...problems, `${path}.action.kind: unknown action kind ${JSON.stringify(action['kind'])}`];
+    if (dataOnly && !kind.dataOnly) {
+      return [...problems, `${path}.action.kind: "${kind.kind}" can't be defined in JSON`];
+    }
+    return [...problems, ...kind.validate(action, `${path}.action`)];
+  });
+}
+
+// Throws on the first problem found, naming the type. Effect problems are reported together.
 export function validateGuestType(def: GuestTypeDefinition): void {
   const fail = (problem: string): never => {
     throw new Error(`Invalid guest type "${def.id}": ${problem}`);
@@ -39,7 +71,8 @@ export function validateGuestType(def: GuestTypeDefinition): void {
     if (!Number.isInteger(def.properties?.[key])) fail(`properties.${key} must be an integer`);
   }
 
-  const hasIcons = (def.entranceIcons?.length ?? 0) > 0;
-  if (def.entranceEffect && !hasIcons) fail('entranceEffect needs entranceIcons');
-  if (hasIcons && !def.entranceEffect) fail('entranceIcons need an entranceEffect');
+  if (def.effects !== undefined) {
+    const problems = effectProblems(def.effects);
+    if (problems.length > 0) fail(problems.join('; '));
+  }
 }

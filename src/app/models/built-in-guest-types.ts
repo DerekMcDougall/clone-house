@@ -1,5 +1,3 @@
-import { autoInvite } from './guest-effects';
-import { INVITE_ICON } from './guest-icons';
 import type { GuestTypeDefinition } from './guest-type';
 
 export type BuiltInGuestType =
@@ -106,37 +104,23 @@ export const BUILT_IN_GUEST_TYPES: readonly GuestTypeDefinition[] = [
     label: 'Climber',
     cost: 12,
     properties: { popularityValue: 0, troubleValue: 0, moneyValue: 0, peaceValue: 0, starValue: 0 },
-    entranceEffect: (ctx, guest) => {
-      ctx.updateGuest(guest, g => ({
-        ...g,
-        properties: {
-          ...g.properties,
-          popularityValue: Math.min(9, g.properties.popularityValue + 1)
-        }
-      }));
-    },
-    entranceIcons: [{ symbol: '➕', label: 'Gains 1 popularity on entrance' }]
+    effects: [
+      { trigger: 'entrance', action: { kind: 'adjustSelf', property: 'popularityValue', delta: 1, max: 9 } }
+    ]
   },
   {
     id: 'MR_POPULAR',
     label: 'Mr. Popular',
     cost: 5,
     properties: { popularityValue: 3, troubleValue: 0, moneyValue: 0, peaceValue: 0, starValue: 0 },
-    entranceEffect: (ctx) => {
-      autoInvite(ctx);
-    },
-    entranceIcons: [INVITE_ICON]
+    effects: [{ trigger: 'entrance', action: { kind: 'autoInvite', count: 1 } }]
   },
   {
     id: 'CELEBRITY',
     label: 'Celebrity',
     cost: 11,
     properties: { popularityValue: 2, troubleValue: 0, moneyValue: 3, peaceValue: 0, starValue: 0 },
-    entranceEffect: (ctx) => {
-      autoInvite(ctx);
-      autoInvite(ctx);
-    },
-    entranceIcons: [INVITE_ICON, INVITE_ICON]
+    effects: [{ trigger: 'entrance', action: { kind: 'autoInvite', count: 2 } }]
   },
   {
     id: 'ALIEN',
@@ -167,10 +151,7 @@ export const BUILT_IN_GUEST_TYPES: readonly GuestTypeDefinition[] = [
     label: 'Mermaid',
     cost: 35,
     properties: { popularityValue: 0, troubleValue: 0, moneyValue: 0, peaceValue: 0, starValue: 1 },
-    entranceEffect: (ctx) => {
-      autoInvite(ctx);
-    },
-    entranceIcons: [INVITE_ICON]
+    effects: [{ trigger: 'entrance', action: { kind: 'autoInvite', count: 1 } }]
   },
   {
     id: 'UNICORN',

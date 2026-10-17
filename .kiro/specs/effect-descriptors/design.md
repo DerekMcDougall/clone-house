@@ -36,10 +36,12 @@ models/action-kinds.ts [new]
 ├── registerActionKind / getActionKind / findActionKind
 ├── resetActionKindsForTesting(): back to built-ins only
 ├── built-ins: autoInvite, adjustSelf, custom
-└── runEffect(ctx, guest, effect): looks up the kind and runs it
+├── runEffect(ctx, guest, effect): looks up the kind and runs it
+└── effectIcons(effects): every effect's icons, in order
 
 models/guest-type.ts
 ├── GuestTypeDefinition: - entranceEffect, - entranceIcons, + effects?: EffectDefinition[]
+├── effectProblems(effects, dataOnly): every problem with a list of effects, with paths
 └── validateGuestType: validates every effect through its kind
 
 models/guest-type-json.ts [new]
@@ -55,6 +57,12 @@ models/guest.model.ts
 ├── getGuestDetails: icons from effects via each kind's icons()
 └── derived views GUEST_TYPE_ENTRANCE_EFFECTS / GUEST_TYPE_ENTRANCE_ICONS: rebuilt from descriptors
 ```
+
+### Module Load Order
+
+The built-in guest types are now plain data and import nothing at run time, so the guest-type-registry cycle through `built-in-guest-types.ts` is gone. Two new cycles take its place: `guest-effects → action-kinds → guest-effects` (`autoInvite` and `runEffect` use each other) and `guest-type → action-kinds → guest-effects → registry → guest-type` (validation looks up kinds). Both are safe for the same reasons as before: the shared functions are `function` declarations, and nothing runs them at module load.
+
+> **Implementation note:** the action-kind registry registers its built-ins on first use, like the guest type registry, so it doesn't depend on load order either. `guest.model.ts` builds `GUEST_TYPE_ENTRANCE_ICONS` at load time through `effectIcons`; this works because no module in the cycles imports `guest.model.ts` at run time. The "Module load order" tests cover the three new modules.
 
 ## Components and Interfaces
 
@@ -106,7 +114,7 @@ const autoInviteKind: ActionKind<{ count: number }> = {
 const adjustSelfKind: ActionKind<{ property: keyof GuestProperties; delta: number; min?: number; max?: number }> = {
   kind: 'adjustSelf',
   dataOnly: true,
-  validate: /* property is a GuestProperties key; delta, min, max integers; min ≤ max */,
+  validate: /* property is a GuestProperties key; delta a non-zero integer; min, max integers; min ≤ max */,
   run: (ctx, guest, { property, delta, min, max }) => {
     const current = ctx.getParty().find(g => g.id === guest.id);
     if (!current) return;
@@ -182,7 +190,7 @@ Checks, in order, collecting every problem with its path:
 - `properties` has exactly the five GuestProperties keys, all integers
 - each effect is `{ trigger, action }`; `action.kind` is registered and `dataOnly`; the kind's `validate` passes
 
-Throws one `Error` listing every problem, so a designer can fix them all at once. The result is then registered with `registerGuestType`, which runs the remaining rules (duplicate id and so on). Parsing doesn't register, so callers can parse a batch and register only when all of it is valid.
+Throws one `Error` listing every problem, so a designer can fix them all at once. The effect checks are `effectProblems`, shared with `validateGuestType`, so a definition from JSON and one written in TypeScript are held to the same rules. The result is then registered with `registerGuestType`, which runs the remaining rules (duplicate id and so on). Parsing doesn't register, so callers can parse a batch and register only when all of it is valid.
 
 A guest type doesn't say which games it's in. To put JSON-defined guests in a game, the caller adds them to a `GameSetup` (guest-type-registry, Requirement 8) passed to `initializeGame()`. Parsing a setup from JSON is out of scope here; it would be a small addition next to this parser.
 
@@ -201,6 +209,12 @@ Example:
 ### Derived views
 
 `GUEST_TYPE_ENTRANCE_EFFECTS[type]` becomes `(ctx, guest) => entranceEffects.forEach(e => runEffect(ctx, guest, e))`, and `GUEST_TYPE_ENTRANCE_ICONS[type]` becomes the effects' icons. For today's types (one entrance effect each), calling the derived handler directly is the same as what `admitGuest` enqueues, so the existing specs that call it keep passing.
+
+### Changes from the first draft
+
+- **`adjustSelf` rejects `delta: 0`.** It would do nothing, and Requirement 3.3 gives it no icon.
+- **Every kind rejects parameters it doesn't define** (Requirement 6.4), such as `{ kind: 'autoInvite', count: 1, times: 2 }`. A typo in a parameter name is an error, not a silently ignored field. This matches how `parseGuestTypeDefinition` treats unknown fields.
+- **`INVITE_ICON` is removed.** `autoInvite` builds its icon, with the trigger phrase in the label.
 
 ## Data Models
 
@@ -246,9 +260,9 @@ For Climber, Mr. Popular, Celebrity and Mermaid, `getGuestDetails` SHALL return 
 
 ### Property 7: Invalid JSON Is Rejected With a Path
 
-*For any* valid Data_Only_Definition with one field broken (wrong type, removed, extra key, unknown kind, bad parameter, `custom` kind), `parseGuestTypeDefinition` SHALL throw, and the message SHALL contain the path to the broken field.
+*For any* valid Data_Only_Definition with one field broken (wrong type, removed, extra key, unknown kind, bad or unknown parameter, `custom` kind), `parseGuestTypeDefinition` SHALL throw, and the message SHALL contain the path to the broken field.
 
-**Validates: Requirements 6.1–6.3, 7.3, 7.4**
+**Validates: Requirements 6.1–6.4, 7.3, 7.4**
 
 ## Error Handling
 
@@ -262,3 +276,5 @@ For Climber, Mr. Popular, Celebrity and Mermaid, `getGuestDetails` SHALL return 
 - Each built-in action kind gets unit tests against a mock `EffectContext` (as the Climber tests do today).
 - `arbDataOnlyDefinition()` extends the guest-type-registry generator with random `autoInvite` and `adjustSelf` effects.
 - Specs that register types or action kinds reset both registries in `afterEach`.
+- `TestEffectContext` (`src/testing/effect-context.ts`) is an in-memory `EffectContext` whose `resolve()` runs effects in the store's order, so kinds and `admitGuest` can be tested without the store.
+- `customEntrance(run, icons)` (`src/testing/guests.ts`) builds a `custom` entrance effect for test types.
