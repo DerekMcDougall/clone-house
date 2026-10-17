@@ -3016,7 +3016,6 @@ describe('Entrance Effect Order — GameStore', () => {
     const recordingMrPopular = registerTestGuestType({
       ...mrPopular,
       id: 'TEST_RECORDING_MR_POPULAR',
-      roster: { starting: [], shop: [] },
       entranceEffect: (ctx, guest) => {
         partyAtRowanEntrance = ctx.getParty().map(g => g.name);
         mrPopular.entranceEffect!(ctx, guest);

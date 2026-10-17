@@ -6,17 +6,14 @@ import type { GuestIcon } from './guest-icons';
 // ctx.updateGuest(guest, ...) to change it in the party.
 export type EffectHandler = (ctx: EffectContext, guest: Guest) => void;
 
-// Everything about one guest type.
+// What a guest of one type is. Which guests are in a game is up to the game setup
+// (game-setup.ts), not the type.
 export interface GuestTypeDefinition {
   id: string;
   label: string;
   // Popularity to buy one from the shop; null when the type is never sold.
   cost: number | null;
   properties: GuestProperties;
-  roster: {
-    starting: readonly string[];  // in the starting deck
-    shop: readonly string[];      // in the shop
-  };
   // Runs when a guest of this type joins the party. Requires entranceIcons.
   entranceEffect?: EffectHandler;
   entranceIcons?: readonly GuestIcon[];
@@ -41,13 +38,6 @@ export function validateGuestType(def: GuestTypeDefinition): void {
   for (const key of PROPERTY_KEYS) {
     if (!Number.isInteger(def.properties?.[key])) fail(`properties.${key} must be an integer`);
   }
-
-  const names = [...(def.roster?.starting ?? []), ...(def.roster?.shop ?? [])];
-  if (names.some(name => typeof name !== 'string' || name === '')) fail('roster names must be non-empty strings');
-  const duplicate = names.find((name, i) => names.indexOf(name) !== i);
-  if (duplicate !== undefined) fail(`roster name "${duplicate}" appears more than once`);
-
-  if (def.roster.shop.length > 0 && def.cost === null) fail('a type with a shop roster needs a cost');
 
   const hasIcons = (def.entranceIcons?.length ?? 0) > 0;
   if (def.entranceEffect && !hasIcons) fail('entranceEffect needs entranceIcons');

@@ -3,7 +3,8 @@ import { patchState, signalStore, withComputed, withMethods, withState } from '@
 import { GamePhase, GameState } from '../models';
 import { EffectContext, GameEffect } from '../models/effect-context';
 import { admitGuest, createGuest, createGuestIdSource, Guest, GuestType, WINNING_STAR_COUNT } from '../models/guest.model';
-import { guestTypeLabel, listGuestTypes } from '../models/guest-type-registry';
+import { DEFAULT_GAME_SETUP, GameSetup, validateGameSetup } from '../models/game-setup';
+import { getGuestType, guestTypeLabel } from '../models/guest-type-registry';
 
 export type { EffectContext };
 
@@ -288,29 +289,25 @@ export const GameStore = signalStore(
     };
 
     return {
-      initializeGame(turnCount: number = 25): void {
+      // The setup decides which guests this game starts with and stocks in the shop.
+      initializeGame(turnCount: number = 25, setup: GameSetup = DEFAULT_GAME_SETUP): void {
         if (turnCount <= 0) {
           throw new Error('Turn count must be greater than zero');
         }
-        
+        validateGameSetup(setup);
+
         // One id source for the whole game, so every guest's id is unique
         const nextId = createGuestIdSource();
 
-        // Read the registry once, so types registered mid-game wait for the next game
-        const types = listGuestTypes();
-
-        // Starting deck: every type's starting roster, in registration order, then shuffled
-        const deck: Guest[] = types.flatMap(t => t.roster.starting.map(name => createGuest(t.id, name, nextId)));
+        const deck: Guest[] = setup.startingDeck.map(({ type, name }) => createGuest(type, name, nextId));
         shuffleDeck(deck);
 
-        // Shop: every type that is sold and has a shop roster
-        const shopInventory: ShopInventoryEntry[] = types
-          .filter(t => t.cost !== null && t.roster.shop.length > 0)
-          .map(t => ({
-            type: t.id,
-            guests: t.roster.shop.map(name => createGuest(t.id, name, nextId)),
-            cost: t.cost!
-          }));
+        // Costs are read once here, so the shop keeps its prices for the whole game
+        const shopInventory: ShopInventoryEntry[] = setup.shop.map(({ type, names }) => ({
+          type,
+          guests: names.map(name => createGuest(type, name, nextId)),
+          cost: getGuestType(type).cost!
+        }));
 
         patchState(store, {
           currentTurn: 1,

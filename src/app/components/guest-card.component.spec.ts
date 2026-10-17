@@ -266,7 +266,7 @@ describe('GuestCardComponent - Runtime Guest Types', () => {
   afterEach(() => resetGuestTypesForTesting());
 
   it('shows the label of a guest type registered at runtime', () => {
-    // guest-type-registry Requirements 4.3, 5.1
+    // guest-type-registry Requirements 4.2, 5.1
     const type = registerTestGuestType({ id: 'TEST_PARTY_PLANNER', label: 'Party Planner' });
     const fixture = TestBed.createComponent(GuestCardComponent);
     fixture.componentInstance.guest = testGuest(type, 'Pat');
@@ -277,7 +277,7 @@ describe('GuestCardComponent - Runtime Guest Types', () => {
   });
 
   it('falls back to the type id for an unregistered type', () => {
-    // guest-type-registry Requirement 4.4
+    // guest-type-registry Requirement 4.3
     const fixture = TestBed.createComponent(GuestCardComponent);
     fixture.componentInstance.guest = { ...testGuest('OLD_FRIEND', 'Pat'), type: 'UNKNOWN_TYPE' };
     fixture.detectChanges();

@@ -1,5 +1,6 @@
 import type { EffectContext, GameEffect } from './effect-context';
 import { BUILT_IN_GUEST_TYPES } from './built-in-guest-types';
+import { DEFAULT_GAME_SETUP } from './game-setup';
 import { GuestIcon, PEACE_ICON, STAR_ICON, TROUBLE_ICON } from './guest-icons';
 import type { EffectHandler } from './guest-type';
 import { findGuestType, getGuestType } from './guest-type-registry';
@@ -29,8 +30,8 @@ export interface Guest {
 // Stars needed in a single party, at its normal end, to win the game.
 export const WINNING_STAR_COUNT = 4;
 
-// The tables below are views of BUILT_IN_GUEST_TYPES, kept so existing code and tests keep
-// working. They don't include types registered at runtime.
+// The tables below are views of BUILT_IN_GUEST_TYPES and DEFAULT_GAME_SETUP, kept so existing
+// code and tests keep working. They don't include types registered at runtime.
 
 /** @deprecated Use getGuestType(id).label or guestTypeLabel(id). */
 export const GUEST_TYPE_LABELS: Record<GuestType, string> =
@@ -44,13 +45,12 @@ export const GUEST_TYPE_DEFAULTS: Record<GuestType, GuestProperties> =
 export const GUEST_TYPE_COSTS: Record<GuestType, number | null> =
   Object.fromEntries(BUILT_IN_GUEST_TYPES.map(d => [d.id, d.cost]));
 
-/** @deprecated Use getGuestType(id).roster.shop. */
+/** @deprecated Use DEFAULT_GAME_SETUP.shop. */
 export const SHOP_GUESTS: readonly { type: GuestType; name: string }[] =
-  BUILT_IN_GUEST_TYPES.flatMap(d => d.roster.shop.map(name => ({ type: d.id, name })));
+  DEFAULT_GAME_SETUP.shop.flatMap(e => e.names.map(name => ({ type: e.type, name })));
 
-/** @deprecated Use getGuestType(id).roster.starting. */
-export const INITIAL_GUESTS: readonly { type: GuestType; name: string }[] =
-  BUILT_IN_GUEST_TYPES.flatMap(d => d.roster.starting.map(name => ({ type: d.id, name })));
+/** @deprecated Use DEFAULT_GAME_SETUP.startingDeck. */
+export const INITIAL_GUESTS: readonly { type: GuestType; name: string }[] = DEFAULT_GAME_SETUP.startingDeck;
 
 /** @deprecated Use getGuestType(id).entranceEffect. */
 export const GUEST_TYPE_ENTRANCE_EFFECTS: Partial<Record<GuestType, EffectHandler>> =

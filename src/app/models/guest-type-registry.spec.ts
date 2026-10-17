@@ -11,11 +11,12 @@ import {
   findGuestType, getGuestType, guestTypeLabel, listGuestTypes, registerGuestType, resetGuestTypesForTesting
 } from './guest-type-registry';
 import { arbGuestTypeDefinition, arbInvalidGuestTypeDefinition } from '../../testing/guest-type-arbitraries';
+import { DEFAULT_GAME_SETUP, validateGameSetup } from './game-setup';
 
 /**
  * Guest type registry: built-in definitions, derived views, registration and validation.
  *
- * **Validates: guest-type-registry Requirements 1, 2, 3, 6**
+ * **Validates: guest-type-registry Requirements 1, 2, 3, 6, 8.1**
  */
 describe('Guest Type Registry', () => {
   afterEach(() => resetGuestTypesForTesting());
@@ -25,7 +26,6 @@ describe('Guest Type Registry', () => {
     label: 'Test Type',
     cost: 4,
     properties: { popularityValue: 1, troubleValue: 0, moneyValue: 0, peaceValue: 0, starValue: 0 },
-    roster: { starting: ['Ann'], shop: ['Bo'] },
     ...overrides
   });
 
@@ -114,7 +114,7 @@ describe('Guest Type Registry', () => {
   describe('Module load order', () => {
     // The model modules import each other in a cycle; each must work when loaded first.
     const modules = [
-      './guest-type-registry', './guest-effects', './built-in-guest-types', './guest.model', './guest-type'
+      './guest-type-registry', './guest-effects', './built-in-guest-types', './guest.model', './guest-type', './game-setup'
     ];
 
     for (const path of modules) {
@@ -126,5 +126,17 @@ describe('Guest Type Registry', () => {
         expect(registry.getGuestType('CELEBRITY').entranceIcons).toHaveLength(2);
       });
     }
+  });
+});
+
+describe('Default Game Setup', () => {
+  it('should be a valid setup', () => {
+    expect(() => validateGameSetup(DEFAULT_GAME_SETUP)).not.toThrow();
+  });
+
+  it('should reproduce the pre-registry starting deck and shop', () => {
+    expect(DEFAULT_GAME_SETUP.startingDeck).toEqual(BUILT_IN_TABLES_SNAPSHOT.initialGuests);
+    expect(DEFAULT_GAME_SETUP.shop.flatMap(e => e.names.map(name => ({ type: e.type, name }))))
+      .toEqual(BUILT_IN_TABLES_SNAPSHOT.shopGuests);
   });
 });

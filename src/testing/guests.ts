@@ -16,14 +16,12 @@ export function testGuest(type: GuestType, name: string, overrides: Partial<Gues
 }
 
 // Registers a guest type for one test and returns its id. Unless overridden it has Old
-// Friend's properties and no rosters, so it doesn't change the deck or the shop. Call
-// resetGuestTypesForTesting() in afterEach.
+// Friend's properties and isn't for sale. Call resetGuestTypesForTesting() in afterEach.
 export function registerTestGuestType(def: Partial<GuestTypeDefinition> & { id: string }): GuestType {
   registerGuestType({
     label: def.id,
     cost: null,
     properties: { ...getGuestType('OLD_FRIEND').properties },
-    roster: { starting: [], shop: [] },
     ...def
   });
   return def.id;

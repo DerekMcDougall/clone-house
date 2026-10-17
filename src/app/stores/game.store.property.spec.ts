@@ -4,10 +4,11 @@ import * as fc from 'fast-check';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { GamePhase } from '../models';
 import { EffectContext, Guest, GUEST_TYPE_COSTS, GUEST_TYPE_DEFAULTS, GUEST_TYPE_ENTRANCE_EFFECTS, GUEST_TYPE_LABELS, GuestType, INITIAL_GUESTS, SHOP_GUESTS } from '../models/guest.model';
-import { registerGuestType, resetGuestTypesForTesting } from '../models/guest-type-registry';
+import { getGuestType, registerGuestType, resetGuestTypesForTesting } from '../models/guest-type-registry';
+import { DEFAULT_GAME_SETUP, GameSetup } from '../models/game-setup';
 import { GameStore, ShopInventoryEntry } from './game.store';
 import { registerTestGuestType, testGuest } from '../../testing/guests';
-import { arbGuestTypeDefinition } from '../../testing/guest-type-arbitraries';
+import { arbGuestNames, arbGuestTypeDefinition } from '../../testing/guest-type-arbitraries';
 
 /**
  * Property-Based Tests for GameStore
@@ -5339,7 +5340,7 @@ describe('GameStore Property Tests - Guest Identity', () => {
 /**
  * Property-Based Tests for the Guest Type Registry
  *
- * **Validates: guest-type-registry Requirements 4.1, 4.2, 5.1, 5.2, 5.3**
+ * **Validates: guest-type-registry Requirements 4.1, 5.1, 5.2, 5.3, 8**
  */
 describe('GameStore Property Tests - Guest Type Registry', () => {
   let store: InstanceType<typeof GameStore>;
@@ -5351,28 +5352,62 @@ describe('GameStore Property Tests - Guest Type Registry', () => {
 
   afterEach(() => resetGuestTypesForTesting());
 
-  describe('Property 4: Runtime Types Join the Next Game', () => {
-    it('should put a type registered before initializeGame in the deck and shop', () => {
-      // Feature: guest-type-registry, Property 4: Runtime Types Join the Next Game
+  describe('Property 4: The Setup Decides the Deck and Shop', () => {
+    it('should start with exactly the setup\'s deck and stock exactly its shop', () => {
+      // Feature: guest-type-registry, Property 4: The Setup Decides the Deck and Shop
+      const builtInIds = DEFAULT_GAME_SETUP.shop.map(e => e.type);
+
       fc.assert(
-        fc.property(arbGuestTypeDefinition(), (def) => {
-          resetGuestTypesForTesting();
-          registerGuestType(def);
-          store.initializeGame();
+        fc.property(
+          arbGuestTypeDefinition(),
+          fc.subarray(DEFAULT_GAME_SETUP.shop as GameSetup['shop'][number][]),
+          arbGuestNames(),
+          fc.array(fc.tuple(fc.constantFrom('RUNTIME', ...builtInIds), fc.string({ minLength: 1, maxLength: 8 })), { maxLength: 12 }),
+          (def, shopSubset, runtimeShopNames, deckSpec) => {
+            resetGuestTypesForTesting();
+            registerGuestType(def);
+            const typeOf = (t: string) => (t === 'RUNTIME' ? def.id : t);
 
-          const deckNames = store.deck().filter(g => g.type === def.id).map(g => g.name).sort();
-          expect(deckNames).toEqual([...def.roster.starting].sort());
+            const setup: GameSetup = {
+              startingDeck: deckSpec.map(([t, name]) => ({ type: typeOf(t), name })),
+              shop: def.cost === null ? shopSubset : [...shopSubset, { type: def.id, names: runtimeShopNames }]
+            };
+            store.initializeGame(25, setup);
 
-          const entry = store.shopInventory().find(e => e.type === def.id);
-          if (def.cost === null || def.roster.shop.length === 0) {
-            expect(entry).toBeUndefined();
-          } else {
-            expect(entry?.cost).toBe(def.cost);
-            expect(entry?.guests.map(g => g.name)).toEqual(def.roster.shop);
+            const pairs = (guests: Guest[]) => guests.map(g => `${g.type}/${g.name}`).sort();
+            expect(pairs(store.deck())).toEqual(setup.startingDeck.map(e => `${e.type}/${e.name}`).sort());
+
+            expect(store.shopInventory().map(e => ({ type: e.type, cost: e.cost, names: e.guests.map(g => g.name) })))
+              .toEqual(setup.shop.map(e => ({ type: e.type, cost: getGuestType(e.type).cost, names: e.names })));
+
+            [...store.deck(), ...store.shopInventory().flatMap(e => e.guests)]
+              .forEach(g => expect(g.properties).toEqual(getGuestType(g.type).properties));
           }
+        ),
+        { numRuns: 100 }
+      );
+    });
+  });
 
-          [...store.deck(), ...(entry?.guests ?? [])].filter(g => g.type === def.id)
-            .forEach(g => expect(g.properties).toEqual(def.properties));
+  describe('Property 4b: Invalid Setups Are Rejected', () => {
+    it('should throw and leave the current game as it was', () => {
+      // Feature: guest-type-registry, Property 4b: Invalid Setups Are Rejected
+      const brokenSetups: [string, GameSetup][] = [
+        ['unknown deck type', { ...DEFAULT_GAME_SETUP, startingDeck: [{ type: 'NOPE', name: 'Ann' }] }],
+        ['empty deck name', { ...DEFAULT_GAME_SETUP, startingDeck: [{ type: 'OLD_FRIEND', name: '' }] }],
+        ['unknown shop type', { ...DEFAULT_GAME_SETUP, shop: [{ type: 'NOPE', names: ['Ann'] }] }],
+        ['type not for sale', { ...DEFAULT_GAME_SETUP, shop: [{ type: 'WILD_BUDDY', names: ['Ann'] }] }],
+        ['type stocked twice', { ...DEFAULT_GAME_SETUP, shop: [{ type: 'MONKEY', names: ['A'] }, { type: 'MONKEY', names: ['B'] }] }],
+        ['empty shop name', { ...DEFAULT_GAME_SETUP, shop: [{ type: 'MONKEY', names: [''] }] }]
+      ];
+
+      fc.assert(
+        fc.property(fc.constantFrom(...brokenSetups), ([, setup]) => {
+          store.initializeGame();
+          const before = { deck: store.deck(), shop: store.shopInventory(), turn: store.currentTurn() };
+
+          expect(() => store.initializeGame(25, setup)).toThrow(/Invalid game setup/);
+          expect({ deck: store.deck(), shop: store.shopInventory(), turn: store.currentTurn() }).toEqual(before);
         }),
         { numRuns: 100 }
       );
@@ -5417,7 +5452,7 @@ describe('GameStore Property Tests - Guest Type Registry', () => {
       fc.assert(
         fc.property(arbGuestTypeDefinition(), (def) => {
           resetGuestTypesForTesting();
-          registerGuestType({ ...def, roster: { starting: [], shop: [] } });
+          registerGuestType(def);
 
           const runtime = outcome(testGuest(def.id, 'Runtime'));
           const builtIn = outcome(testGuest('OLD_FRIEND', 'Built-in', def.properties));
