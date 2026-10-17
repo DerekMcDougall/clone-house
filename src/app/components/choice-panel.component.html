@@ -1,0 +1,33 @@
+@if (gameStore.pendingChoice(); as choice) {
+  <div class="choice-panel">
+    <h3 class="choice-prompt">{{ choice.prompt }}</h3>
+    <div class="choice-options">
+      @for (option of choice.options; track option.id) {
+        <button
+          class="choice-option-button"
+          [class.label-option]="!option.guest"
+          (click)="gameStore.selectChoiceOption(option.id)"
+          [attr.aria-label]="option.label">
+          @if (option.guest) {
+            <app-guest-card [guest]="option.guest" />
+          } @else {
+            {{ option.label }}
+          }
+        </button>
+      }
+    </div>
+  </div>
+  @if (choice.confirmation) {
+    <div class="choice-confirm-overlay" role="dialog" aria-modal="true" aria-labelledby="choice-confirm-title">
+      <div class="choice-confirm-modal">
+        <p id="choice-confirm-title">{{ choice.confirmation }}</p>
+        <button
+          class="choice-confirm-button"
+          (click)="gameStore.confirmChoice()"
+          aria-label="OK">
+          OK
+        </button>
+      </div>
+    </div>
+  }
+}

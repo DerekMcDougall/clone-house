@@ -72,6 +72,22 @@ describe('parseGuestTypeDefinition', () => {
     ].join('\n'));
   });
 
+  it('should accept chooseGuest with a data-only action, and reject a custom one inside it', () => {
+    const withAction = (action: unknown) => ({
+      ...JSON.parse(PARTY_PLANNER_JSON),
+      effects: [{ trigger: 'entrance', action: { kind: 'chooseGuest', prompt: 'Pick', from: 'party', action } }]
+    });
+    const adjust = { kind: 'adjustSelf', property: 'popularityValue', delta: 1 };
+    const json = withAction({ ...adjust });
+    const parsed = parseGuestTypeDefinition(json);
+    expect(parsed.effects?.[0].action['action']).toEqual(adjust);
+    // The nested action is a copy too
+    json.effects[0].action.action.delta = 5;
+    expect(parsed.effects?.[0].action['action']).toEqual(adjust);
+    expect(() => parseGuestTypeDefinition(withAction({ kind: 'custom', icons: [{ symbol: '?', label: 'Icon' }] })))
+      .toThrow('\n  effects[0].action.action.kind: "custom" can\'t be defined in JSON');
+  });
+
   it('should reject input that is not an object', () => {
     for (const json of [null, 'PARTY_PLANNER', [], 3]) {
       expect(() => parseGuestTypeDefinition(json)).toThrow('Invalid guest type JSON:\n  expected an object');

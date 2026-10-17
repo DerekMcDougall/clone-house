@@ -1,8 +1,9 @@
 import type { EffectContext } from './effect-context';
-import { EffectDefinition, Trigger, triggerPhrase } from './effect-definition';
+import { ActionDefinition, EffectDefinition, Trigger, triggerPhrase } from './effect-definition';
 import { autoInvite } from './guest-effects';
 import type { GuestIcon } from './guest-icons';
 import type { EffectHandler } from './guest-type';
+import { guestTypeLabel } from './guest-type-registry';
 import type { Guest, GuestProperties } from './guest.model';
 
 // The code behind one kind of action. Guest types choose a kind and give its parameters
@@ -12,12 +13,16 @@ export interface ActionKind<P = Record<string, unknown>> {
   // False for kinds whose parameters can't be written in JSON, such as custom.
   dataOnly: boolean;
   // Returns every problem with the parameters, each starting with `path`; empty when valid.
-  // `params` is the whole ActionDefinition, including `kind`.
-  validate(params: Record<string, unknown>, path: string): string[];
+  // `params` is the whole ActionDefinition, including `kind`. A kind whose parameters
+  // include another action checks it with `validateAction`, which applies the same rules
+  // as for a top-level action (including, for JSON, that its kind is dataOnly).
+  validate(params: Record<string, unknown>, path: string, validateAction: ValidateAction): string[];
   // `guest` is the guest whose effect this is, as it was when the effect was enqueued.
   run(ctx: EffectContext, guest: Guest, params: P): void;
   icons(params: P, trigger: Trigger): readonly GuestIcon[];
 }
+
+export type ValidateAction = (action: unknown, path: string) => string[];
 
 // How icon labels name each property, as in "Gains 1 popularity on entrance".
 const PROPERTY_NAMES: Record<keyof GuestProperties, string> = {
@@ -112,6 +117,30 @@ const customKind: ActionKind<{ run: EffectHandler; icons: readonly GuestIcon[] }
   icons: (p) => p.icons
 };
 
+type ChooseGuestParams = { prompt: string; from: 'party'; action: ActionDefinition };
+
+// Asks the player to pick a party guest, then runs `action` with that guest as the guest
+// whose effect it is, so an adjustSelf inside changes the chosen guest. The options are
+// the party when the choice is reached.
+const chooseGuestKind: ActionKind<ChooseGuestParams> = {
+  kind: 'chooseGuest',
+  // Can be written in JSON whenever its action can, which validateAction checks
+  dataOnly: true,
+  validate: (p, path, validateAction) => [
+    ...(typeof p['prompt'] === 'string' && p['prompt'] !== '' ? [] : [`${path}.prompt: expected a non-empty string`]),
+    ...(p['from'] === 'party' ? [] : [`${path}.from: expected "party"`]),
+    ...validateAction(p['action'], `${path}.action`),
+    ...unknownParams(p, path, ['prompt', 'from', 'action'])
+  ],
+  run: (ctx, guest, { prompt, action }) => ctx.requestChoice({
+    prompt,
+    sourceGuestId: guest.id,
+    options: (view) => view.getParty().map(g => ({ id: g.id, label: `${guestTypeLabel(g.type)} ${g.name}`, guest: g })),
+    onChoose: (c, option) => getActionKind(action.kind).run(c, option.guest!, action)
+  }),
+  icons: (_p, trigger) => [{ symbol: '🎯', label: `Chooses a party guest ${triggerPhrase(trigger)}` }]
+};
+
 const kinds = new Map<string, ActionKind>();
 let builtInsRegistered = false;
 
@@ -124,7 +153,7 @@ const add = (kind: ActionKind): void => {
 const ensureBuiltIns = (): void => {
   if (builtInsRegistered) return;
   builtInsRegistered = true;
-  [autoInviteKind, adjustSelfKind, customKind].forEach(add);
+  [autoInviteKind, adjustSelfKind, customKind, chooseGuestKind].forEach(add);
 };
 
 // Adds an action kind, making it available to every guest type, including ones from JSON.

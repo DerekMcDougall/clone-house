@@ -7,6 +7,7 @@ import { Guest, GUEST_TYPE_DEFAULTS, GuestType } from '../models/guest.model';
 import { GameStore } from '../stores/game.store';
 import { StatusPaneComponent } from './status-pane.component';
 import { testGuest } from '../../testing/guests';
+import { startBanSelection } from '../../testing/ban';
 
 /**
  * Unit Tests for StatusPaneComponent
@@ -615,7 +616,7 @@ describe('StatusPaneComponent', () => {
     it('should disable invite button when isBanSelectionActive is true', () => {
       store.initializeGame();
       store.advancePhase(); // Move to PARTY phase
-      patchState(unprotected(store), { isBanSelectionActive: true });
+      startBanSelection(store, [testGuest('OLD_FRIEND', 'Brian')]);
       fixture.detectChanges();
 
       const inviteButton: HTMLButtonElement = fixture.nativeElement.querySelector('.invite-button');
@@ -626,7 +627,7 @@ describe('StatusPaneComponent', () => {
     it('should disable phase button when isBanSelectionActive is true', () => {
       store.initializeGame();
       store.advancePhase(); // Move to PARTY phase
-      patchState(unprotected(store), { isBanSelectionActive: true });
+      startBanSelection(store, [testGuest('OLD_FRIEND', 'Brian')]);
       fixture.detectChanges();
 
       const phaseButton: HTMLButtonElement = fixture.nativeElement.querySelector('.phase-button');
@@ -636,7 +637,7 @@ describe('StatusPaneComponent', () => {
     it('should enable buttons when both isPartyShutdown and isBanSelectionActive are false', () => {
       store.initializeGame();
       store.advancePhase(); // Move to PARTY phase
-      patchState(unprotected(store), { isPartyShutdown: false, isBanSelectionActive: false });
+      patchState(unprotected(store), { isPartyShutdown: false });
       fixture.detectChanges();
 
       const phaseButton: HTMLButtonElement = fixture.nativeElement.querySelector('.phase-button');

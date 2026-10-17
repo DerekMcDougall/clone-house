@@ -42,16 +42,20 @@ export function effectProblems(effects: unknown, dataOnly = false): string[] {
       problems.push(`${path}.trigger: expected one of ${TRIGGERS.join(', ')}`);
     }
 
-    const action = effect['action'];
-    if (!isObject(action)) return [...problems, `${path}.action: expected an object`];
-
-    const kind = typeof action['kind'] === 'string' ? findActionKind(action['kind']) : undefined;
-    if (!kind) return [...problems, `${path}.action.kind: unknown action kind ${JSON.stringify(action['kind'])}`];
-    if (dataOnly && !kind.dataOnly) {
-      return [...problems, `${path}.action.kind: "${kind.kind}" can't be defined in JSON`];
-    }
-    return [...problems, ...kind.validate(action, `${path}.action`)];
+    return [...problems, ...actionProblems(effect['action'], `${path}.action`, dataOnly)];
   });
+}
+
+// Every problem with one action, checked by its kind. Actions nested inside it are checked
+// the same way.
+function actionProblems(action: unknown, path: string, dataOnly: boolean): string[] {
+  if (!isObject(action)) return [`${path}: expected an object`];
+
+  const kind = typeof action['kind'] === 'string' ? findActionKind(action['kind']) : undefined;
+  if (!kind) return [`${path}.kind: unknown action kind ${JSON.stringify(action['kind'])}`];
+  if (dataOnly && !kind.dataOnly) return [`${path}.kind: "${kind.kind}" can't be defined in JSON`];
+
+  return kind.validate(action, path, (nested, nestedPath) => actionProblems(nested, nestedPath, dataOnly));
 }
 
 // Throws on the first problem found, naming the type. Effect problems are reported together.

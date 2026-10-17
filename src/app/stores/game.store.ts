@@ -1,7 +1,7 @@
 import { computed } from '@angular/core';
 import { patchState, signalStore, withComputed, withMethods, withState } from '@ngrx/signals';
 import { GamePhase, GameState } from '../models';
-import { EffectContext, GameEffect } from '../models/effect-context';
+import { ChoiceOption, ChoiceRequest, EffectContext, GameEffect, GameStateView } from '../models/effect-context';
 import { admitGuest, createGuest, createGuestIdSource, Guest, GuestType, WINNING_STAR_COUNT } from '../models/guest.model';
 import { DEFAULT_GAME_SETUP, GameSetup, validateGameSetup } from '../models/game-setup';
 import { getGuestType, guestTypeLabel } from '../models/guest-type-registry';
@@ -14,22 +14,21 @@ class EffectContextImpl implements EffectContext {
   private _discard: Guest[];
   private _popularity: number;
   private _money: number;
-  private _enqueue: (effect: GameEffect) => void;
+  // What the effect enqueues and requests, in order
+  readonly queued: QueueEntry[] = [];
 
   constructor(
     deck: Guest[],
     party: Guest[],
     discard: Guest[],
     popularity: number,
-    money: number,
-    enqueue: (effect: GameEffect) => void
+    money: number
   ) {
     this._deck = deck;
     this._party = party;
     this._discard = discard;
     this._popularity = popularity;
     this._money = money;
-    this._enqueue = enqueue;
   }
 
   getDeck(): Guest[] { return this._deck; }
@@ -50,8 +49,38 @@ class EffectContextImpl implements EffectContext {
     return updated;
   }
 
-  enqueue(effect: GameEffect): void { this._enqueue(effect); }
+  enqueue(effect: GameEffect): void { this.queued.push({ kind: 'effect', run: effect }); }
+  requestChoice(request: ChoiceRequest): void { this.queued.push({ kind: 'choice', request }); }
 }
+
+// An entry on the effect queue: an effect to run, or a choice to ask the player.
+export type QueueEntry =
+  | { kind: 'effect'; run: GameEffect }
+  | { kind: 'choice'; request: ChoiceRequest };
+
+// The choice the player has to make now. `resume` carries on with the chosen option: for an
+// effect's choice it runs onChoose and the rest of the queue; for ban selection it applies
+// the ban.
+export interface ActiveChoice {
+  source: 'effect' | 'ban';
+  prompt: string;
+  options: ChoiceOption[];
+  confirmMessage?: (option: ChoiceOption) => string;
+  selectedOptionId: string | null;
+  sourceGuestId?: string;
+  resume: (option: ChoiceOption) => void;
+}
+
+// What the choice panel shows.
+export interface PendingChoice {
+  prompt: string;
+  options: ChoiceOption[];
+  // The confirmation message for the selected option, while it awaits OK.
+  confirmation: string | null;
+  sourceGuestId: string | null;
+}
+
+export const BAN_PROMPT = 'Who takes the blame?';
 
 export interface ShopInventoryEntry {
   type: GuestType;
@@ -62,12 +91,14 @@ export interface ShopInventoryEntry {
 export type PurchaseResult =
   | { success: true; guestType: GuestType }
   | { success: false; error: 'sold_out'; message: string }
-  | { success: false; error: 'insufficient_popularity'; message: string };
+  | { success: false; error: 'insufficient_popularity'; message: string }
+  | { success: false; error: 'choice_pending'; message: string };
 
 export type ExpansionPurchaseResult =
   | { success: true }
   | { success: false; error: 'insufficient_money'; message: string }
-  | { success: false; error: 'sold_out'; message: string };
+  | { success: false; error: 'sold_out'; message: string }
+  | { success: false; error: 'choice_pending'; message: string };
 
 export interface GameStoreState extends GameState {
   deck: Guest[];
@@ -75,15 +106,17 @@ export interface GameStoreState extends GameState {
   discard: Guest[];
   showEmptyDeckMessage: boolean;
   isPartyShutdown: boolean;
-  isBanSelectionActive: boolean;
   bustPartySnapshot: Guest[];
-  selectedBanGuest: Guest | null;
   shopInventory: ShopInventoryEntry[];
   houseCapacity: number;
   expansionsPurchased: number;
   showHouseFullMessage: boolean;
   isOverflowShutdown: boolean;
   isVictory: boolean;
+  // The effect queue, as a stack: the last entry runs next. Saved here so resolution can
+  // pause for a choice.
+  pendingEffects: QueueEntry[];
+  choice: ActiveChoice | null;
 }
 
 const initialState: GameStoreState = {
@@ -99,15 +132,15 @@ const initialState: GameStoreState = {
   discard: [],
   showEmptyDeckMessage: false,
   isPartyShutdown: false,
-  isBanSelectionActive: false,
   bustPartySnapshot: [],
-  selectedBanGuest: null,
   shopInventory: [],
   houseCapacity: 5,
   expansionsPurchased: 0,
   showHouseFullMessage: false,
   isOverflowShutdown: false,
-  isVictory: false
+  isVictory: false,
+  pendingEffects: [],
+  choice: null
 };
 
 export const GameStore = signalStore(
@@ -137,9 +170,33 @@ export const GameStore = signalStore(
       store.deck().length > 0 &&
       store.party().length < store.houseCapacity() &&
       !store.isPartyShutdown() &&
-      !store.isBanSelectionActive() &&
+      store.choice() === null &&
       !store.isVictory()
     ),
+
+    isAwaitingChoice: computed(() => store.choice() !== null),
+
+    pendingChoice: computed((): PendingChoice | null => {
+      const choice = store.choice();
+      if (!choice) return null;
+      const selected = choice.options.find(o => o.id === choice.selectedOptionId);
+      return {
+        prompt: choice.prompt,
+        options: choice.options,
+        confirmation: selected && choice.confirmMessage ? choice.confirmMessage(selected) : null,
+        sourceGuestId: choice.sourceGuestId ?? null
+      };
+    }),
+
+    /** @deprecated Use isAwaitingChoice() or pendingChoice(). */
+    isBanSelectionActive: computed(() => store.choice()?.source === 'ban'),
+
+    /** @deprecated Use pendingChoice(). */
+    selectedBanGuest: computed((): Guest | null => {
+      const choice = store.choice();
+      if (choice?.source !== 'ban') return null;
+      return choice.options.find(o => o.id === choice.selectedOptionId)?.guest ?? null;
+    }),
 
     trouble: computed(() => {
       const party = store.party();
@@ -162,12 +219,10 @@ export const GameStore = signalStore(
       Math.max(0, store.baseTroubleLimit() + store.partyTroubleLimitModifier())
     ),
     
-    banConfirmationMessage: computed(() => {
-      const guest = store.selectedBanGuest();
-      if (!guest) return '';
-      const typeLabel = guestTypeLabel(guest.type);
-      return `${typeLabel} ${guest.name} will be banned from the next party.`;
-    }),
+    /** @deprecated Use pendingChoice().confirmation. */
+    banConfirmationMessage: computed(() =>
+      (store.isBanSelectionActive() ? store.pendingChoice()?.confirmation : null) ?? ''
+    ),
 
     purchasableShopItems: computed(() => {
       const inventory = store.shopInventory();
@@ -239,29 +294,88 @@ export const GameStore = signalStore(
       });
     };
 
-    // Private method to resolve an effect and every effect it enqueues, depth-first: the
-    // effects an effect enqueues run, in the order enqueued, before any effect that was
-    // already waiting, so a newly arrived guest's entrance effect interrupts the effect
-    // that admitted it. State is committed after each effect, then checked for overflow
-    // and trouble; a bust shuts the party down and discards any effects still pending.
-    const resolveEffects = (initialEffect: GameEffect): void => {
-      const stack: GameEffect[] = [initialEffect];
+    // Read-only view of the game, for working out a choice's options
+    const view: GameStateView = {
+      getDeck: () => store.deck(),
+      getParty: () => store.party(),
+      getDiscard: () => store.discard(),
+      getPopularity: () => store.popularity(),
+      getMoney: () => store.money()
+    };
 
-      while (stack.length > 0) {
-        const effect = stack.pop()!;
-        const enqueued: GameEffect[] = [];
+    // Puts entries on the queue so the first of them runs next.
+    const pushEntries = (entries: readonly QueueEntry[]): void => {
+      patchState(store, { pendingEffects: [...store.pendingEffects(), ...[...entries].reverse()] });
+    };
+
+    // Shuts the party down: the party is kept aside for ban selection, the discard pile goes
+    // back to the deck, and any effects and choices still queued are dropped.
+    const bust = (isOverflow: boolean): void => {
+      patchState(store, {
+        deck: [...store.deck(), ...store.discard()],
+        party: [],
+        discard: [],
+        bustPartySnapshot: [...store.party()],
+        isPartyShutdown: true,
+        isOverflowShutdown: isOverflow,
+        pendingEffects: [],
+        choice: null
+      });
+    };
+
+    const startChoice = (
+      source: ActiveChoice['source'],
+      info: Pick<ChoiceRequest, 'prompt' | 'confirmMessage' | 'sourceGuestId'>,
+      options: ChoiceOption[],
+      resume: (option: ChoiceOption) => void
+    ): void => {
+      patchState(store, {
+        choice: {
+          source,
+          prompt: info.prompt,
+          options,
+          confirmMessage: info.confirmMessage?.bind(info),
+          selectedOptionId: null,
+          sourceGuestId: info.sourceGuestId,
+          resume
+        }
+      });
+    };
+
+    // Runs queued entries, depth-first: the entries an effect queues run, in the order
+    // queued, before any entry that was already waiting, so a newly arrived guest's entrance
+    // effect interrupts the effect that admitted it. State is committed after each effect,
+    // then checked for overflow and trouble; a bust shuts the party down and drops whatever
+    // is still queued. A choice pauses resolution, with the rest of the queue kept in
+    // pendingEffects, until the player answers.
+    const runQueue = (): void => {
+      while (store.pendingEffects().length > 0 && !store.choice()) {
+        const stack = [...store.pendingEffects()];
+        const entry = stack.pop()!;
+        patchState(store, { pendingEffects: stack });
+
+        if (entry.kind === 'choice') {
+          const { request } = entry;
+          // Options come from the game as it is now, which may differ from when it was requested
+          const options = request.options(view);
+          if (options.length === 0) continue;
+
+          startChoice('effect', request, options, (option) => {
+            pushEntries([{ kind: 'effect', run: (ctx) => request.onChoose(ctx, option) }]);
+            runQueue();
+          });
+          return;
+        }
+
         const ctx = new EffectContextImpl(
           store.deck(),
           store.party(),
           store.discard(),
           store.popularity(),
-          store.money(),
-          (next) => enqueued.push(next)
+          store.money()
         );
-
-        effect(ctx);
-        // Reversed so the first effect enqueued is popped first
-        stack.push(...enqueued.reverse());
+        entry.run(ctx);
+        pushEntries(ctx.queued);
 
         patchState(store, {
           deck: ctx.getDeck(),
@@ -274,18 +388,56 @@ export const GameStore = signalStore(
         // Check overflow first (priority over trouble)
         const isOverflow = store.party().length > store.houseCapacity();
         if (isOverflow || store.trouble() > store.effectiveTroubleLimit()) {
-          const partySnapshot = [...store.party()];
-          patchState(store, {
-            deck: [...store.deck(), ...store.discard()],
-            party: [],
-            discard: [],
-            bustPartySnapshot: partySnapshot,
-            isPartyShutdown: true,
-            isOverflowShutdown: isOverflow
-          });
+          bust(isOverflow);
           return;
         }
       }
+    };
+
+    // Resolves an effect and everything it queues.
+    const resolveEffects = (effect: GameEffect): void => {
+      pushEntries([{ kind: 'effect', run: effect }]);
+      runQueue();
+    };
+
+    // The ban outcome: the chosen guest sits out the next party in the discard pile, the
+    // rest of the bust party is shuffled into the deck, and the next turn starts.
+    const applyBan = (banned: Guest): void => {
+      const remaining = store.bustPartySnapshot().filter(g => g.id !== banned.id);
+      const updatedDeck = [...store.deck(), ...remaining];
+      shuffleDeck(updatedDeck);
+
+      patchState(store, {
+        discard: [banned],
+        deck: updatedDeck,
+        bustPartySnapshot: [],
+        currentTurn: store.currentTurn() + 1,
+        currentPhase: GamePhase.BUY
+      });
+    };
+
+    const resolveChoice = (choice: ActiveChoice, option: ChoiceOption): void => {
+      patchState(store, { choice: null });
+      choice.resume(option);
+    };
+
+    const selectChoiceOption = (optionId: string): void => {
+      const choice = store.choice();
+      const option = choice?.options.find(o => o.id === optionId);
+      if (!choice || !option) return;
+
+      if (choice.confirmMessage) {
+        patchState(store, { choice: { ...choice, selectedOptionId: optionId } });
+      } else {
+        resolveChoice(choice, option);
+      }
+    };
+
+    const confirmChoice = (): void => {
+      const choice = store.choice();
+      const option = choice?.options.find(o => o.id === choice.selectedOptionId);
+      if (!choice || !option) return;
+      resolveChoice(choice, option);
     };
 
     return {
@@ -322,21 +474,22 @@ export const GameStore = signalStore(
           discard: [],
           showEmptyDeckMessage: false,
           isPartyShutdown: false,
-          isBanSelectionActive: false,
           bustPartySnapshot: [],
-          selectedBanGuest: null,
           shopInventory,
           houseCapacity: 5,
           expansionsPurchased: 0,
           showHouseFullMessage: false,
           isOverflowShutdown: false,
-          isVictory: false
+          isVictory: false,
+          pendingEffects: [],
+          choice: null
         });
       },
       
       inviteGuest(): void {
-        // No inviting while a bust is being resolved (shutdown modal or ban selection) or after a win
-        if (store.isPartyShutdown() || store.isBanSelectionActive() || store.isVictory()) {
+        // No inviting while a bust is being resolved, a choice (including ban selection) is
+        // waiting, or after a win
+        if (store.isPartyShutdown() || store.isAwaitingChoice() || store.isVictory()) {
           return;
         }
 
@@ -366,6 +519,7 @@ export const GameStore = signalStore(
           console.warn('Cannot advance phase: game is already complete');
           return;
         }
+        if (store.isAwaitingChoice()) return;
         
         const currentPhase = store.currentPhase();
         const currentTurn = store.currentTurn();
@@ -438,43 +592,11 @@ export const GameStore = signalStore(
       },
 
       triggerPartyShutdown(): void {
-        // Step 1: Snapshot the current party for ban selection
-        const partySnapshot = [...store.party()];
-
-        // Step 2: Return discard pile to deck
-        const currentDiscard = store.discard();
-        const currentDeck = store.deck();
-        const deckWithReturned = [...currentDeck, ...currentDiscard];
-
-        // Step 3: Clear party, discard; set shutdown flags
-        patchState(store, {
-          deck: deckWithReturned,
-          party: [],
-          discard: [],
-          bustPartySnapshot: partySnapshot,
-          isPartyShutdown: true,
-          isOverflowShutdown: false
-        });
+        bust(false);
       },
 
       triggerOverflowShutdown(): void {
-        // Step 1: Snapshot the current party
-        const partySnapshot = [...store.party()];
-
-        // Step 2: Return discard pile to deck
-        const currentDiscard = store.discard();
-        const currentDeck = store.deck();
-        const deckWithReturned = [...currentDeck, ...currentDiscard];
-
-        // Step 3: Clear party, discard; set both shutdown flags
-        patchState(store, {
-          deck: deckWithReturned,
-          party: [],
-          discard: [],
-          bustPartySnapshot: partySnapshot,
-          isPartyShutdown: true,
-          isOverflowShutdown: true
-        });
+        bust(true);
       },
 
       acknowledgeShutdown(): void {
@@ -488,8 +610,7 @@ export const GameStore = signalStore(
             isPartyShutdown: false,
             isOverflowShutdown: false,
             isGameComplete: true,
-            bustPartySnapshot: [],
-            selectedBanGuest: null
+            bustPartySnapshot: []
           });
         } else if (isOverflow) {
           // Non-final turn with overflow: return every bust party guest to the deck (no ban),
@@ -502,51 +623,42 @@ export const GameStore = signalStore(
             isPartyShutdown: false,
             isOverflowShutdown: false,
             bustPartySnapshot: [],
-            selectedBanGuest: null,
             currentTurn: currentTurn + 1,
             currentPhase: GamePhase.BUY
           });
         } else {
-          // Non-final turn with trouble shutdown: enter ban selection (existing behavior)
-          patchState(store, {
-            isPartyShutdown: false,
-            isBanSelectionActive: true
-          });
+          // Non-final turn with trouble shutdown: the player picks a bust guest to ban
+          patchState(store, { isPartyShutdown: false });
+          startChoice(
+            'ban',
+            {
+              prompt: BAN_PROMPT,
+              confirmMessage: (o) => `${guestTypeLabel(o.guest!.type)} ${o.guest!.name} will be banned from the next party.`
+            },
+            store.bustPartySnapshot().map(g => ({ id: g.id, label: `Ban ${g.name}`, guest: g })),
+            (option) => applyBan(option.guest!)
+          );
         }
       },
 
+      selectChoiceOption,
+      confirmChoice,
+
+      /** @deprecated Use selectChoiceOption(guest.id). */
       selectGuestToBan(index: number): void {
-        const snapshot = store.bustPartySnapshot();
-        if (index < 0 || index >= snapshot.length) return;
-        patchState(store, { selectedBanGuest: snapshot[index] });
+        const guest = store.bustPartySnapshot()[index];
+        if (guest && store.isBanSelectionActive()) selectChoiceOption(guest.id);
       },
 
+      /** @deprecated Use confirmChoice(). */
       confirmBan(): void {
-        const selected = store.selectedBanGuest();
-        if (!selected) return;
-
-        const snapshot = store.bustPartySnapshot();
-        const remaining = snapshot.filter(g => g.id !== selected.id);
-        const currentDeck = store.deck();
-        const updatedDeck = [...currentDeck, ...remaining];
-
-        // Shuffle the deck
-        shuffleDeck(updatedDeck);
-
-        const currentTurn = store.currentTurn();
-
-        patchState(store, {
-          discard: [selected],
-          deck: updatedDeck,
-          isBanSelectionActive: false,
-          bustPartySnapshot: [],
-          selectedBanGuest: null,
-          currentTurn: currentTurn + 1,
-          currentPhase: GamePhase.BUY
-        });
+        if (store.isBanSelectionActive()) confirmChoice();
       },
 
       purchaseGuest(type: GuestType): PurchaseResult {
+        if (store.isAwaitingChoice()) {
+          return { success: false, error: 'choice_pending', message: 'Finish choosing first!' };
+        }
         const inventory = store.shopInventory();
         const entry = inventory.find(e => e.type === type);
 
@@ -597,6 +709,9 @@ export const GameStore = signalStore(
       },
 
       purchaseExpansion(): ExpansionPurchaseResult {
+        if (store.isAwaitingChoice()) {
+          return { success: false, error: 'choice_pending', message: 'Finish choosing first!' };
+        }
         const purchased = store.expansionsPurchased();
         if (purchased >= 29) {
           return { success: false, error: 'sold_out', message: 'No expansions available!' };
