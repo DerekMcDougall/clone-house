@@ -15,6 +15,9 @@ import { customEntrance, registerTestGuestType, testGuest } from '../../testing/
 
 const entrance = (action: EffectDefinition['action']): EffectDefinition => ({ trigger: 'entrance', action });
 
+// For calling validate() directly on kinds with no nested actions
+const noNested = (): string[] => [];
+
 // Runs one effect of `guest` and everything it enqueues.
 const run = (ctx: TestEffectContext, guest: Guest, effect: EffectDefinition) =>
   ctx.resolve((c) => runEffect(c, guest, effect));
@@ -60,9 +63,9 @@ describe('Action Kinds', () => {
     it('should reject a count that is not an integer of at least 1', () => {
       const kind = getActionKind('autoInvite');
       for (const count of [0, -1, 1.5, '2', undefined]) {
-        expect(kind.validate({ kind: 'autoInvite', count }, 'a')).toEqual(['a.count: expected an integer ≥ 1']);
+        expect(kind.validate({ kind: 'autoInvite', count }, 'a', noNested)).toEqual(['a.count: expected an integer ≥ 1']);
       }
-      expect(kind.validate({ kind: 'autoInvite', count: 2, times: 1 }, 'a')).toEqual(['a.times: unknown parameter']);
+      expect(kind.validate({ kind: 'autoInvite', count: 2, times: 1 }, 'a', noNested)).toEqual(['a.times: unknown parameter']);
     });
   });
 
@@ -121,7 +124,7 @@ describe('Action Kinds', () => {
 
     it('should report every problem with its parameters', () => {
       expect(getActionKind('adjustSelf').validate(
-        { kind: 'adjustSelf', property: 'charmValue', delta: 0, min: 1.5, max: 'x', extra: true }, 'a'
+        { kind: 'adjustSelf', property: 'charmValue', delta: 0, min: 1.5, max: 'x', extra: true }, 'a', noNested
       )).toEqual([
         `a.property: expected one of ${PROPERTY_KEYS.join(', ')}`,
         'a.delta: expected a non-zero integer',
@@ -129,7 +132,7 @@ describe('Action Kinds', () => {
         'a.max: expected an integer',
         'a.extra: unknown parameter'
       ]);
-      expect(getActionKind('adjustSelf').validate({ kind: 'adjustSelf', property: 'moneyValue', delta: 1, min: 2, max: 1 }, 'a'))
+      expect(getActionKind('adjustSelf').validate({ kind: 'adjustSelf', property: 'moneyValue', delta: 1, min: 2, max: 1 }, 'a', noNested))
         .toEqual(['a.min: expected min ≤ max']);
     });
   });
@@ -148,10 +151,74 @@ describe('Action Kinds', () => {
     });
 
     it('should require a function and a non-empty list of icons', () => {
-      expect(getActionKind('custom').validate({ kind: 'custom', run: 1, icons: [] }, 'a')).toEqual([
+      expect(getActionKind('custom').validate({ kind: 'custom', run: 1, icons: [] }, 'a', noNested)).toEqual([
         'a.run: expected a function',
         'a.icons: expected a non-empty list of { symbol, label }'
       ]);
+    });
+  });
+
+  describe('chooseGuest', () => {
+    const boost = entrance({
+      kind: 'chooseGuest',
+      prompt: 'Who gets a boost?',
+      from: 'party',
+      action: { kind: 'adjustSelf', property: 'popularityValue', delta: 2 }
+    });
+
+    it('should ask for a party guest and run its action on the one chosen', () => {
+      const cora = testGuest('OLD_FRIEND', 'Cora');
+      const colin = testGuest('RICH_PAL', 'Colin');
+      const ctx = new TestEffectContext({ party: [cora, colin] });
+
+      run(ctx, cora, boost);
+
+      expect(ctx.pendingChoice?.request.prompt).toBe('Who gets a boost?');
+      expect(ctx.pendingChoice?.request.sourceGuestId).toBe(cora.id);
+      expect(ctx.pendingChoice?.options).toEqual([
+        { id: cora.id, label: 'Old Friend Cora', guest: cora },
+        { id: colin.id, label: 'Rich Pal Colin', guest: colin }
+      ]);
+
+      ctx.choose(colin.id);
+
+      expect(ctx.party[0]).toBe(cora);
+      expect(ctx.party[1].properties.popularityValue).toBe(2);
+    });
+
+    it('should show a target icon', () => {
+      expect(effectIcons([boost])).toEqual([{ symbol: '🎯', label: 'Chooses a party guest on entrance' }]);
+    });
+
+    it('should validate its own parameters and its nested action', () => {
+      const validateAction = vi.fn(() => ['a.action.delta: nested problem']);
+      expect(getActionKind('chooseGuest').validate(
+        { kind: 'chooseGuest', prompt: '', from: 'deck', action: { kind: 'adjustSelf' }, extra: 1 }, 'a', validateAction
+      )).toEqual([
+        'a.prompt: expected a non-empty string',
+        'a.from: expected "party"',
+        'a.action.delta: nested problem',
+        'a.extra: unknown parameter'
+      ]);
+      expect(validateAction).toHaveBeenCalledWith({ kind: 'adjustSelf' }, 'a.action');
+    });
+
+    it('should reject a bad nested action when its type is registered', () => {
+      const def = (action: unknown) => ({
+        id: 'TEST_CHOOSER',
+        label: 'Chooser',
+        cost: null,
+        properties: { ...getGuestType('OLD_FRIEND').properties },
+        effects: [entrance({ kind: 'chooseGuest', prompt: 'Pick', from: 'party', action } as EffectDefinition['action'])]
+      });
+      expect(() => registerGuestType(def({ kind: 'adjustSelf', property: 'moneyValue', delta: 0 })))
+        .toThrow('effects[0].action.action.delta: expected a non-zero integer');
+      expect(() => registerGuestType(def({ kind: 'NOPE' })))
+        .toThrow('effects[0].action.action.kind: unknown action kind "NOPE"');
+      expect(() => registerGuestType(def(undefined))).toThrow('effects[0].action.action: expected an object');
+      // A custom action inside is fine in code
+      expect(() => registerGuestType(def({ kind: 'custom', run: () => {}, icons: [{ symbol: '?', label: 'Icon' }] })))
+        .not.toThrow();
     });
   });
 
@@ -180,7 +247,7 @@ describe('Action Kinds', () => {
       registerActionKind(doubler);
       resetActionKindsForTesting();
       expect(findActionKind('TEST_DOUBLE_MONEY')).toBeUndefined();
-      expect(['autoInvite', 'adjustSelf', 'custom'].every(k => findActionKind(k))).toBe(true);
+      expect(['autoInvite', 'adjustSelf', 'custom', 'chooseGuest'].every(k => findActionKind(k))).toBe(true);
     });
   });
 

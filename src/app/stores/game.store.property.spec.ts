@@ -9,6 +9,7 @@ import { getGuestType, registerGuestType, resetGuestTypesForTesting } from '../m
 import { DEFAULT_GAME_SETUP, GameSetup } from '../models/game-setup';
 import { GameStore, ShopInventoryEntry } from './game.store';
 import { customEntrance, registerTestGuestType, testGuest } from '../../testing/guests';
+import { startBanSelection } from '../../testing/ban';
 import { arbGuestNames, arbGuestTypeDefinition } from '../../testing/guest-type-arbitraries';
 
 /**
@@ -3251,7 +3252,7 @@ describe('GameStore - Property-Based Tests', () => {
 
             const guest: Guest = testGuest(guestType, name, { popularityValue: 1, troubleValue: 0, moneyValue: 0 });
 
-            patchState(unprotected(store), { selectedBanGuest: guest });
+            startBanSelection(store, [guest], 0);
 
             const expectedLabel = GUEST_TYPE_LABELS[guestType];
             const expectedMessage = `${expectedLabel} ${name} will be banned from the next party.`;
@@ -3297,13 +3298,8 @@ describe('GameStore - Property-Based Tests', () => {
             const selectedGuest = snapshotGuests[selectedIndex];
             const deckBefore = store.deck();
 
-            patchState(unprotected(store), {
-              currentPhase: GamePhase.PARTY,
-              isBanSelectionActive: true,
-              bustPartySnapshot: snapshotGuests,
-              selectedBanGuest: selectedGuest,
-              party: []
-            });
+            patchState(unprotected(store), { currentPhase: GamePhase.PARTY, party: [] });
+            startBanSelection(store, snapshotGuests, selectedIndex);
 
             store.confirmBan();
 
@@ -3359,14 +3355,8 @@ describe('GameStore - Property-Based Tests', () => {
 
             const dummyGuest: Guest = testGuest('OLD_FRIEND', 'TestGuest', { popularityValue: 1, troubleValue: 0, moneyValue: 0 });
 
-            patchState(unprotected(store), {
-              currentTurn,
-              currentPhase: GamePhase.PARTY,
-              isBanSelectionActive: true,
-              bustPartySnapshot: [dummyGuest],
-              selectedBanGuest: dummyGuest,
-              party: []
-            });
+            patchState(unprotected(store), { currentTurn, currentPhase: GamePhase.PARTY, party: [] });
+            startBanSelection(store, [dummyGuest], 0);
 
             store.confirmBan();
 
@@ -5321,7 +5311,7 @@ describe('GameStore Property Tests - Guest Identity', () => {
             store.initializeGame();
             const snapshot = names.map(name => testGuest('WILD_BUDDY', name));
             const deckBefore = store.deck();
-            patchState(unprotected(store), { bustPartySnapshot: snapshot, isBanSelectionActive: true });
+            startBanSelection(store, snapshot);
 
             store.selectGuestToBan(index);
             store.confirmBan();

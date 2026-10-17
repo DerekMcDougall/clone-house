@@ -8,6 +8,7 @@ import { Guest, GUEST_TYPE_DEFAULTS } from '../models/guest.model';
 import { GameStore } from '../stores/game.store';
 import { StatusPaneComponent } from './status-pane.component';
 import { testGuest } from '../../testing/guests';
+import { startBanSelection } from '../../testing/ban';
 
 /**
  * Property-Based Tests for StatusPaneComponent
@@ -839,10 +840,11 @@ describe('StatusPaneComponent - Property-Based Tests', () => {
       // Feature: ban-guest-after-bust, Property 5: Status Pane Buttons Disabled During Ban Selection
       fc.assert(
         fc.property(
-          fc.integer({ min: 1, max: 50 }), // totalTurns
+          fc.integer({ min: 2, max: 50 }), // totalTurns
           fc.integer({ min: 1, max: 50 }), // targetTurn
           (totalTurns, targetTurn) => {
-            const actualTurn = Math.min(targetTurn, totalTurns);
+            // Ban selection only happens before the final turn
+            const actualTurn = Math.min(targetTurn, totalTurns - 1);
 
             // Initialize game and advance to PARTY phase at the target turn
             store.initializeGame(totalTurns);
@@ -855,7 +857,7 @@ describe('StatusPaneComponent - Property-Based Tests', () => {
             expect(store.currentPhase()).toBe(GamePhase.PARTY);
 
             // Set ban selection active state
-            patchState(unprotected(store), { isBanSelectionActive: true });
+            startBanSelection(store, [testGuest('OLD_FRIEND', 'Brian')]);
             fixture.detectChanges();
 
             // Verify phase button is disabled

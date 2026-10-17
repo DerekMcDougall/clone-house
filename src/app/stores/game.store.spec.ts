@@ -8,6 +8,7 @@ import { getGuestType, resetGuestTypesForTesting } from '../models/guest-type-re
 import { runEffect } from '../models/action-kinds';
 import { GameStore, ShopInventoryEntry } from './game.store';
 import { customEntrance, registerTestGuestType, testGuest } from '../../testing/guests';
+import { startBanSelection } from '../../testing/ban';
 
 const TEST_ICON = { symbol: '🧪', label: 'Test effect' };
 
@@ -1618,10 +1619,7 @@ describe('GameStore - Unit Tests', () => {
           testGuest('WILD_BUDDY', 'Anthony'),
           testGuest('RICH_PAL', 'Khalil')
         ];
-        patchState(unprotected(store), {
-          isBanSelectionActive: true,
-          bustPartySnapshot: guests
-        });
+        startBanSelection(store, guests);
 
         store.selectGuestToBan(1);
 
@@ -1635,12 +1633,7 @@ describe('GameStore - Unit Tests', () => {
        */
       it('should be a no-op when index is out of bounds', () => {
         store.initializeGame(5);
-        const guests = [testGuest('OLD_FRIEND', 'Brian')];
-        patchState(unprotected(store), {
-          isBanSelectionActive: true,
-          bustPartySnapshot: guests,
-          selectedBanGuest: null
-        });
+        startBanSelection(store, [testGuest('OLD_FRIEND', 'Brian')]);
 
         store.selectGuestToBan(5);
         expect(store.selectedBanGuest()).toBeNull();
@@ -1662,16 +1655,12 @@ describe('GameStore - Unit Tests', () => {
           testGuest('WILD_BUDDY', 'Anthony'),
           testGuest('RICH_PAL', 'Khalil')
         ];
-        const selected = guests[1]; // Anthony
-
         patchState(unprotected(store), {
           currentTurn: 2,
           currentPhase: GamePhase.PARTY,
-          isBanSelectionActive: true,
-          bustPartySnapshot: guests,
-          selectedBanGuest: selected,
           deck: [testGuest('OLD_FRIEND', 'Emily')]
         });
+        startBanSelection(store, guests, 1); // Anthony
 
         store.confirmBan();
 
@@ -1697,13 +1686,8 @@ describe('GameStore - Unit Tests', () => {
        */
       it('should be a no-op when no guest is selected', () => {
         store.initializeGame(5);
-        patchState(unprotected(store), {
-          currentTurn: 2,
-          currentPhase: GamePhase.PARTY,
-          isBanSelectionActive: true,
-          bustPartySnapshot: [testGuest('OLD_FRIEND', 'Brian')],
-          selectedBanGuest: null
-        });
+        patchState(unprotected(store), { currentTurn: 2, currentPhase: GamePhase.PARTY });
+        startBanSelection(store, [testGuest('OLD_FRIEND', 'Brian')]);
 
         store.confirmBan();
 
@@ -1755,9 +1739,7 @@ describe('GameStore - Unit Tests', () => {
        */
       it('should return correct message for Old Friend guest', () => {
         store.initializeGame();
-        patchState(unprotected(store), {
-          selectedBanGuest: testGuest('OLD_FRIEND', 'Brian')
-        });
+        startBanSelection(store, [testGuest('OLD_FRIEND', 'Brian')], 0);
 
         expect(store.banConfirmationMessage()).toBe(
           'Old Friend Brian will be banned from the next party.'
@@ -1770,9 +1752,7 @@ describe('GameStore - Unit Tests', () => {
        */
       it('should return correct message for Wild Buddy guest', () => {
         store.initializeGame();
-        patchState(unprotected(store), {
-          selectedBanGuest: testGuest('WILD_BUDDY', 'Anthony')
-        });
+        startBanSelection(store, [testGuest('WILD_BUDDY', 'Anthony')], 0);
 
         expect(store.banConfirmationMessage()).toBe(
           'Wild Buddy Anthony will be banned from the next party.'
@@ -1785,9 +1765,7 @@ describe('GameStore - Unit Tests', () => {
        */
       it('should return correct message for Rich Pal guest', () => {
         store.initializeGame();
-        patchState(unprotected(store), {
-          selectedBanGuest: testGuest('RICH_PAL', 'Khalil')
-        });
+        startBanSelection(store, [testGuest('RICH_PAL', 'Khalil')], 0);
 
         expect(store.banConfirmationMessage()).toBe(
           'Rich Pal Khalil will be banned from the next party.'
@@ -1800,7 +1778,7 @@ describe('GameStore - Unit Tests', () => {
        */
       it('should return empty string when no guest is selected', () => {
         store.initializeGame();
-        patchState(unprotected(store), { selectedBanGuest: null });
+        startBanSelection(store, [testGuest('OLD_FRIEND', 'Brian')]);
 
         expect(store.banConfirmationMessage()).toBe('');
       });
@@ -3367,7 +3345,8 @@ describe('Guest Identity — GameStore', () => {
   it('should ban only the selected guest when two bust guests share a name', () => {
     const first = testGuest('WILD_BUDDY', 'Matt');
     const second = testGuest('WILD_BUDDY', 'Matt');
-    patchState(unprotected(store), { deck: [], bustPartySnapshot: [first, second], isBanSelectionActive: true });
+    patchState(unprotected(store), { deck: [] });
+    startBanSelection(store, [first, second]);
 
     store.selectGuestToBan(1);
     store.confirmBan();

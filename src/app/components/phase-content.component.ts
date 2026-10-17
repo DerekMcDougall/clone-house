@@ -3,12 +3,13 @@ import { GamePhase } from '../models';
 import { formatMoney, GuestType } from '../models/guest.model';
 import { getGuestType, guestTypeLabel } from '../models/guest-type-registry';
 import { GameStore } from '../stores/game.store';
+import { ChoicePanelComponent } from './choice-panel.component';
 import { GuestCardComponent } from './guest-card.component';
 import { GuestDetailsComponent } from './guest-details.component';
 
 @Component({
   selector: 'app-phase-content',
-  imports: [GuestCardComponent, GuestDetailsComponent],
+  imports: [ChoicePanelComponent, GuestCardComponent, GuestDetailsComponent],
   templateUrl: './phase-content.component.html',
   styleUrl: './phase-content.component.scss'
 })

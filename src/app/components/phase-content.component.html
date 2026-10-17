@@ -96,34 +96,7 @@
     </div>
   </div>
 }
-@if (gameStore.isBanSelectionActive()) {
-  <div class="ban-selection">
-    <h3 class="blame-prompt">Who takes the blame?</h3>
-    <div class="guest-cards-container">
-      @for (guest of gameStore.bustPartySnapshot(); track guest.id) {
-        <button
-          class="ban-guest-button"
-          (click)="gameStore.selectGuestToBan($index)"
-          [attr.aria-label]="'Ban ' + guest.name">
-          <app-guest-card [guest]="guest" />
-        </button>
-      }
-    </div>
-  </div>
-}
-@if (gameStore.selectedBanGuest()) {
-  <div class="ban-modal-overlay" role="dialog" aria-modal="true" aria-labelledby="ban-title">
-    <div class="ban-modal">
-      <p id="ban-title">{{ gameStore.banConfirmationMessage() }}</p>
-      <button
-        class="ban-confirm-button"
-        (click)="gameStore.confirmBan()"
-        aria-label="OK">
-        OK
-      </button>
-    </div>
-  </div>
-}
+<app-choice-panel />
 @if (shopErrorMessage()) {
   <div class="shop-error-overlay" role="dialog" aria-modal="true" aria-labelledby="shop-error-title">
     <div class="shop-error-modal">
