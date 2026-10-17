@@ -1,9 +1,10 @@
 import { Component, Input } from '@angular/core';
 import { Guest, GUEST_TYPE_LABELS } from '../models/guest.model';
+import { GuestDetailsComponent } from './guest-details.component';
 
 @Component({
   selector: 'app-guest-card',
-  imports: [],
+  imports: [GuestDetailsComponent],
   template: `
 <div class="guest-card">
   <div class="card-header">{{ GUEST_TYPE_LABELS[guest.type] ?? guest.type }}</div>
@@ -13,6 +14,7 @@ import { Guest, GUEST_TYPE_LABELS } from '../models/guest.model';
     </svg>
   </div>
   <div class="card-caption">{{ guest.name }}</div>
+  <app-guest-details [type]="guest.type" [properties]="guest.properties" />
 </div>
   `,
   styles: [`
@@ -20,7 +22,8 @@ import { Guest, GUEST_TYPE_LABELS } from '../models/guest.model';
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 1rem;
+  position: relative;
+  padding: 1.75rem 1rem;
   background-color: white;
   border: 2px solid #ddd;
   border-radius: 8px;
