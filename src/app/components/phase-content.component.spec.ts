@@ -1,5 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { patchState } from '@ngrx/signals';
+import { unprotected } from '@ngrx/signals/testing';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { GamePhase } from '../models';
 import { Guest, GUEST_TYPE_DEFAULTS } from '../models/guest.model';
@@ -83,7 +84,7 @@ describe('PhaseContentComponent', () => {
     it('should render guest cards during Party phase', () => {
       // Advance to Party phase
       gameStore.advancePhase();
-      patchState(gameStore, { baseTroubleLimit: 100 });
+      patchState(unprotected(gameStore), { baseTroubleLimit: 100 });
 
       // Invite some guests
       gameStore.inviteGuest();
@@ -103,7 +104,7 @@ describe('PhaseContentComponent', () => {
       // guest-identity Requirement 4.3: tracking by name would give Angular duplicate keys
       const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
       try {
-        patchState(gameStore, { party: [testGuest('OLD_FRIEND', 'Matt'), testGuest('OLD_FRIEND', 'Matt')] });
+        patchState(unprotected(gameStore), { party: [testGuest('OLD_FRIEND', 'Matt'), testGuest('OLD_FRIEND', 'Matt')] });
         component.phase = GamePhase.PARTY;
         fixture.detectChanges();
 
@@ -137,7 +138,7 @@ describe('PhaseContentComponent', () => {
       gameStore.advancePhase();
       
       // Raise capacity and trouble limit so we can drain the entire deck without a bust
-      patchState(gameStore, { houseCapacity: 100, baseTroubleLimit: 100 });
+      patchState(unprotected(gameStore), { houseCapacity: 100, baseTroubleLimit: 100 });
       
       // Invite all guests to empty the deck
       while (gameStore.canInviteGuest()) {
@@ -160,7 +161,7 @@ describe('PhaseContentComponent', () => {
     it('should display guests in reverse chronological order (newest first)', () => {
       // Advance to Party phase
       gameStore.advancePhase();
-      patchState(gameStore, { baseTroubleLimit: 100 });
+      patchState(unprotected(gameStore), { baseTroubleLimit: 100 });
 
       // Invite guests one by one and track their names
       const invitedGuestNames: string[] = [];
@@ -192,7 +193,7 @@ describe('PhaseContentComponent', () => {
       // Requirements: 6.1
       gameStore.initializeGame();
       gameStore.advancePhase(); // Move to PARTY phase
-      patchState(gameStore, { isPartyShutdown: true });
+      patchState(unprotected(gameStore), { isPartyShutdown: true });
       component.phase = GamePhase.PARTY;
       fixture.detectChanges();
 
@@ -208,7 +209,7 @@ describe('PhaseContentComponent', () => {
       // Requirements: 6.2
       gameStore.initializeGame();
       gameStore.advancePhase();
-      patchState(gameStore, { isPartyShutdown: true });
+      patchState(unprotected(gameStore), { isPartyShutdown: true });
       component.phase = GamePhase.PARTY;
       fixture.detectChanges();
 
@@ -225,7 +226,7 @@ describe('PhaseContentComponent', () => {
       // Requirements: 6.3
       gameStore.initializeGame();
       gameStore.advancePhase();
-      patchState(gameStore, { isPartyShutdown: true, currentTurn: 1, totalTurns: 5 });
+      patchState(unprotected(gameStore), { isPartyShutdown: true, currentTurn: 1, totalTurns: 5 });
       component.phase = GamePhase.PARTY;
       fixture.detectChanges();
 
@@ -240,7 +241,7 @@ describe('PhaseContentComponent', () => {
       // Requirements: 6.4
       gameStore.initializeGame();
       gameStore.advancePhase();
-      patchState(gameStore, { isPartyShutdown: true, currentTurn: 5, totalTurns: 5 });
+      patchState(unprotected(gameStore), { isPartyShutdown: true, currentTurn: 5, totalTurns: 5 });
       component.phase = GamePhase.PARTY;
       fixture.detectChanges();
 
@@ -255,7 +256,7 @@ describe('PhaseContentComponent', () => {
       // Requirements: 6.1 (inverse)
       gameStore.initializeGame();
       gameStore.advancePhase();
-      patchState(gameStore, { isPartyShutdown: false });
+      patchState(unprotected(gameStore), { isPartyShutdown: false });
       component.phase = GamePhase.PARTY;
       fixture.detectChanges();
 
@@ -272,7 +273,7 @@ describe('PhaseContentComponent', () => {
 
     it('should display blame prompt when isBanSelectionActive is true', () => {
       // Requirements: 3.3
-      patchState(gameStore, {
+      patchState(unprotected(gameStore), {
         isBanSelectionActive: true,
         bustPartySnapshot: [testGuest('OLD_FRIEND', 'Brian')]
       });
@@ -293,7 +294,7 @@ describe('PhaseContentComponent', () => {
         testGuest('WILD_BUDDY', 'Anthony'),
         testGuest('RICH_PAL', 'Khalil')
       ];
-      patchState(gameStore, {
+      patchState(unprotected(gameStore), {
         isBanSelectionActive: true,
         bustPartySnapshot: snapshot
       });
@@ -313,7 +314,7 @@ describe('PhaseContentComponent', () => {
     it('should show confirmation modal when selectedBanGuest is set', () => {
       // Requirements: 5.1
       const guest = testGuest('WILD_BUDDY', 'Anthony');
-      patchState(gameStore, {
+      patchState(unprotected(gameStore), {
         isBanSelectionActive: true,
         bustPartySnapshot: [guest],
         selectedBanGuest: guest
@@ -332,7 +333,7 @@ describe('PhaseContentComponent', () => {
     it('should show correct message and OK button in confirmation modal', () => {
       // Requirements: 5.2, 5.3
       const guest = testGuest('RICH_PAL', 'Khalil');
-      patchState(gameStore, {
+      patchState(unprotected(gameStore), {
         isBanSelectionActive: true,
         bustPartySnapshot: [guest],
         selectedBanGuest: guest
@@ -353,7 +354,7 @@ describe('PhaseContentComponent', () => {
 
     it('should hide ban selection view when isBanSelectionActive is false', () => {
       // Requirements: 3.3 (inverse)
-      patchState(gameStore, {
+      patchState(unprotected(gameStore), {
         isBanSelectionActive: false,
         bustPartySnapshot: [],
         selectedBanGuest: null
@@ -834,7 +835,7 @@ describe('PhaseContentComponent', () => {
         testGuest('OLD_FRIEND', 'Brian'),
         testGuest('WILD_BUDDY', 'Anthony')
       ];
-      patchState(gameStore, {
+      patchState(unprotected(gameStore), {
         currentPhase: GamePhase.PARTY,
         houseCapacity: 5,
         party: partyGuests
@@ -856,7 +857,7 @@ describe('PhaseContentComponent', () => {
         testGuest('OLD_FRIEND', 'Colin'),
         testGuest('WILD_BUDDY', 'Anthony')
       ];
-      patchState(gameStore, {
+      patchState(unprotected(gameStore), {
         currentPhase: GamePhase.PARTY,
         houseCapacity: 3,
         party: partyGuests
@@ -872,7 +873,7 @@ describe('PhaseContentComponent', () => {
 
     it('should not render shadows during BUY phase', () => {
       // Requirements: 8.3
-      patchState(gameStore, {
+      patchState(unprotected(gameStore), {
         currentPhase: GamePhase.BUY,
         houseCapacity: 5,
         party: []
@@ -890,7 +891,7 @@ describe('PhaseContentComponent', () => {
   describe('House Full and Expansion Error Modals', () => {
     it('should render House Full modal when showHouseFullMessage is true', () => {
       // Requirements: 2.2
-      patchState(gameStore, { showHouseFullMessage: true });
+      patchState(unprotected(gameStore), { showHouseFullMessage: true });
       component.phase = GamePhase.PARTY;
       fixture.detectChanges();
 
@@ -906,7 +907,7 @@ describe('PhaseContentComponent', () => {
 
     it('should dismiss House Full modal on OK click', () => {
       // Requirements: 2.3
-      patchState(gameStore, { showHouseFullMessage: true });
+      patchState(unprotected(gameStore), { showHouseFullMessage: true });
       component.phase = GamePhase.PARTY;
       fixture.detectChanges();
 
@@ -977,7 +978,7 @@ describe('PhaseContentComponent', () => {
 
     it('should hide expansion card when stock is 0', () => {
       // Requirements: 3.3
-      patchState(gameStore, { expansionsPurchased: 29 });
+      patchState(unprotected(gameStore), { expansionsPurchased: 29 });
       component.phase = GamePhase.BUY;
       fixture.detectChanges();
 
@@ -1038,7 +1039,7 @@ describe('PhaseContentComponent - Victory and Star Guests', () => {
   });
 
   const winParty = () => {
-    patchState(gameStore, { currentPhase: GamePhase.PARTY, party: aliens(4) });
+    patchState(unprotected(gameStore), { currentPhase: GamePhase.PARTY, party: aliens(4) });
     gameStore.advancePhase();
     component.phase = GamePhase.PARTY;
     fixture.detectChanges();
@@ -1046,7 +1047,7 @@ describe('PhaseContentComponent - Victory and Star Guests', () => {
 
   it('should not show the victory dialog before winning', () => {
     component.phase = GamePhase.PARTY;
-    patchState(gameStore, { currentPhase: GamePhase.PARTY, party: aliens(4) });
+    patchState(unprotected(gameStore), { currentPhase: GamePhase.PARTY, party: aliens(4) });
     fixture.detectChanges();
 
     expect(fixture.nativeElement.querySelector('.victory-modal-overlay')).toBeNull();
@@ -1154,7 +1155,7 @@ describe('PhaseContentComponent - Victory and Star Guests', () => {
     });
 
     it('still buys the guest when the card is clicked', () => {
-      patchState(gameStore, { popularity: 100 });
+      patchState(unprotected(gameStore), { popularity: 100 });
       const before = gameStore.deck().length;
       shopCard('Old Friend').click();
       fixture.detectChanges();

@@ -1,5 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { patchState } from '@ngrx/signals';
+import { unprotected } from '@ngrx/signals/testing';
 import * as fc from 'fast-check';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { GamePhase } from '../models';
@@ -537,7 +538,7 @@ describe('StatusPaneComponent - Property-Based Tests', () => {
             store.initializeGame();
 
             // Set money to the generated value
-            patchState(store, { money: moneyValue });
+            patchState(unprotected(store), { money: moneyValue });
 
             // Trigger change detection to render the component
             fixture.detectChanges();
@@ -792,7 +793,7 @@ describe('StatusPaneComponent - Property-Based Tests', () => {
             expect(store.currentPhase()).toBe(GamePhase.PARTY);
 
             // Set shutdown state
-            patchState(store, { isPartyShutdown: true });
+            patchState(unprotected(store), { isPartyShutdown: true });
             fixture.detectChanges();
 
             // Verify phase button is disabled
@@ -854,7 +855,7 @@ describe('StatusPaneComponent - Property-Based Tests', () => {
             expect(store.currentPhase()).toBe(GamePhase.PARTY);
 
             // Set ban selection active state
-            patchState(store, { isBanSelectionActive: true });
+            patchState(unprotected(store), { isBanSelectionActive: true });
             fixture.detectChanges();
 
             // Verify phase button is disabled
@@ -901,7 +902,7 @@ describe('StatusPaneComponent - Property-Based Tests', () => {
             // Set base trouble limit and add peace guests to party
             const currentParty = store.party();
             const peaceGuests: Guest[] = Array.from({ length: peaceGuestCount }, (_, i) => testGuest('HIPPY', `Hippy${i}`));
-            patchState(store, { baseTroubleLimit, party: [...currentParty, ...peaceGuests] });
+            patchState(unprotected(store), { baseTroubleLimit, party: [...currentParty, ...peaceGuests] });
             fixture.detectChanges();
 
             // Read the expected values from the store
@@ -955,7 +956,7 @@ describe('StatusPaneComponent - Star Display Property', () => {
         (types) => {
           store.initializeGame();
           const party: Guest[] = types.map((type, i) => testGuest(type, `G${i}`));
-          patchState(store, { currentPhase: GamePhase.PARTY, party });
+          patchState(unprotected(store), { currentPhase: GamePhase.PARTY, party });
           fixture.detectChanges();
 
           const expectedStars = party.reduce((sum, g) => sum + g.properties.starValue, 0);

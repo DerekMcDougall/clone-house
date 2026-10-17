@@ -6,7 +6,8 @@
     "start": "ng serve",
     "build": "ng build",
     "watch": "ng build --watch --configuration development",
-    "test": "vitest run"
+    "typecheck": "tsc -p tsconfig.spec.json --noEmit",
+    "test": "tsc -p tsconfig.spec.json --noEmit && vitest run"
   },
   "private": true,
   "packageManager": "yarn@1.22.22",

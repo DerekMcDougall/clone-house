@@ -1,5 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import { patchState } from '@ngrx/signals';
+import { unprotected } from '@ngrx/signals/testing';
 import * as fc from 'fast-check';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { GamePhase } from '../models';
@@ -368,7 +369,7 @@ describe('GameStore - Property-Based Tests', () => {
             // Initialize the game
             store.initializeGame();
             // Raise trouble limit so invites from the starting deck cannot bust the party
-            patchState(store, { baseTroubleLimit: 100 });
+            patchState(unprotected(store), { baseTroubleLimit: 100 });
             
             // Verify initial state has 10 guests total
             let totalGuests = store.deck().length + store.party().length;
@@ -432,7 +433,7 @@ describe('GameStore - Property-Based Tests', () => {
             // Initialize the game
             store.initializeGame();
             // Raise trouble limit so invites from the starting deck cannot bust the party
-            patchState(store, { baseTroubleLimit: 100 });
+            patchState(unprotected(store), { baseTroubleLimit: 100 });
             
             // Helper function to verify guest names
             const verifyGuestNames = () => {
@@ -507,7 +508,7 @@ describe('GameStore - Property-Based Tests', () => {
             // Initialize the game
             store.initializeGame();
             // Raise house capacity so invite operations aren't blocked by capacity
-            patchState(store, { houseCapacity: 100, baseTroubleLimit: 100 });
+            patchState(unprotected(store), { houseCapacity: 100, baseTroubleLimit: 100 });
             
             // Execute random sequence of operations
             operations.forEach(op => {
@@ -590,7 +591,7 @@ describe('GameStore - Property-Based Tests', () => {
             // Initialize the game
             store.initializeGame();
             // Raise house capacity so invite operations aren't blocked by capacity
-            patchState(store, { houseCapacity: 100, baseTroubleLimit: 100 });
+            patchState(unprotected(store), { houseCapacity: 100, baseTroubleLimit: 100 });
             
             // Execute random sequence of operations
             operations.forEach(op => {
@@ -660,7 +661,7 @@ describe('GameStore - Property-Based Tests', () => {
             // Initialize the game
             store.initializeGame();
             // Raise house capacity so invite operations aren't blocked by capacity
-            patchState(store, { houseCapacity: 100, baseTroubleLimit: 100 });
+            patchState(unprotected(store), { houseCapacity: 100, baseTroubleLimit: 100 });
             
             // Execute random sequence of operations to create various deck states
             operations.forEach(op => {
@@ -881,7 +882,7 @@ describe('GameStore - Property-Based Tests', () => {
             // Initialize the game with enough turns
             store.initializeGame(Math.max(turnNumber, 10));
             // Raise trouble limit so invites from the starting deck cannot bust the party
-            patchState(store, { baseTroubleLimit: 100 });
+            patchState(unprotected(store), { baseTroubleLimit: 100 });
             
             // Advance to the target turn's PARTY phase
             for (let i = 1; i < turnNumber; i++) {
@@ -960,7 +961,7 @@ describe('GameStore - Property-Based Tests', () => {
             // Initialize the game
             store.initializeGame();
             // Raise trouble limit so invites from the starting deck cannot bust the party
-            patchState(store, { baseTroubleLimit: 100 });
+            patchState(unprotected(store), { baseTroubleLimit: 100 });
             
             // Capture the initial guest names (should be all 10 unique names)
             const initialGuests = [...store.deck(), ...store.party()];
@@ -1234,7 +1235,7 @@ describe('GameStore - Property-Based Tests', () => {
             // Initialize the game
             store.initializeGame(10);
             // Raise house capacity so invite operations aren't blocked by capacity
-            patchState(store, { houseCapacity: 100, baseTroubleLimit: 100 });
+            patchState(unprotected(store), { houseCapacity: 100, baseTroubleLimit: 100 });
             
             // Advance to PARTY phase
             store.advancePhase();
@@ -2011,7 +2012,7 @@ describe('GameStore - Property-Based Tests', () => {
             // Initialize the game (deck has 10 guests: 4 Old Friends + 4 Wild Buddies + 2 Rich Pals)
             store.initializeGame();
             // Raise house capacity so invite operations aren't blocked by capacity
-            patchState(store, { houseCapacity: 100, baseTroubleLimit: 100 });
+            patchState(unprotected(store), { houseCapacity: 100, baseTroubleLimit: 100 });
 
             // Advance to PARTY phase so we can invite guests
             store.advancePhase();
@@ -2148,7 +2149,7 @@ describe('GameStore - Property-Based Tests', () => {
             // Initialize the game
             store.initializeGame(10);
             // Raise house capacity so invite operations aren't blocked by capacity
-            patchState(store, { houseCapacity: 100, baseTroubleLimit: 100 });
+            patchState(unprotected(store), { houseCapacity: 100, baseTroubleLimit: 100 });
 
             // Advance to PARTY phase
             store.advancePhase();
@@ -2643,7 +2644,7 @@ describe('GameStore - Property-Based Tests', () => {
             // Set arbitrary base via patchState
             // partyTroubleLimitModifier is now computed from party peace, so set party with peace guests
             const peaceGuests: Guest[] = Array.from({ length: peaceGuestCount }, (_, i) => testGuest('HIPPY', `Hippy${i}`));
-            patchState(store, { baseTroubleLimit, party: peaceGuests });
+            patchState(unprotected(store), { baseTroubleLimit, party: peaceGuests });
 
             // Verify the computed effective trouble limit
             const expected = Math.max(0, baseTroubleLimit + peaceGuestCount);
@@ -2681,11 +2682,11 @@ describe('GameStore - Property-Based Tests', () => {
             store.initializeGame();
 
             // Set the current baseTroubleLimit
-            patchState(store, { baseTroubleLimit: currentBase });
+            patchState(unprotected(store), { baseTroubleLimit: currentBase });
 
             // Simulate modifyBaseTroubleLimit(delta): result = max(0, current + delta)
             const newBase = Math.max(0, currentBase + delta);
-            patchState(store, { baseTroubleLimit: newBase });
+            patchState(unprotected(store), { baseTroubleLimit: newBase });
 
             // Verify the baseTroubleLimit is clamped correctly
             expect(store.baseTroubleLimit()).toBe(Math.max(0, currentBase + delta));
@@ -2708,7 +2709,7 @@ describe('GameStore - Property-Based Tests', () => {
 
             // Set party with peace guests
             const peaceGuests: Guest[] = Array.from({ length: peaceGuestCount }, (_, i) => testGuest('CUTE_DOG', `Dog${i}`));
-            patchState(store, { party: peaceGuests });
+            patchState(unprotected(store), { party: peaceGuests });
 
             // Verify the modifier equals the sum of peaceValue
             expect(store.partyTroubleLimitModifier()).toBe(peaceGuestCount);
@@ -2748,7 +2749,7 @@ describe('GameStore - Property-Based Tests', () => {
 
             // Set party with peace guests to get a non-zero modifier
             const peaceGuests: Guest[] = Array.from({ length: peaceGuestCount }, (_, i) => testGuest('HIPPY', `Hippy${i}`));
-            patchState(store, { party: peaceGuests });
+            patchState(unprotected(store), { party: peaceGuests });
             expect(store.partyTroubleLimitModifier()).toBe(peaceGuestCount);
 
             // End party normally via advancePhase()
@@ -2789,7 +2790,7 @@ describe('GameStore - Property-Based Tests', () => {
             // Add peace guests to party to get a non-zero modifier
             const currentParty = store.party();
             const peaceGuests: Guest[] = Array.from({ length: peaceGuestCount }, (_, i) => testGuest('CUTE_DOG', `Dog${i}`));
-            patchState(store, { party: [...currentParty, ...peaceGuests] });
+            patchState(unprotected(store), { party: [...currentParty, ...peaceGuests] });
             expect(store.partyTroubleLimitModifier()).toBe(peaceGuestCount);
 
             // Trigger party shutdown
@@ -2832,7 +2833,7 @@ describe('GameStore - Property-Based Tests', () => {
             expect(store.currentPhase()).toBe(GamePhase.PARTY);
 
             const deck: Guest[] = types.map((type, i) => testGuest(type, `Guest${i}`));
-            patchState(store, { deck, houseCapacity: 100, baseTroubleLimit });
+            patchState(unprotected(store), { deck, houseCapacity: 100, baseTroubleLimit });
 
             for (const guest of deck) {
               const arrivingParty = [...store.party(), guest];
@@ -2890,7 +2891,7 @@ describe('GameStore - Property-Based Tests', () => {
             }
 
             // Set random initial popularity and money
-            patchState(store, { popularity: initialPopularity, money: initialMoney });
+            patchState(unprotected(store), { popularity: initialPopularity, money: initialMoney });
 
             // Record values before shutdown
             const popularityBefore = store.popularity();
@@ -2932,7 +2933,7 @@ describe('GameStore - Property-Based Tests', () => {
 
             store.initializeGame();
             // Raise trouble limit so invites from the starting deck cannot bust the party
-            patchState(store, { baseTroubleLimit: 100 });
+            patchState(unprotected(store), { baseTroubleLimit: 100 });
 
             // Advance to PARTY phase
             store.advancePhase();
@@ -2995,7 +2996,7 @@ describe('GameStore - Property-Based Tests', () => {
             store.initializeGame(totalTurns);
 
             // Set up state: in PARTY phase with shutdown active
-            patchState(store, {
+            patchState(unprotected(store), {
               currentTurn: validCurrentTurn,
               totalTurns: totalTurns,
               currentPhase: GamePhase.PARTY,
@@ -3141,7 +3142,7 @@ describe('GameStore - Property-Based Tests', () => {
 
             // Set up discard pile with generated guests and adjust deck to maintain conservation
             const currentDeck = store.deck();
-            patchState(store, {
+            patchState(unprotected(store), {
               discard: discardGuests,
               deck: currentDeck.slice(0, currentDeck.length)
             });
@@ -3195,7 +3196,7 @@ describe('GameStore - Property-Based Tests', () => {
 
             store.initializeGame(totalTurns);
 
-            patchState(store, {
+            patchState(unprotected(store), {
               currentTurn: validCurrentTurn,
               currentPhase: GamePhase.PARTY,
               isPartyShutdown: true
@@ -3250,7 +3251,7 @@ describe('GameStore - Property-Based Tests', () => {
 
             const guest: Guest = testGuest(guestType, name, { popularityValue: 1, troubleValue: 0, moneyValue: 0 });
 
-            patchState(store, { selectedBanGuest: guest });
+            patchState(unprotected(store), { selectedBanGuest: guest });
 
             const expectedLabel = GUEST_TYPE_LABELS[guestType];
             const expectedMessage = `${expectedLabel} ${name} will be banned from the next party.`;
@@ -3296,7 +3297,7 @@ describe('GameStore - Property-Based Tests', () => {
             const selectedGuest = snapshotGuests[selectedIndex];
             const deckBefore = store.deck();
 
-            patchState(store, {
+            patchState(unprotected(store), {
               currentPhase: GamePhase.PARTY,
               isBanSelectionActive: true,
               bustPartySnapshot: snapshotGuests,
@@ -3358,7 +3359,7 @@ describe('GameStore - Property-Based Tests', () => {
 
             const dummyGuest: Guest = testGuest('OLD_FRIEND', 'TestGuest', { popularityValue: 1, troubleValue: 0, moneyValue: 0 });
 
-            patchState(store, {
+            patchState(unprotected(store), {
               currentTurn,
               currentPhase: GamePhase.PARTY,
               isBanSelectionActive: true,
@@ -3410,7 +3411,7 @@ describe('GameStore - Property-Based Tests', () => {
             // Move to PARTY phase so invite is valid
             store.advancePhase();
 
-            patchState(store, { discard: discardGuests });
+            patchState(unprotected(store), { discard: discardGuests });
 
             const discardBefore = store.discard().map(g => `${g.type}:${g.name}`);
 
@@ -3423,7 +3424,7 @@ describe('GameStore - Property-Based Tests', () => {
             expect(discardAfter).toEqual(discardBefore);
 
             // Also test with empty deck
-            patchState(store, { deck: [] });
+            patchState(unprotected(store), { deck: [] });
             store.inviteGuest();
 
             const discardAfterEmpty = store.discard().map(g => `${g.type}:${g.name}`);
@@ -3581,7 +3582,7 @@ describe('GameStore - Shop Buy Guests Property Tests', () => {
             store.initializeGame();
 
             // Give enough popularity for purchases
-            patchState(store, { popularity: 100 });
+            patchState(unprotected(store), { popularity: 100 });
 
             const checkConservation = () => {
               const total =
@@ -3639,7 +3640,7 @@ describe('GameStore - Shop Buy Guests Property Tests', () => {
       fc.assert(
         fc.property(typeArb, popularityArb, (type, popularity) => {
           store.initializeGame();
-          patchState(store, { popularity });
+          patchState(unprotected(store), { popularity });
 
           const cost = GUEST_TYPE_COSTS[type]!;
           const entry = store.shopInventory().find(e => e.type === type);
@@ -3674,7 +3675,7 @@ describe('GameStore - Shop Buy Guests Property Tests', () => {
       fc.assert(
         fc.property(typeArb, (type) => {
           store.initializeGame();
-          patchState(store, { popularity: 100 });
+          patchState(unprotected(store), { popularity: 100 });
 
           const inventoryBefore = store.shopInventory().map(e => ({
             type: e.type,
@@ -3721,14 +3722,14 @@ describe('GameStore - Shop Buy Guests Property Tests', () => {
       fc.assert(
         fc.property(typeArb, popularityArb, (type, popularity) => {
           store.initializeGame();
-          patchState(store, { popularity });
+          patchState(unprotected(store), { popularity });
 
           // Empty out the chosen type's guests
           const emptyInventory = store.shopInventory().map(e => {
             if (e.type === type) return { ...e, guests: [] };
             return e;
           });
-          patchState(store, { shopInventory: emptyInventory });
+          patchState(unprotected(store), { shopInventory: emptyInventory });
 
           const deckBefore = [...store.deck()];
           const popBefore = store.popularity();
@@ -3776,7 +3777,7 @@ describe('GameStore - Shop Buy Guests Property Tests', () => {
           const cost = GUEST_TYPE_COSTS[type]!;
           // Set popularity to a random value strictly less than cost
           const lowPopularity = Math.floor(Math.random() * cost);
-          patchState(store, { popularity: lowPopularity });
+          patchState(unprotected(store), { popularity: lowPopularity });
 
           // Ensure stock > 0 (it should be after initializeGame)
           const entry = store.shopInventory().find(e => e.type === type);
@@ -3827,7 +3828,7 @@ describe('GameStore - Shop Buy Guests Property Tests', () => {
       fc.assert(
         fc.property(typeArb, (type) => {
           store.initializeGame();
-          patchState(store, { popularity: 100 });
+          patchState(unprotected(store), { popularity: 100 });
 
           const entry = store.shopInventory().find(e => e.type === type);
           if (!entry || entry.guests.length === 0) {
@@ -3869,7 +3870,7 @@ describe('GameStore - Shop Buy Guests Property Tests', () => {
       fc.assert(
         fc.property(purchaseCountArb, (purchaseCount) => {
           store.initializeGame(10);
-          patchState(store, { popularity: 100 });
+          patchState(unprotected(store), { popularity: 100 });
 
           // Optionally make some purchases during BUY phase to vary shop state
           for (let i = 0; i < purchaseCount; i++) {
@@ -3962,7 +3963,7 @@ describe('GameStore - Shop Buy Guests Property Tests', () => {
           (expansionsPurchased) => {
             store.initializeGame();
 
-            patchState(store, { expansionsPurchased });
+            patchState(unprotected(store), { expansionsPurchased });
 
             const expectedCost = Math.min(expansionsPurchased + 2, 12);
             expect(store.expansionCost()).toBe(expectedCost);
@@ -3995,7 +3996,7 @@ describe('GameStore - Shop Buy Guests Property Tests', () => {
           (expansionsPurchased) => {
             store.initializeGame();
 
-            patchState(store, { expansionsPurchased });
+            patchState(unprotected(store), { expansionsPurchased });
 
             const expectedStock = 29 - expansionsPurchased;
             expect(store.expansionStock()).toBe(expectedStock);
@@ -4037,7 +4038,7 @@ describe('GameStore - Shop Buy Guests Property Tests', () => {
             // Create dummy Guest objects for the party
             const party: Guest[] = Array.from({ length: partySize }, (_, i) => testGuest('OLD_FRIEND', `TestGuest${i}`, { popularityValue: 1, troubleValue: 0, moneyValue: 0 }));
 
-            patchState(store, { houseCapacity, party });
+            patchState(unprotected(store), { houseCapacity, party });
 
             // Verify emptySlots equals houseCapacity - party.length
             expect(store.emptySlots()).toBe(houseCapacity - partySize);
@@ -4084,7 +4085,7 @@ describe('GameStore - Shop Buy Guests Property Tests', () => {
             const cost = Math.min(expansionsPurchased + 2, 12);
             const prevCapacity = 5 + expansionsPurchased;
 
-            patchState(store, {
+            patchState(unprotected(store), {
               expansionsPurchased,
               houseCapacity: prevCapacity,
               money
@@ -4134,7 +4135,7 @@ describe('GameStore - Shop Buy Guests Property Tests', () => {
 
             const prevCapacity = 5 + expansionsPurchased;
 
-            patchState(store, {
+            patchState(unprotected(store), {
               expansionsPurchased,
               houseCapacity: prevCapacity,
               money
@@ -4166,7 +4167,7 @@ describe('GameStore - Shop Buy Guests Property Tests', () => {
           (money) => {
             store.initializeGame();
 
-            patchState(store, {
+            patchState(unprotected(store), {
               expansionsPurchased: 29,
               houseCapacity: 34,
               money
@@ -4226,7 +4227,7 @@ describe('GameStore - Shop Buy Guests Property Tests', () => {
           ([houseCapacity, party, deck]) => {
             store.initializeGame();
 
-            patchState(store, {
+            patchState(unprotected(store), {
               houseCapacity,
               party,
               deck,
@@ -4281,7 +4282,7 @@ describe('GameStore - Shop Buy Guests Property Tests', () => {
             store.initializeGame();
 
             // Step 2: Set popularity high enough for all purchases
-            patchState(store, { popularity: 100 });
+            patchState(unprotected(store), { popularity: 100 });
 
             // Step 3: Perform pre-purchases to reduce stock (0-3 times)
             for (let i = 0; i < prePurchaseCount; i++) {
@@ -4289,7 +4290,7 @@ describe('GameStore - Shop Buy Guests Property Tests', () => {
             }
 
             // Step 4: Set the actual popularity for the test purchase
-            patchState(store, { popularity });
+            patchState(unprotected(store), { popularity });
 
             // Capture state before the test purchase
             const monkeyEntry = store.shopInventory().find(e => e.type === 'MONKEY');
@@ -4363,7 +4364,7 @@ describe('GameStore - Shop Buy Guests Property Tests', () => {
             store.initializeGame();
 
             // Step 2: Set high popularity to allow purchases
-            patchState(store, { popularity: 200 });
+            patchState(unprotected(store), { popularity: 200 });
 
             // Step 3: Purchase the generated number of Monkeys (1-4)
             for (let i = 0; i < monkeyCount; i++) {
@@ -4377,7 +4378,7 @@ describe('GameStore - Shop Buy Guests Property Tests', () => {
             expect(store.currentPhase()).toBe('PARTY');
 
             // Step 5: Raise house capacity so invites aren't blocked
-            patchState(store, { houseCapacity: 100 });
+            patchState(unprotected(store), { houseCapacity: 100 });
 
             // Step 6: Invite a random number of guests from the shuffled deck
             const maxInvites = Math.min(inviteCount, store.deck().length);
@@ -4453,7 +4454,7 @@ describe('GameStore - Shop Buy Guests Property Tests', () => {
             store.initializeGame();
 
             // Give enough popularity for purchases and raise house capacity
-            patchState(store, { popularity: 200, houseCapacity: 100 });
+            patchState(unprotected(store), { popularity: 200, houseCapacity: 100 });
 
             const checkConservation = () => {
               const total =
@@ -4492,7 +4493,7 @@ describe('GameStore - Shop Buy Guests Property Tests', () => {
                   if (!store.isGameComplete() && !store.isPartyShutdown() && !store.isBanSelectionActive()) {
                     store.advancePhase();
                     // Re-boost popularity after phase advance for future purchases
-                    patchState(store, { popularity: Math.max(store.popularity(), 200) });
+                    patchState(unprotected(store), { popularity: Math.max(store.popularity(), 200) });
                   }
                   break;
                 case 'triggerPartyShutdown':
@@ -4515,7 +4516,7 @@ describe('GameStore - Shop Buy Guests Property Tests', () => {
                   if (store.isBanSelectionActive() && store.selectedBanGuest()) {
                     store.confirmBan();
                     // Re-boost popularity after ban advances turn
-                    patchState(store, { popularity: Math.max(store.popularity(), 200) });
+                    patchState(unprotected(store), { popularity: Math.max(store.popularity(), 200) });
                   }
                   break;
               }
@@ -4561,7 +4562,7 @@ describe('GameStore - Shop Buy Guests Property Tests', () => {
             store.initializeGame();
 
             // Step 2: Set popularity high enough for all purchases
-            patchState(store, { popularity: 500 });
+            patchState(unprotected(store), { popularity: 500 });
 
             // Step 3: Perform pre-purchases to reduce stock (0-3 times)
             for (let i = 0; i < prePurchaseCount; i++) {
@@ -4570,7 +4571,7 @@ describe('GameStore - Shop Buy Guests Property Tests', () => {
 
             // Step 4: Set popularity to at least the type's cost for the test purchase
             const cost = GUEST_TYPE_COSTS[type]!;
-            patchState(store, { popularity: cost });
+            patchState(unprotected(store), { popularity: cost });
 
             // Capture state before the test purchase
             const entry = store.shopInventory().find(e => e.type === type);
@@ -4677,7 +4678,7 @@ describe('GameStore - Shop Buy Guests Property Tests', () => {
           store.initializeGame();
 
           // Set the party directly, put store in PARTY phase with known starting resources
-          patchState(store, {
+          patchState(unprotected(store), {
             party,
             currentPhase: GamePhase.PARTY,
             popularity: 0,
@@ -4737,7 +4738,7 @@ describe('GameStore - Shop Buy Guests Property Tests', () => {
             store.initializeGame();
 
             // Give enough popularity for purchases and raise house capacity
-            patchState(store, { popularity: 200, houseCapacity: 100 });
+            patchState(unprotected(store), { popularity: 200, houseCapacity: 100 });
 
             const checkConservation = () => {
               const total =
@@ -4771,7 +4772,7 @@ describe('GameStore - Shop Buy Guests Property Tests', () => {
                   if (!store.isGameComplete() && !store.isPartyShutdown() && !store.isBanSelectionActive()) {
                     store.advancePhase();
                     // Re-boost popularity after phase advance for future purchases
-                    patchState(store, { popularity: Math.max(store.popularity(), 200) });
+                    patchState(unprotected(store), { popularity: Math.max(store.popularity(), 200) });
                   }
                   break;
                 case 'triggerPartyShutdown':
@@ -4794,7 +4795,7 @@ describe('GameStore - Shop Buy Guests Property Tests', () => {
                   if (store.isBanSelectionActive() && store.selectedBanGuest()) {
                     store.confirmBan();
                     // Re-boost popularity after ban advances turn
-                    patchState(store, { popularity: Math.max(store.popularity(), 200) });
+                    patchState(unprotected(store), { popularity: Math.max(store.popularity(), 200) });
                   }
                   break;
                 case 'claimVictory':
@@ -4839,7 +4840,7 @@ describe('GameStore - Starting Deck Shuffle Property Tests', () => {
           store.initializeGame();
           store.advancePhase(); // BUY -> PARTY
           const byName = (name: string) => store.deck().find(g => g.name === name)!;
-          patchState(store, { deck: order.map(byName) });
+          patchState(unprotected(store), { deck: order.map(byName) });
 
           // Invite until done or the party busts (the UI offers no invite during a shutdown)
           for (let i = 0; i < inviteCount && !store.isPartyShutdown(); i++) {
@@ -4908,7 +4909,7 @@ describe('GameStore - Star Guests & Winning Property Tests', () => {
         ),
         (specs) => {
           const party: Guest[] = specs.map((s, i) => testGuest(s.type, `G${i}`, { starValue: s.starValue }));
-          patchState(store, { party });
+          patchState(unprotected(store), { party });
           expect(store.stars()).toBe(specs.reduce((sum, s) => sum + s.starValue, 0));
         }
       ),
@@ -4934,7 +4935,7 @@ describe('GameStore - Star Guests & Winning Property Tests', () => {
           store.initializeGame(totalTurns);
           const currentTurn = Math.min(totalTurns, 1 + turnOffset);
           const party = makeParty([...starTypes, ...otherTypes]);
-          patchState(store, { currentPhase: GamePhase.PARTY, currentTurn, party, popularity, money });
+          patchState(unprotected(store), { currentPhase: GamePhase.PARTY, currentTurn, party, popularity, money });
           const deck = store.deck();
           const discard = store.discard();
 
@@ -4971,7 +4972,7 @@ describe('GameStore - Star Guests & Winning Property Tests', () => {
         (starTypes, otherTypes, totalTurns, popularity, money) => {
           store.initializeGame(totalTurns);
           const party = makeParty([...starTypes, ...otherTypes]);
-          patchState(store, { currentPhase: GamePhase.PARTY, party, popularity, money });
+          patchState(unprotected(store), { currentPhase: GamePhase.PARTY, party, popularity, money });
           const guestCount = store.deck().length + party.length;
 
           store.advancePhase();
@@ -5015,7 +5016,7 @@ describe('GameStore - Star Guests & Winning Property Tests', () => {
             ? [...stars, ...makeParty(['MERMAID', 'OLD_FRIEND'], 'O')]
             // Dinosaur + two Wild Buddies make 3 trouble, over the base limit of 2
             : [...stars, ...makeParty(['DINOSAUR', 'WILD_BUDDY', 'WILD_BUDDY'], 'T')];
-          patchState(store, {
+          patchState(unprotected(store), {
             currentPhase: GamePhase.PARTY,
             deck,
             houseCapacity: overflow ? stars.length + 1 : 20
@@ -5057,7 +5058,7 @@ describe('GameStore - Star Guests & Winning Property Tests', () => {
         fc.array(fc.constantFrom('inviteGuest', 'advancePhase'), { minLength: 1, maxLength: 10 }),
         (starTypes, operations) => {
           store.initializeGame();
-          patchState(store, { currentPhase: GamePhase.PARTY, party: makeParty(starTypes) });
+          patchState(unprotected(store), { currentPhase: GamePhase.PARTY, party: makeParty(starTypes) });
           store.advancePhase();
           expect(store.isVictory()).toBe(true);
 
@@ -5104,7 +5105,7 @@ describe('GameStore - Star Guests & Winning Property Tests', () => {
         (type, extraPopularity) => {
           store.initializeGame();
           const cost = GUEST_TYPE_COSTS[type]!;
-          patchState(store, { popularity: cost + extraPopularity });
+          patchState(unprotected(store), { popularity: cost + extraPopularity });
           const before = store.shopInventory().find(e => e.type === type)!.guests.map(g => g.name);
           const deckLength = store.deck().length;
 
@@ -5139,7 +5140,7 @@ describe('GameStore - Star Guests & Winning Property Tests', () => {
           const party = makeParty(types);
           const expectedSum = (key: keyof Guest['properties']) =>
             types.reduce((sum, t) => sum + GUEST_TYPE_DEFAULTS[t][key], 0);
-          patchState(store, { currentPhase: GamePhase.PARTY, party, popularity: 1000, money: 1000 });
+          patchState(unprotected(store), { currentPhase: GamePhase.PARTY, party, popularity: 1000, money: 1000 });
 
           expect(store.trouble()).toBe(expectedSum('troubleValue'));
           expect(store.partyTroubleLimitModifier()).toBe(expectedSum('peaceValue'));
@@ -5169,7 +5170,7 @@ describe('GameStore - Star Guests & Winning Property Tests', () => {
           store.initializeGame();
           const [mermaid] = makeParty(['MERMAID'], 'M');
           const rest = makeParty(restTypes, 'R');
-          patchState(store, { currentPhase: GamePhase.PARTY, houseCapacity: 10, deck: [mermaid, ...rest] });
+          patchState(unprotected(store), { currentPhase: GamePhase.PARTY, houseCapacity: 10, deck: [mermaid, ...rest] });
 
           store.inviteGuest();
 
@@ -5235,7 +5236,7 @@ describe('GameStore Property Tests - Guest Identity', () => {
       fc.assert(
         fc.property(fc.array(operationArb, { minLength: 1, maxLength: 60 }), (operations) => {
           store.initializeGame();
-          patchState(store, { popularity: 200 });
+          patchState(unprotected(store), { popularity: 200 });
           const initialIds = [...allIds()].sort();
 
           for (const op of operations) {
@@ -5287,7 +5288,7 @@ describe('GameStore Property Tests - Guest Identity', () => {
             store.initializeGame();
             const party = Array.from({ length: size }, () => testGuest('RICH_PAL', 'Same Name'));
             const trigger = testGuest(triggerType, 'Trigger');
-            patchState(store, { currentPhase: GamePhase.PARTY, houseCapacity: 10, party, deck: [trigger] });
+            patchState(unprotected(store), { currentPhase: GamePhase.PARTY, houseCapacity: 10, party, deck: [trigger] });
 
             entrance = (ctx) => {
               const copy = { ...party[target] };
@@ -5321,7 +5322,7 @@ describe('GameStore Property Tests - Guest Identity', () => {
             store.initializeGame();
             const snapshot = names.map(name => testGuest('WILD_BUDDY', name));
             const deckBefore = store.deck();
-            patchState(store, { bustPartySnapshot: snapshot, isBanSelectionActive: true });
+            patchState(unprotected(store), { bustPartySnapshot: snapshot, isBanSelectionActive: true });
 
             store.selectGuestToBan(index);
             store.confirmBan();
@@ -5441,7 +5442,7 @@ describe('GameStore Property Tests - Guest Type Registry', () => {
       // Feature: guest-type-registry, Property 6: Runtime Types Score Like Built-ins
       const outcome = (guest: Guest) => {
         store.initializeGame();
-        patchState(store, { currentPhase: GamePhase.PARTY, popularity: 20, money: 5, party: [guest] });
+        patchState(unprotected(store), { currentPhase: GamePhase.PARTY, popularity: 20, money: 5, party: [guest] });
         const during = {
           trouble: store.trouble(), stars: store.stars(), limit: store.effectiveTroubleLimit()
         };

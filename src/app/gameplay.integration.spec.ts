@@ -1,6 +1,7 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter, Router } from '@angular/router';
 import { patchState } from '@ngrx/signals';
+import { unprotected } from '@ngrx/signals/testing';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { GameplayComponent } from './components/gameplay.component';
 import { LandingPageComponent } from './components/landing-page.component';
@@ -899,7 +900,7 @@ describe('Party Guest Deck System Integration Tests', () => {
     it('should display guest cards for all invited guests', () => {
       fixture.detectChanges();
       store.initializeGame();
-      patchState(store, { baseTroubleLimit: 100 }); // Prevent shutdown during test
+      patchState(unprotected(store), { baseTroubleLimit: 100 }); // Prevent shutdown during test
       store.advancePhase(); // Move to Party phase
       fixture.detectChanges();
       
@@ -922,7 +923,7 @@ describe('Party Guest Deck System Integration Tests', () => {
     it('should return all guests to deck when Party phase ends', () => {
       fixture.detectChanges();
       store.initializeGame();
-      patchState(store, { baseTroubleLimit: 100 }); // Prevent shutdown during test
+      patchState(unprotected(store), { baseTroubleLimit: 100 }); // Prevent shutdown during test
       store.advancePhase(); // Move to Party phase
       fixture.detectChanges();
       
@@ -955,7 +956,7 @@ describe('Party Guest Deck System Integration Tests', () => {
     it('should complete full cycle: invite guests → end party → invite again', () => {
       fixture.detectChanges();
       store.initializeGame();
-      patchState(store, { baseTroubleLimit: 100 }); // Prevent shutdown during test
+      patchState(unprotected(store), { baseTroubleLimit: 100 }); // Prevent shutdown during test
       fixture.detectChanges();
       
       const phaseButton = fixture.nativeElement.querySelector('.phase-button');
@@ -1002,7 +1003,7 @@ describe('Party Guest Deck System Integration Tests', () => {
     it('should display guest cards in reverse chronological order (newest first)', () => {
       fixture.detectChanges();
       store.initializeGame();
-      patchState(store, { baseTroubleLimit: 100 }); // Prevent shutdown during test
+      patchState(unprotected(store), { baseTroubleLimit: 100 }); // Prevent shutdown during test
       store.advancePhase(); // Move to Party phase
       fixture.detectChanges();
       
@@ -1054,7 +1055,7 @@ describe('Party Guest Deck System Integration Tests', () => {
     it('should update guest card display when new guests are invited', () => {
       fixture.detectChanges();
       store.initializeGame();
-      patchState(store, { baseTroubleLimit: 100, houseCapacity: 100 }); // Prevent shutdown during test
+      patchState(unprotected(store), { baseTroubleLimit: 100, houseCapacity: 100 }); // Prevent shutdown during test
       store.advancePhase(); // Move to Party phase
       fixture.detectChanges();
       
@@ -1085,7 +1086,7 @@ describe('Party Guest Deck System Integration Tests', () => {
     it('should clear guest cards when party phase ends', () => {
       fixture.detectChanges();
       store.initializeGame();
-      patchState(store, { baseTroubleLimit: 100, houseCapacity: 100 });
+      patchState(unprotected(store), { baseTroubleLimit: 100, houseCapacity: 100 });
       store.advancePhase(); // Move to Party phase
       fixture.detectChanges();
       
@@ -1116,7 +1117,7 @@ describe('Party Guest Deck System Integration Tests', () => {
     it('should show "No more guests!" message when deck is empty and invite clicked', () => {
       fixture.detectChanges();
       store.initializeGame();
-      patchState(store, { baseTroubleLimit: 100, houseCapacity: 100 });
+      patchState(unprotected(store), { baseTroubleLimit: 100, houseCapacity: 100 });
       store.advancePhase(); // Move to Party phase
       fixture.detectChanges();
       
@@ -1144,7 +1145,7 @@ describe('Party Guest Deck System Integration Tests', () => {
     it('should not add guests to party when deck is empty', () => {
       fixture.detectChanges();
       store.initializeGame();
-      patchState(store, { baseTroubleLimit: 100, houseCapacity: 100 });
+      patchState(unprotected(store), { baseTroubleLimit: 100, houseCapacity: 100 });
       store.advancePhase(); // Move to Party phase
       fixture.detectChanges();
       
@@ -1169,7 +1170,7 @@ describe('Party Guest Deck System Integration Tests', () => {
     it('should replenish deck when party phase ends with empty deck', () => {
       fixture.detectChanges();
       store.initializeGame();
-      patchState(store, { baseTroubleLimit: 100, houseCapacity: 100 });
+      patchState(unprotected(store), { baseTroubleLimit: 100, houseCapacity: 100 });
       store.advancePhase(); // Move to Party phase
       fixture.detectChanges();
       
@@ -1199,7 +1200,7 @@ describe('Party Guest Deck System Integration Tests', () => {
     it('should maintain total of 10 guests across deck and party throughout game', () => {
       fixture.detectChanges();
       store.initializeGame(3);
-      patchState(store, { baseTroubleLimit: 100, houseCapacity: 100 }); // Prevent shutdown during conservation test
+      patchState(unprotected(store), { baseTroubleLimit: 100, houseCapacity: 100 }); // Prevent shutdown during conservation test
       fixture.detectChanges();
       
       const phaseButton = fixture.nativeElement.querySelector('.phase-button');
@@ -1307,7 +1308,7 @@ describe('Party Guest Deck System Integration Tests', () => {
     it('should synchronize invite button, guest cards, and store state', () => {
       fixture.detectChanges();
       store.initializeGame();
-      patchState(store, { baseTroubleLimit: 100 }); // Prevent shutdown during test
+      patchState(unprotected(store), { baseTroubleLimit: 100 }); // Prevent shutdown during test
       store.advancePhase(); // Move to Party phase
       fixture.detectChanges();
       
@@ -1477,7 +1478,7 @@ describe('Popularity Resource System Integration Tests', () => {
     it('should accumulate popularity correctly across multiple turns', () => {
       fixture.detectChanges();
       store.initializeGame(3);
-      patchState(store, { baseTroubleLimit: 100 }); // Prevent shutdown during test
+      patchState(unprotected(store), { baseTroubleLimit: 100 }); // Prevent shutdown during test
       fixture.detectChanges();
       
       // Initial popularity is 0
@@ -1549,7 +1550,7 @@ describe('Popularity Resource System Integration Tests', () => {
     it('should reset popularity to 0 when game is reset', () => {
       fixture.detectChanges();
       store.initializeGame(2);
-      patchState(store, { baseTroubleLimit: 100 });
+      patchState(unprotected(store), { baseTroubleLimit: 100 });
       fixture.detectChanges();
       
       const phaseButton = fixture.nativeElement.querySelector('.phase-button');
@@ -1607,7 +1608,7 @@ describe('Popularity Resource System Integration Tests', () => {
       fixture.detectChanges();
 
       // Put the most popular guests on top so the 2 invited guests always grant popularity
-      patchState(store, { deck: sortByPopularityDescending(store.deck()) });
+      patchState(unprotected(store), { deck: sortByPopularityDescending(store.deck()) });
 
       const inviteButton = fixture.nativeElement.querySelector('.invite-button');
       inviteButton.click();
@@ -1625,9 +1626,9 @@ describe('Popularity Resource System Integration Tests', () => {
     it('should preserve popularity during Buy → Party phase transition', () => {
       fixture.detectChanges();
       store.initializeGame(3);
-      patchState(store, { baseTroubleLimit: 100 }); // Prevent shutdown during test
+      patchState(unprotected(store), { baseTroubleLimit: 100 }); // Prevent shutdown during test
       // Put the most popular guests on top so the 2 invited guests always grant popularity
-      patchState(store, { deck: sortByPopularityDescending(store.deck()) });
+      patchState(unprotected(store), { deck: sortByPopularityDescending(store.deck()) });
       fixture.detectChanges();
 
       const phaseButton = fixture.nativeElement.querySelector('.phase-button');
@@ -1727,7 +1728,7 @@ describe('Popularity Resource System Integration Tests', () => {
       fixture.detectChanges();
 
       // Put the most popular guests on top so the 2 invited guests always grant popularity
-      patchState(store, { deck: sortByPopularityDescending(store.deck()) });
+      patchState(unprotected(store), { deck: sortByPopularityDescending(store.deck()) });
 
       const inviteButton = fixture.nativeElement.querySelector('.invite-button');
       inviteButton.click();
@@ -1757,7 +1758,7 @@ describe('Popularity Resource System Integration Tests', () => {
     it('should correctly accumulate popularity over 5 turns with varying party sizes', () => {
       fixture.detectChanges();
       store.initializeGame(5);
-      patchState(store, { baseTroubleLimit: 100 });
+      patchState(unprotected(store), { baseTroubleLimit: 100 });
       fixture.detectChanges();
       
       const phaseButton = fixture.nativeElement.querySelector('.phase-button');
@@ -1832,7 +1833,7 @@ describe('Popularity Resource System Integration Tests', () => {
     it('should handle all guests invited every turn', () => {
       fixture.detectChanges();
       store.initializeGame(3);
-      patchState(store, { baseTroubleLimit: 100, houseCapacity: 100 });
+      patchState(unprotected(store), { baseTroubleLimit: 100, houseCapacity: 100 });
       fixture.detectChanges();
       
       const phaseButton = fixture.nativeElement.querySelector('.phase-button');
@@ -1898,7 +1899,7 @@ describe('Popularity Resource System Integration Tests', () => {
     it('should handle alternating between empty and full parties', () => {
       fixture.detectChanges();
       store.initializeGame(4);
-      patchState(store, { baseTroubleLimit: 100, houseCapacity: 100 });
+      patchState(unprotected(store), { baseTroubleLimit: 100, houseCapacity: 100 });
       fixture.detectChanges();
       
       const phaseButton = fixture.nativeElement.querySelector('.phase-button');
@@ -1989,7 +1990,7 @@ describe('Star Guests & Winning Integration Test', () => {
   it('should win after ending a party with four star guests and return home on Victory', async () => {
     const navigateSpy = vi.spyOn(router, 'navigate');
     fixture.detectChanges(); // ngOnInit → initializeGame()
-    patchState(store, { popularity: 200 });
+    patchState(unprotected(store), { popularity: 200 });
     fixture.detectChanges();
 
     const element = fixture.nativeElement as HTMLElement;
@@ -2009,7 +2010,7 @@ describe('Star Guests & Winning Integration Test', () => {
 
     // Put the Aliens on top of the deck so the shuffle can't bust the party first
     const deck = store.deck();
-    patchState(store, { deck: [...deck.filter(g => g.type === 'ALIEN'), ...deck.filter(g => g.type !== 'ALIEN')] });
+    patchState(unprotected(store), { deck: [...deck.filter(g => g.type === 'ALIEN'), ...deck.filter(g => g.type !== 'ALIEN')] });
 
     for (let i = 0; i < 4; i++) {
       (element.querySelector('.invite-button') as HTMLButtonElement).click();
