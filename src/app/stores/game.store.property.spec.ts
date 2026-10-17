@@ -5,6 +5,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { GamePhase } from '../models';
 import { Guest, GUEST_TYPE_COSTS, GUEST_TYPE_DEFAULTS, GUEST_TYPE_ENTRANCE_EFFECTS, GUEST_TYPE_LABELS, GuestType, INITIAL_GUESTS, SHOP_GUESTS } from '../models/guest.model';
 import { GameStore, ShopInventoryEntry } from './game.store';
+import { testGuest } from '../../testing/guests';
 
 /**
  * Property-Based Tests for GameStore
@@ -2638,11 +2639,7 @@ describe('GameStore - Property-Based Tests', () => {
 
             // Set arbitrary base via patchState
             // partyTroubleLimitModifier is now computed from party peace, so set party with peace guests
-            const peaceGuests: Guest[] = Array.from({ length: peaceGuestCount }, (_, i) => ({
-              type: 'HIPPY' as const,
-              name: `Hippy${i}`,
-              properties: { ...GUEST_TYPE_DEFAULTS['HIPPY'] }
-            }));
+            const peaceGuests: Guest[] = Array.from({ length: peaceGuestCount }, (_, i) => testGuest('HIPPY', `Hippy${i}`));
             patchState(store, { baseTroubleLimit, party: peaceGuests });
 
             // Verify the computed effective trouble limit
@@ -2707,11 +2704,7 @@ describe('GameStore - Property-Based Tests', () => {
             store.initializeGame();
 
             // Set party with peace guests
-            const peaceGuests: Guest[] = Array.from({ length: peaceGuestCount }, (_, i) => ({
-              type: 'CUTE_DOG' as const,
-              name: `Dog${i}`,
-              properties: { ...GUEST_TYPE_DEFAULTS['CUTE_DOG'] }
-            }));
+            const peaceGuests: Guest[] = Array.from({ length: peaceGuestCount }, (_, i) => testGuest('CUTE_DOG', `Dog${i}`));
             patchState(store, { party: peaceGuests });
 
             // Verify the modifier equals the sum of peaceValue
@@ -2751,11 +2744,7 @@ describe('GameStore - Property-Based Tests', () => {
             expect(store.currentPhase()).toBe(GamePhase.PARTY);
 
             // Set party with peace guests to get a non-zero modifier
-            const peaceGuests: Guest[] = Array.from({ length: peaceGuestCount }, (_, i) => ({
-              type: 'HIPPY' as const,
-              name: `Hippy${i}`,
-              properties: { ...GUEST_TYPE_DEFAULTS['HIPPY'] }
-            }));
+            const peaceGuests: Guest[] = Array.from({ length: peaceGuestCount }, (_, i) => testGuest('HIPPY', `Hippy${i}`));
             patchState(store, { party: peaceGuests });
             expect(store.partyTroubleLimitModifier()).toBe(peaceGuestCount);
 
@@ -2796,11 +2785,7 @@ describe('GameStore - Property-Based Tests', () => {
 
             // Add peace guests to party to get a non-zero modifier
             const currentParty = store.party();
-            const peaceGuests: Guest[] = Array.from({ length: peaceGuestCount }, (_, i) => ({
-              type: 'CUTE_DOG' as const,
-              name: `Dog${i}`,
-              properties: { ...GUEST_TYPE_DEFAULTS['CUTE_DOG'] }
-            }));
+            const peaceGuests: Guest[] = Array.from({ length: peaceGuestCount }, (_, i) => testGuest('CUTE_DOG', `Dog${i}`));
             patchState(store, { party: [...currentParty, ...peaceGuests] });
             expect(store.partyTroubleLimitModifier()).toBe(peaceGuestCount);
 
@@ -2843,11 +2828,7 @@ describe('GameStore - Property-Based Tests', () => {
             store.advancePhase();
             expect(store.currentPhase()).toBe(GamePhase.PARTY);
 
-            const deck: Guest[] = types.map((type, i) => ({
-              type,
-              name: `Guest${i}`,
-              properties: { ...GUEST_TYPE_DEFAULTS[type] }
-            }));
+            const deck: Guest[] = types.map((type, i) => testGuest(type, `Guest${i}`));
             patchState(store, { deck, houseCapacity: 100, baseTroubleLimit });
 
             for (const guest of deck) {
@@ -3141,7 +3122,7 @@ describe('GameStore - Property-Based Tests', () => {
         type: fc.constantFrom('OLD_FRIEND' as const, 'WILD_BUDDY' as const, 'RICH_PAL' as const),
         name: fc.string({ minLength: 1, maxLength: 10 }),
         properties: fc.constant({ popularityValue: 1, troubleValue: 0, moneyValue: 0 })
-      });
+      }).map(g => testGuest(g.type, g.name, g.properties));
 
       const pathArb = fc.constantFrom('normal', 'bust');
 
@@ -3264,11 +3245,7 @@ describe('GameStore - Property-Based Tests', () => {
           (guestType, name) => {
             store.initializeGame();
 
-            const guest: Guest = {
-              type: guestType,
-              name,
-              properties: { popularityValue: 1, troubleValue: 0, moneyValue: 0 }
-            };
+            const guest: Guest = testGuest(guestType, name, { popularityValue: 1, troubleValue: 0, moneyValue: 0 });
 
             patchState(store, { selectedBanGuest: guest });
 
@@ -3302,7 +3279,7 @@ describe('GameStore - Property-Based Tests', () => {
         type: fc.constantFrom('OLD_FRIEND' as const, 'WILD_BUDDY' as const, 'RICH_PAL' as const),
         name: fc.string({ minLength: 1, maxLength: 10 }),
         properties: fc.constant({ popularityValue: 1, troubleValue: 0, moneyValue: 0 })
-      });
+      }).map(g => testGuest(g.type, g.name, g.properties));
 
       fc.assert(
         fc.property(
@@ -3376,11 +3353,7 @@ describe('GameStore - Property-Based Tests', () => {
 
             store.initializeGame(totalTurns);
 
-            const dummyGuest: Guest = {
-              type: 'OLD_FRIEND',
-              name: 'TestGuest',
-              properties: { popularityValue: 1, troubleValue: 0, moneyValue: 0 }
-            };
+            const dummyGuest: Guest = testGuest('OLD_FRIEND', 'TestGuest', { popularityValue: 1, troubleValue: 0, moneyValue: 0 });
 
             patchState(store, {
               currentTurn,
@@ -3423,7 +3396,7 @@ describe('GameStore - Property-Based Tests', () => {
         type: fc.constantFrom('OLD_FRIEND' as const, 'WILD_BUDDY' as const, 'RICH_PAL' as const),
         name: fc.string({ minLength: 1, maxLength: 10 }),
         properties: fc.constant({ popularityValue: 1, troubleValue: 0, moneyValue: 0 })
-      });
+      }).map(g => testGuest(g.type, g.name, g.properties));
 
       fc.assert(
         fc.property(
@@ -4059,11 +4032,7 @@ describe('GameStore - Shop Buy Guests Property Tests', () => {
             store.initializeGame();
 
             // Create dummy Guest objects for the party
-            const party: Guest[] = Array.from({ length: partySize }, (_, i) => ({
-              type: 'OLD_FRIEND' as GuestType,
-              name: `TestGuest${i}`,
-              properties: { popularityValue: 1, troubleValue: 0, moneyValue: 0 }
-            }));
+            const party: Guest[] = Array.from({ length: partySize }, (_, i) => testGuest('OLD_FRIEND', `TestGuest${i}`, { popularityValue: 1, troubleValue: 0, moneyValue: 0 }));
 
             patchState(store, { houseCapacity, party });
 
@@ -4240,7 +4209,7 @@ describe('GameStore - Shop Buy Guests Property Tests', () => {
           troubleValue: fc.integer({ min: 0, max: 5 }),
           moneyValue: fc.integer({ min: -5, max: 5 })
         })
-      });
+      }).map(g => testGuest(g.type, g.name, g.properties));
 
       fc.assert(
         fc.property(
@@ -4671,11 +4640,8 @@ describe('GameStore - Shop Buy Guests Property Tests', () => {
       const newTypes: GuestType[] = ['AUCTIONEER', 'GANGSTER', 'ROCK_STAR', 'GAMBLER'];
 
       // Generator for a single guest of a given type
-      const guestOfType = (type: GuestType): Guest => ({
-        type,
-        name: `Test_${type}_${Math.random().toString(36).slice(2, 6)}`,
-        properties: { ...GUEST_TYPE_DEFAULTS[type] }
-      });
+      const guestOfType = (type: GuestType): Guest =>
+        testGuest(type, `Test_${type}_${Math.random().toString(36).slice(2, 6)}`);
 
       // Generator: at least 1 new-type guest, mixed with any types, party size 1-10
       const partyArb = fc
@@ -4914,7 +4880,7 @@ describe('GameStore - Star Guests & Winning Property Tests', () => {
   const NON_STAR_TYPES = ALL_TYPES.filter(t => !STAR_TYPES.includes(t));
 
   const makeParty = (types: GuestType[], prefix = 'G'): Guest[] =>
-    types.map((type, i) => ({ type, name: `${prefix}${i}-${type}`, properties: { ...GUEST_TYPE_DEFAULTS[type] } }));
+    types.map((type, i) => testGuest(type, `${prefix}${i}-${type}`));
 
   const sumOf = (guests: Guest[], key: keyof Guest['properties']): number =>
     guests.reduce((sum, g) => sum + g.properties[key], 0);
@@ -4938,11 +4904,7 @@ describe('GameStore - Star Guests & Winning Property Tests', () => {
           { maxLength: 10 }
         ),
         (specs) => {
-          const party: Guest[] = specs.map((s, i) => ({
-            type: s.type,
-            name: `G${i}`,
-            properties: { ...GUEST_TYPE_DEFAULTS[s.type], starValue: s.starValue }
-          }));
+          const party: Guest[] = specs.map((s, i) => testGuest(s.type, `G${i}`, { starValue: s.starValue }));
           patchState(store, { party });
           expect(store.stars()).toBe(specs.reduce((sum, s) => sum + s.starValue, 0));
         }
@@ -5215,5 +5177,153 @@ describe('GameStore - Star Guests & Winning Property Tests', () => {
       ),
       { numRuns: 100 }
     );
+  });
+});
+
+/**
+ * Property-Based Tests for Guest Identity
+ *
+ * **Validates: guest-identity Requirements 1.2, 1.3, 1.4, 2.1, 2.2, 3.1, 3.2, 5.1**
+ */
+describe('GameStore Property Tests - Guest Identity', () => {
+  let store: InstanceType<typeof GameStore>;
+
+  const purchasableTypes = (Object.keys(GUEST_TYPE_COSTS) as GuestType[]).filter(t => GUEST_TYPE_COSTS[t] !== null);
+
+  const allIds = (): string[] => [
+    ...store.deck(),
+    ...store.party(),
+    ...store.discard(),
+    ...store.bustPartySnapshot(),
+    ...store.shopInventory().flatMap(e => e.guests)
+  ].map(g => g.id);
+
+  beforeEach(() => {
+    TestBed.configureTestingModule({});
+    store = TestBed.inject(GameStore);
+  });
+
+  describe('Property 1: Ids Are Unique After Initialization', () => {
+    it('should give every guest a distinct id', () => {
+      // Feature: guest-identity, Property 1: Ids Are Unique After Initialization
+      fc.assert(
+        fc.property(fc.integer({ min: 1, max: 50 }), (turns) => {
+          store.initializeGame(turns);
+          const ids = allIds();
+          expect(ids).toHaveLength(INITIAL_GUESTS.length + SHOP_GUESTS.length);
+          expect(new Set(ids).size).toBe(ids.length);
+        }),
+        { numRuns: 100 }
+      );
+    });
+  });
+
+  describe('Property 2: Id Conservation Across Operations', () => {
+    it('should keep exactly the initial ids across any sequence of operations', () => {
+      // Feature: guest-identity, Property 2: Id Conservation Across Operations
+      const operationArb = fc.oneof(
+        fc.constantFrom('invite' as const, 'advancePhase' as const, 'acknowledgeShutdown' as const, 'confirmBan' as const),
+        fc.constantFrom(...purchasableTypes).map(type => ({ purchase: type })),
+        fc.nat({ max: 9 }).map(index => ({ ban: index }))
+      );
+
+      fc.assert(
+        fc.property(fc.array(operationArb, { minLength: 1, maxLength: 60 }), (operations) => {
+          store.initializeGame();
+          patchState(store, { popularity: 200 });
+          const initialIds = [...allIds()].sort();
+
+          for (const op of operations) {
+            if (typeof op === 'object' && 'purchase' in op) {
+              store.purchaseGuest(op.purchase);
+            } else if (typeof op === 'object') {
+              store.selectGuestToBan(op.ban);
+            } else if (op === 'invite') {
+              if (store.currentPhase() === GamePhase.PARTY) store.inviteGuest();
+            } else if (op === 'advancePhase') {
+              if (!store.isGameComplete() && !store.isPartyShutdown() && !store.isBanSelectionActive()) {
+                store.advancePhase();
+              }
+            } else if (op === 'acknowledgeShutdown') {
+              if (store.isPartyShutdown()) store.acknowledgeShutdown();
+            } else {
+              store.confirmBan();
+            }
+
+            expect([...allIds()].sort()).toEqual(initialIds);
+          }
+
+          store.resetGame();
+        }),
+        { numRuns: 100 }
+      );
+    });
+  });
+
+  describe('Property 3: updateGuest Pins the Id and Matches by Id', () => {
+    it('should replace exactly the matching party guest and keep its id', () => {
+      // Feature: guest-identity, Property 3: updateGuest Pins the Id and Matches by Id
+      fc.assert(
+        fc.property(
+          fc.integer({ min: 1, max: 6 }).chain(size => fc.tuple(
+            fc.constant(size),
+            fc.nat({ max: size - 1 }),
+            fc.string({ maxLength: 8 })
+          )),
+          ([size, target, otherId]) => {
+            store.initializeGame();
+            const party = Array.from({ length: size }, () => testGuest('RICH_PAL', 'Same Name'));
+            const trigger = testGuest('OLD_FRIEND', 'Trigger');
+            patchState(store, { currentPhase: GamePhase.PARTY, houseCapacity: 10, party, deck: [trigger] });
+
+            GUEST_TYPE_ENTRANCE_EFFECTS.OLD_FRIEND = (ctx) => {
+              const copy = { ...party[target] };
+              ctx.updateGuest(copy, g => ({ ...g, id: otherId, properties: { ...g.properties, moneyValue: 42 } }));
+            };
+
+            try {
+              store.inviteGuest();
+            } finally {
+              delete GUEST_TYPE_ENTRANCE_EFFECTS.OLD_FRIEND;
+            }
+
+            const after = store.party();
+            expect(after.map(g => g.id)).toEqual([...party.map(g => g.id), trigger.id]);
+            after.slice(0, size).forEach((g, i) => {
+              expect(g.properties.moneyValue).toBe(i === target ? 42 : party[i].properties.moneyValue);
+            });
+          }
+        ),
+        { numRuns: 100 }
+      );
+    });
+  });
+
+  describe('Property 4: Ban Removes Exactly the Selected Guest', () => {
+    it('should discard only the chosen guest even when names repeat', () => {
+      // Feature: guest-identity, Property 4: Ban Removes Exactly the Selected Guest
+      fc.assert(
+        fc.property(
+          fc.array(fc.constantFrom('Matt', 'Chad'), { minLength: 1, maxLength: 6 }).chain(names => fc.tuple(
+            fc.constant(names),
+            fc.nat({ max: names.length - 1 })
+          )),
+          ([names, index]) => {
+            store.initializeGame();
+            const snapshot = names.map(name => testGuest('WILD_BUDDY', name));
+            const deckBefore = store.deck();
+            patchState(store, { bustPartySnapshot: snapshot, isBanSelectionActive: true });
+
+            store.selectGuestToBan(index);
+            store.confirmBan();
+
+            expect(store.discard().map(g => g.id)).toEqual([snapshot[index].id]);
+            const expectedDeck = [...deckBefore, ...snapshot.filter((_, i) => i !== index)].map(g => g.id).sort();
+            expect(store.deck().map(g => g.id).sort()).toEqual(expectedDeck);
+          }
+        ),
+        { numRuns: 100 }
+      );
+    });
   });
 });

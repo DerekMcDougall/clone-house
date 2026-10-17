@@ -44,7 +44,7 @@
     <h2>Party</h2>
     @if (phase === GamePhase.PARTY) {
       <div class="guest-cards-container">
-        @for (guest of reversedParty(); track guest.name) {
+        @for (guest of reversedParty(); track guest.id) {
           <app-guest-card [guest]="guest" />
         }
         @for (i of emptySlotArray(); track i) {
@@ -100,7 +100,7 @@
   <div class="ban-selection">
     <h3 class="blame-prompt">Who takes the blame?</h3>
     <div class="guest-cards-container">
-      @for (guest of gameStore.bustPartySnapshot(); track $index) {
+      @for (guest of gameStore.bustPartySnapshot(); track guest.id) {
         <button
           class="ban-guest-button"
           (click)="gameStore.selectGuestToBan($index)"

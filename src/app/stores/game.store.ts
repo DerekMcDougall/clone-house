@@ -2,7 +2,7 @@ import { computed } from '@angular/core';
 import { patchState, signalStore, withComputed, withMethods, withState } from '@ngrx/signals';
 import { GamePhase, GameState } from '../models';
 import { EffectContext, GameEffect } from '../models/effect-context';
-import { admitGuest, Guest, GUEST_TYPE_COSTS, GUEST_TYPE_DEFAULTS, GUEST_TYPE_LABELS, GuestType, INITIAL_GUESTS, SHOP_GUESTS, WINNING_STAR_COUNT } from '../models/guest.model';
+import { admitGuest, createGuest, createGuestIdSource, Guest, GUEST_TYPE_COSTS, GUEST_TYPE_LABELS, GuestType, INITIAL_GUESTS, SHOP_GUESTS, WINNING_STAR_COUNT } from '../models/guest.model';
 
 export type { EffectContext };
 
@@ -43,8 +43,8 @@ class EffectContextImpl implements EffectContext {
   setMoney(value: number): void { this._money = value; }
 
   updateGuest(guest: Guest, updater: (g: Guest) => Guest): Guest {
-    const updated = updater(guest);
-    this._party = this._party.map(g => (g === guest ? updated : g));
+    const updated = { ...updater(guest), id: guest.id };
+    this._party = this._party.map(g => (g.id === guest.id ? updated : g));
     return updated;
   }
 
@@ -292,12 +292,11 @@ export const GameStore = signalStore(
           throw new Error('Turn count must be greater than zero');
         }
         
+        // One id source for the whole game, so every guest's id is unique
+        const nextId = createGuestIdSource();
+
         // Create 10 guests from INITIAL_GUESTS (4 Old Friends + 4 Wild Buddies + 2 Rich Pals)
-        const deck: Guest[] = INITIAL_GUESTS.map((entry: { type: GuestType; name: string }) => ({
-          type: entry.type,
-          name: entry.name,
-          properties: { ...GUEST_TYPE_DEFAULTS[entry.type] }
-        }));
+        const deck: Guest[] = INITIAL_GUESTS.map(entry => createGuest(entry.type, entry.name, nextId));
         
         // Shuffle the deck
         shuffleDeck(deck);
@@ -308,11 +307,7 @@ export const GameStore = signalStore(
           const cost = GUEST_TYPE_COSTS[entry.type];
           if (cost === null) continue; // Skip non-purchasable types
           if (!shopMap.has(entry.type)) shopMap.set(entry.type, []);
-          shopMap.get(entry.type)!.push({
-            type: entry.type,
-            name: entry.name,
-            properties: { ...GUEST_TYPE_DEFAULTS[entry.type] }
-          });
+          shopMap.get(entry.type)!.push(createGuest(entry.type, entry.name, nextId));
         }
 
         const shopInventory: ShopInventoryEntry[] = [];
@@ -537,7 +532,7 @@ export const GameStore = signalStore(
         if (!selected) return;
 
         const snapshot = store.bustPartySnapshot();
-        const remaining = snapshot.filter(g => g !== selected);
+        const remaining = snapshot.filter(g => g.id !== selected.id);
         const currentDeck = store.deck();
         const updatedDeck = [...currentDeck, ...remaining];
 

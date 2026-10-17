@@ -1,10 +1,11 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { patchState } from '@ngrx/signals';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { GamePhase } from '../models';
 import { Guest, GUEST_TYPE_DEFAULTS } from '../models/guest.model';
 import { GameStore } from '../stores/game.store';
 import { PhaseContentComponent } from './phase-content.component';
+import { testGuest } from '../../testing/guests';
 
 describe('PhaseContentComponent', () => {
   let component: PhaseContentComponent;
@@ -94,6 +95,22 @@ describe('PhaseContentComponent', () => {
       const guestCards = compiled.querySelectorAll('app-guest-card');
 
       expect(guestCards.length).toBe(3);
+    });
+
+    it('should render one card per guest when two party guests share a name', () => {
+      // guest-identity Requirement 4.3: tracking by name would give Angular duplicate keys
+      const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      try {
+        patchState(gameStore, { party: [testGuest('OLD_FRIEND', 'Matt'), testGuest('OLD_FRIEND', 'Matt')] });
+        component.phase = GamePhase.PARTY;
+        fixture.detectChanges();
+
+        const compiled = fixture.nativeElement as HTMLElement;
+        expect(compiled.querySelectorAll('app-guest-card').length).toBe(2);
+        expect(warn.mock.calls.some(args => String(args[0]).includes('NG0955'))).toBe(false);
+      } finally {
+        warn.mockRestore();
+      }
     });
 
     it('should hide guest cards during BUY phase', () => {
@@ -250,17 +267,12 @@ describe('PhaseContentComponent', () => {
   });
 
   describe('Ban Selection UI', () => {
-    const makeGuest = (type: Guest['type'], name: string): Guest => ({
-      type,
-      name,
-      properties: { ...GUEST_TYPE_DEFAULTS[type] }
-    });
 
     it('should display blame prompt when isBanSelectionActive is true', () => {
       // Requirements: 3.3
       patchState(gameStore, {
         isBanSelectionActive: true,
-        bustPartySnapshot: [makeGuest('OLD_FRIEND', 'Brian')]
+        bustPartySnapshot: [testGuest('OLD_FRIEND', 'Brian')]
       });
       component.phase = GamePhase.PARTY;
       fixture.detectChanges();
@@ -275,9 +287,9 @@ describe('PhaseContentComponent', () => {
     it('should render guest cards from bustPartySnapshot', () => {
       // Requirements: 3.4
       const snapshot = [
-        makeGuest('OLD_FRIEND', 'Brian'),
-        makeGuest('WILD_BUDDY', 'Anthony'),
-        makeGuest('RICH_PAL', 'Khalil')
+        testGuest('OLD_FRIEND', 'Brian'),
+        testGuest('WILD_BUDDY', 'Anthony'),
+        testGuest('RICH_PAL', 'Khalil')
       ];
       patchState(gameStore, {
         isBanSelectionActive: true,
@@ -298,7 +310,7 @@ describe('PhaseContentComponent', () => {
 
     it('should show confirmation modal when selectedBanGuest is set', () => {
       // Requirements: 5.1
-      const guest = makeGuest('WILD_BUDDY', 'Anthony');
+      const guest = testGuest('WILD_BUDDY', 'Anthony');
       patchState(gameStore, {
         isBanSelectionActive: true,
         bustPartySnapshot: [guest],
@@ -317,7 +329,7 @@ describe('PhaseContentComponent', () => {
 
     it('should show correct message and OK button in confirmation modal', () => {
       // Requirements: 5.2, 5.3
-      const guest = makeGuest('RICH_PAL', 'Khalil');
+      const guest = testGuest('RICH_PAL', 'Khalil');
       patchState(gameStore, {
         isBanSelectionActive: true,
         bustPartySnapshot: [guest],
@@ -813,17 +825,12 @@ describe('PhaseContentComponent', () => {
   });
 
   describe('Card Shadow Rendering', () => {
-    const makeGuest = (type: Guest['type'], name: string): Guest => ({
-      type,
-      name,
-      properties: { ...GUEST_TYPE_DEFAULTS[type] }
-    });
 
     it('should render shadow count equal to houseCapacity minus party length', () => {
       // Requirements: 8.1
       const partyGuests = [
-        makeGuest('OLD_FRIEND', 'Brian'),
-        makeGuest('WILD_BUDDY', 'Anthony')
+        testGuest('OLD_FRIEND', 'Brian'),
+        testGuest('WILD_BUDDY', 'Anthony')
       ];
       patchState(gameStore, {
         currentPhase: GamePhase.PARTY,
@@ -843,9 +850,9 @@ describe('PhaseContentComponent', () => {
     it('should render zero shadows when party is full', () => {
       // Requirements: 8.4
       const partyGuests = [
-        makeGuest('OLD_FRIEND', 'Brian'),
-        makeGuest('OLD_FRIEND', 'Colin'),
-        makeGuest('WILD_BUDDY', 'Anthony')
+        testGuest('OLD_FRIEND', 'Brian'),
+        testGuest('OLD_FRIEND', 'Colin'),
+        testGuest('WILD_BUDDY', 'Anthony')
       ];
       patchState(gameStore, {
         currentPhase: GamePhase.PARTY,
@@ -1015,11 +1022,7 @@ describe('PhaseContentComponent - Victory and Star Guests', () => {
   let gameStore: InstanceType<typeof GameStore>;
 
   const aliens = (count: number): Guest[] =>
-    Array.from({ length: count }, (_, i) => ({
-      type: 'ALIEN' as const,
-      name: `Alien${i}`,
-      properties: { ...GUEST_TYPE_DEFAULTS['ALIEN'] }
-    }));
+    Array.from({ length: count }, (_, i) => testGuest('ALIEN', `Alien${i}`));
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({

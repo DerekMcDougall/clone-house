@@ -19,6 +19,7 @@ export interface GuestProperties {
 }
 
 export interface Guest {
+  id: string;
   type: GuestType;
   name: string;
   properties: GuestProperties;
@@ -333,6 +334,18 @@ export const INITIAL_GUESTS: readonly { type: GuestType; name: string }[] = [
   { type: 'RICH_PAL' as const, name: 'Khalil' },
   { type: 'RICH_PAL' as const, name: 'Renata' }
 ];
+
+export type GuestIdSource = () => string;
+
+// Yields g1, g2, g3, ... A game uses one source so every guest's id is unique.
+export function createGuestIdSource(): GuestIdSource {
+  let next = 1;
+  return () => `g${next++}`;
+}
+
+export function createGuest(type: GuestType, name: string, nextId: GuestIdSource): Guest {
+  return { id: nextId(), type, name, properties: { ...GUEST_TYPE_DEFAULTS[type] } };
+}
 
 // Runs when a guest joins the party. `guest` is the guest as admitted; use
 // ctx.updateGuest(guest, ...) to change it in the party.

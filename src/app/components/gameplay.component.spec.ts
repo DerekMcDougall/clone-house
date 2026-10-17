@@ -6,6 +6,7 @@ import { GamePhase } from '../models';
 import { GUEST_TYPE_DEFAULTS } from '../models/guest.model';
 import { GameStore } from '../stores/game.store';
 import { GameplayComponent } from './gameplay.component';
+import { testGuest } from '../../testing/guests';
 
 /**
  * Unit Tests for GameplayComponent
@@ -369,11 +370,7 @@ describe('GameplayComponent - Victory', () => {
     const navigateSpy = vi.spyOn(router, 'navigate');
     fixture.detectChanges();
 
-    const aliens = Array.from({ length: 4 }, (_, i) => ({
-      type: 'ALIEN' as const,
-      name: `Alien${i}`,
-      properties: { ...GUEST_TYPE_DEFAULTS['ALIEN'] }
-    }));
+    const aliens = Array.from({ length: 4 }, (_, i) => testGuest('ALIEN', `Alien${i}`));
     patchState(store, { currentPhase: GamePhase.PARTY, party: aliens });
     store.advancePhase();
     fixture.detectChanges();

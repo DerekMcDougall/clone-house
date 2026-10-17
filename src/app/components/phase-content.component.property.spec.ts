@@ -6,6 +6,7 @@ import { GamePhase } from '../models';
 import { Guest, GUEST_TYPE_DEFAULTS, GUEST_TYPE_LABELS, GuestType } from '../models/guest.model';
 import { GameStore, ShopInventoryEntry } from '../stores/game.store';
 import { PhaseContentComponent } from './phase-content.component';
+import { testGuest } from '../../testing/guests';
 
 /**
  * Property-Based Tests for PhaseContentComponent
@@ -420,11 +421,7 @@ describe('PhaseContentComponent - Property-Based Tests', () => {
       const guestArb: fc.Arbitrary<Guest> = fc.tuple(
         fc.constantFrom<GuestType>('OLD_FRIEND', 'WILD_BUDDY', 'RICH_PAL'),
         fc.string({ minLength: 1, maxLength: 20 })
-      ).map(([type, name]) => ({
-        type,
-        name,
-        properties: { ...GUEST_TYPE_DEFAULTS[type] }
-      }));
+      ).map(([type, name]) => testGuest(type, name));
 
       const snapshotArb = fc.array(guestArb, { minLength: 1, maxLength: 10 });
 
@@ -497,11 +494,7 @@ describe('PhaseContentComponent - Shop Buy Guests Property Tests', () => {
         fc.integer({ min: 0, max: 6 })
       ).map(([type, cost, guestCount]) => ({
         type,
-        guests: Array.from({ length: guestCount }, (_, i) => ({
-          type,
-          name: `Guest${i}`,
-          properties: { ...GUEST_TYPE_DEFAULTS[type] }
-        })),
+        guests: Array.from({ length: guestCount }, (_, i) => testGuest(type, `Guest${i}`)),
         cost
       }));
 

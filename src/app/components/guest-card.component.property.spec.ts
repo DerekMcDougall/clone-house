@@ -3,6 +3,7 @@ import * as fc from 'fast-check';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { Guest, GUEST_TYPE_DEFAULTS, GuestType } from '../models/guest.model';
 import { GuestCardComponent } from './guest-card.component';
+import { testGuest } from '../../testing/guests';
 
 /**
  * Property-Based Tests for GuestCardComponent
@@ -37,11 +38,7 @@ describe('GuestCardComponent - Property-Based Tests', () => {
           fc.constantFrom('Brian', 'Colin', 'Anthony', 'Emily', 'Rachelle', 'Teresa', 'Jacco', 'Jodie', 'Khalil', 'Renata'),
           (guestName) => {
             // Create a guest with the generated name
-            const guest: Guest = {
-              type: 'OLD_FRIEND',
-              name: guestName,
-              properties: { ...GUEST_TYPE_DEFAULTS['OLD_FRIEND'] }
-            };
+            const guest: Guest = testGuest('OLD_FRIEND', guestName);
             
             // Create a fresh fixture for each iteration to avoid change detection issues
             const testFixture = TestBed.createComponent(GuestCardComponent);
@@ -91,11 +88,7 @@ describe('GuestCardComponent - Property-Based Tests', () => {
           fc.constantFrom('Brian', 'Colin', 'Anthony', 'Emily', 'Rachelle', 'Teresa', 'Jacco', 'Jodie', 'Khalil', 'Renata'),
           (guestName) => {
             // Create a guest with the generated name
-            const guest: Guest = {
-              type: 'OLD_FRIEND',
-              name: guestName,
-              properties: { ...GUEST_TYPE_DEFAULTS['OLD_FRIEND'] }
-            };
+            const guest: Guest = testGuest('OLD_FRIEND', guestName);
             
             // Create a fresh fixture for each iteration to avoid change detection issues
             const testFixture = TestBed.createComponent(GuestCardComponent);
@@ -148,11 +141,7 @@ describe('GuestCardComponent - Property-Based Tests', () => {
 
       fc.assert(
         fc.property(guestTypeArb, guestNameArb, (guestType, guestName) => {
-          const guest: Guest = {
-            type: guestType,
-            name: guestName,
-            properties: { ...GUEST_TYPE_DEFAULTS[guestType] }
-          };
+          const guest: Guest = testGuest(guestType, guestName);
 
           const testFixture = TestBed.createComponent(GuestCardComponent);
           const testComponent = testFixture.componentInstance;
@@ -196,11 +185,7 @@ describe('GuestCardComponent - Property-Based Tests', () => {
 
       fc.assert(
         fc.property(guestTypeArb, guestNameArb, (guestType, guestName) => {
-          const guest: Guest = {
-            type: guestType,
-            name: guestName,
-            properties: { ...GUEST_TYPE_DEFAULTS[guestType] }
-          };
+          const guest: Guest = testGuest(guestType, guestName);
 
           const testFixture = TestBed.createComponent(GuestCardComponent);
           const testComponent = testFixture.componentInstance;

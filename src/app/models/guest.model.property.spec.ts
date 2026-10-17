@@ -1,6 +1,7 @@
 import * as fc from 'fast-check';
 import { describe, expect, it } from 'vitest';
 import { formatMoney, getGuestDetails, Guest, GUEST_TYPE_DEFAULTS, GUEST_TYPE_ENTRANCE_ICONS, GuestType, INITIAL_GUESTS } from './guest.model';
+import { testGuest } from '../../testing/guests';
 
 /**
  * Property-Based Tests for Guest Model
@@ -40,11 +41,7 @@ describe('Guest Model - Property-Based Tests', () => {
           fc.constantFrom<GuestType>('OLD_FRIEND', 'WILD_BUDDY'),
           (name, type) => {
             // Create a guest instance as the system should create them
-            const guest: Guest = {
-              type,
-              name,
-              properties: { ...GUEST_TYPE_DEFAULTS[type] }
-            };
+            const guest: Guest = testGuest(type, name);
             
             // Verify the guest has a properties object
             expect(guest.properties).toBeDefined();
@@ -74,11 +71,7 @@ describe('Guest Model - Property-Based Tests', () => {
           fc.integer({ min: -10, max: 10 }),
           (name, type, newPopularityValue) => {
             // Create a guest instance
-            const guest: Guest = {
-              type,
-              name,
-              properties: { ...GUEST_TYPE_DEFAULTS[type] }
-            };
+            const guest: Guest = testGuest(type, name);
             
             // Modify the popularityValue (simulating future game effects)
             guest.properties.popularityValue = newPopularityValue;
@@ -107,17 +100,9 @@ describe('Guest Model - Property-Based Tests', () => {
           fc.integer({ min: -5, max: 5 }),
           (name1, name2, popularityModifier) => {
             // Create two guest instances
-            const guest1: Guest = {
-              type: 'OLD_FRIEND',
-              name: name1,
-              properties: { ...GUEST_TYPE_DEFAULTS['OLD_FRIEND'] }
-            };
+            const guest1: Guest = testGuest('OLD_FRIEND', name1);
             
-            const guest2: Guest = {
-              type: 'OLD_FRIEND',
-              name: name2,
-              properties: { ...GUEST_TYPE_DEFAULTS['OLD_FRIEND'] }
-            };
+            const guest2: Guest = testGuest('OLD_FRIEND', name2);
             
             // Modify guest1's properties
             guest1.properties.popularityValue += popularityModifier;
