@@ -1,0 +1,17 @@
+@if (details.icons.length > 0) {
+  <div class="guest-icons">
+    @for (icon of details.icons; track $index) {
+      <span role="img" [attr.aria-label]="icon.label" [title]="icon.label">{{ icon.symbol }}</span>
+    }
+  </div>
+}
+@if (details.popularity !== null) {
+  <div class="guest-popularity" [class.negative]="details.popularity < 0">
+    <span class="visually-hidden">Popularity </span><span class="guest-value">{{ details.popularity }}</span>
+  </div>
+}
+@if (money !== null) {
+  <div class="guest-money" [class.negative]="details.money! < 0">
+    <span class="visually-hidden">Money </span><span class="guest-value">{{ money }}</span>
+  </div>
+}
