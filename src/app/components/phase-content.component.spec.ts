@@ -1,11 +1,13 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { patchState } from '@ngrx/signals';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { GamePhase } from '../models';
 import { Guest, GUEST_TYPE_DEFAULTS } from '../models/guest.model';
 import { GameStore } from '../stores/game.store';
 import { PhaseContentComponent } from './phase-content.component';
-import { testGuest } from '../../testing/guests';
+import { registerTestGuestType, testGuest } from '../../testing/guests';
+import { resetGuestTypesForTesting } from '../models/guest-type-registry';
+import { DEFAULT_GAME_SETUP, GameSetup } from '../models/game-setup';
 
 describe('PhaseContentComponent', () => {
   let component: PhaseContentComponent;
@@ -1158,5 +1160,29 @@ describe('PhaseContentComponent - Victory and Star Guests', () => {
       fixture.detectChanges();
       expect(gameStore.deck().length).toBe(before + 1);
     });
+  });
+});
+
+describe('PhaseContentComponent - Runtime Guest Types', () => {
+  afterEach(() => resetGuestTypesForTesting());
+
+  it('shows a shop card for a runtime guest type the setup stocks', async () => {
+    // guest-type-registry Requirements 4.2, 5.1, 8.3
+    const planner = registerTestGuestType({ id: 'TEST_PARTY_PLANNER', label: 'Party Planner', cost: 8 });
+    const setup: GameSetup = {
+      ...DEFAULT_GAME_SETUP,
+      shop: [...DEFAULT_GAME_SETUP.shop, { type: planner, names: ['Pat', 'Sam'] }]
+    };
+
+    await TestBed.configureTestingModule({ imports: [PhaseContentComponent] }).compileComponents();
+    const fixture = TestBed.createComponent(PhaseContentComponent);
+    TestBed.inject(GameStore).initializeGame(25, setup);
+    fixture.componentInstance.phase = GamePhase.BUY;
+    fixture.detectChanges();
+
+    const compiled = fixture.nativeElement as HTMLElement;
+    const card = compiled.querySelector('[aria-label="Buy Party Planner"]');
+    expect(card).toBeTruthy();
+    expect(card?.querySelector('.card-header')?.textContent?.trim()).toBe('Party Planner');
   });
 });

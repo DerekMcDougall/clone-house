@@ -10,11 +10,11 @@ Step 2 of 5 in the guest extensibility plan. It depends on **guest-identity** (g
 
 1. **`GuestType` becomes `string`**: Runtime-registered types can't be in a compile-time union. The cost is that a typo like `'CLIMBR'` no longer fails to compile; `getGuestType` throwing on unknown ids covers this at runtime, and tests catch it. A `BuiltInGuestType` union of the 22 current ids is kept for places that want compile-time checking (tests, built-in definitions).
 
-2. **A module-level registry, snapshotted per game**: The registry is a simple module (`guest-type-registry.ts`), not an Angular service. Model functions like `admitGuest` and `getGuestDetails` need it, and they aren't in the injection context. `initializeGame()` reads it once to build the deck and shop, so registering a type mid-game can't change the current game's zones (Requirement 5.2). Lookups for guests already in play (labels, effects) read the live registry; since types can't be unregistered or replaced, that's safe.
+2. **A module-level registry, snapshotted per game**: The registry is a simple module (`guest-type-registry.ts`), not an Angular service. Model functions like `admitGuest` and `getGuestDetails` need it, and they aren't in the injection context. `initializeGame()` builds the deck and shop from its setup, reading each shop type's cost once, so registering a type mid-game can't change the current game's zones (Requirement 5.2). Lookups for guests already in play (labels, effects) read the live registry; since types can't be unregistered or replaced, that's safe.
 
 3. **No unregister or replace**: Registering an existing id throws. Replacing a definition mid-game would change guests already in play. `resetGuestTypesForTesting()` is the only way to remove types, and it's for tests only.
 
-4. **Rosters live on the type**: `SHOP_GUESTS` and `INITIAL_GUESTS` are lists of `{ type, name }`, grouped by type in practice. Moving names onto the definition (`roster.starting`, `roster.shop`) keeps each type in one place. Deck order before shuffling becomes registration order × roster order; the built-ins are registered in the current table order, so the derived lists are identical.
+4. **Which guests are in a game is a setup, not part of a type** (amended during review): A guest type says what a guest is. Which guests a game starts with and stocks in the shop comes from a `GameSetup` passed to `initializeGame()`, defaulting to `DEFAULT_GAME_SETUP`, which reproduces today's game. Two planned features need this: stocking a different subset of types in the shop each game, and letting the player customize the starting deck. Both build a different setup; neither touches a type. Shop names belong to the setup too, so a setup can stock a different number of a type, or rename them. The first draft put `roster.starting` and `roster.shop` on each type instead; that tied every game to one deck and one shop.
 
 5. **Effects keep their function form for now**: `entranceEffect` is an `EffectHandler` and `entranceIcons` are listed separately, just moved onto the definition. Validation enforces "both or neither", which replaces the sync comment. **effect-descriptors** merges the two.
 
@@ -48,8 +48,13 @@ models/guest.model.ts
 ├── admitGuest — reads entranceEffect from findGuestType(type)
 └── getGuestDetails — reads entranceIcons from findGuestType(type)
 
+models/game-setup.ts [new]
+├── GameSetup [interface]: startingDeck, shop
+├── DEFAULT_GAME_SETUP — today's deck and shop stock
+└── validateGameSetup(setup): void — throws on the first problem found
+
 stores/game.store.ts
-├── initializeGame — deck and shop built from listGuestTypes()
+├── initializeGame(turnCount, setup = DEFAULT_GAME_SETUP) — deck and shop built from the setup
 ├── banConfirmationMessage, purchasableShopItems, purchaseGuest — label via guestTypeLabel(type)
 
 components/guest-card.component.ts, phase-content.component.ts
@@ -60,7 +65,9 @@ components/guest-card.component.ts, phase-content.component.ts
 
 ### Module Load Order
 
-`built-in-guest-types.ts` defines the list. `guest-type-registry.ts` imports it and registers every built-in when the module first loads, so the registry is never empty. The built-in definitions refer to `autoInvite` from `guest.model.ts`; to avoid a circular import, `autoInvite` and `admitGuest` move to a new `models/guest-effects.ts`, which imports the registry.
+`built-in-guest-types.ts` defines the list. `guest-type-registry.ts` imports it and registers every built-in on first use: every public function calls `ensureBuiltIns()` first, so the registry is never seen empty. The built-in definitions refer to `autoInvite` from `guest.model.ts`; to avoid a circular import, `autoInvite` and `admitGuest` move to a new `models/guest-effects.ts`, which imports the registry.
+
+> **Implementation note:** registering at module load, as first planned, doesn't work. When `guest-effects.ts` or `guest.model.ts` is loaded first, the registry's body runs while `built-in-guest-types.ts` is still waiting on the cycle, so `BUILT_IN_GUEST_TYPES` is undefined and startup crashes. Lazy registration works in any load order. The "Module load order" tests in `guest-type-registry.spec.ts` cover this, and fail if registration is made eager again.
 
 ```mermaid
 graph LR
@@ -90,10 +97,6 @@ export interface GuestTypeDefinition {
   // Popularity to buy one from the shop; null when the type is never sold.
   cost: number | null;
   properties: GuestProperties;
-  roster: {
-    starting: readonly string[];  // in the starting deck
-    shop: readonly string[];      // in the shop
-  };
   // Runs when a guest of this type joins the party. Requires entranceIcons.
   entranceEffect?: EffectHandler;
   entranceIcons?: readonly GuestIcon[];
@@ -108,13 +111,28 @@ export interface GuestTypeDefinition {
   label: 'Celebrity',
   cost: 11,
   properties: { popularityValue: 2, troubleValue: 0, moneyValue: 3, peaceValue: 0, starValue: 0 },
-  roster: { starting: [], shop: ['Troy', 'Rainier', 'Pedro', 'Kent'] },
   entranceEffect: (ctx) => { autoInvite(ctx); autoInvite(ctx); },
   entranceIcons: [INVITE_ICON, INVITE_ICON]
 }
 ```
 
-Wild Buddy is the one type with a starting roster and no shop roster (`cost: null`). Old Friend and Rich Pal have both.
+### Game setup (models/game-setup.ts)
+
+```typescript
+export interface GameSetup {
+  startingDeck: readonly { type: GuestType; name: string }[];
+  shop: readonly { type: GuestType; names: readonly string[] }[];
+}
+
+export const DEFAULT_GAME_SETUP: GameSetup = {
+  startingDeck: [{ type: 'OLD_FRIEND', name: 'Brian' }, /* ...10 guests, as today */],
+  shop: [{ type: 'OLD_FRIEND', names: ['Matt', 'Chad', 'Wes', 'Caleb'] }, /* ...21 types, as today */]
+};
+
+export function validateGameSetup(setup: GameSetup): void  // throws "Invalid game setup: ..."
+```
+
+Validation (Requirement 8.4) needs the registry, so it runs in `initializeGame()`, not at module load. Wild Buddy is in the default starting deck but not the shop (its cost is null); a setup can put any registered type in the starting deck.
 
 ### Registry (models/guest-type-registry.ts)
 
@@ -142,7 +160,8 @@ export function resetGuestTypesForTesting(): void {
   BUILT_IN_GUEST_TYPES.forEach(registerGuestType);
 }
 
-BUILT_IN_GUEST_TYPES.forEach(registerGuestType);
+// As built: no top-level registration. Each function above calls ensureBuiltIns() first,
+// which registers the built-ins once (see the implementation note under Module Load Order).
 ```
 
 Both checks (duplicate id, then Requirement 3 validation) run before `registry.set`, so a rejected definition never lands in the map.
@@ -154,9 +173,9 @@ Both checks (duplicate id, then Requirement 3 validation) run before `registry.s
 export const GUEST_TYPE_LABELS: Record<string, string> =
   Object.fromEntries(BUILT_IN_GUEST_TYPES.map(d => [d.id, d.label]));
 
-/** @deprecated Use getGuestType(id).roster.shop */
+/** @deprecated Use DEFAULT_GAME_SETUP.shop */
 export const SHOP_GUESTS: readonly { type: GuestType; name: string }[] =
-  BUILT_IN_GUEST_TYPES.flatMap(d => d.roster.shop.map(name => ({ type: d.id, name })));
+  DEFAULT_GAME_SETUP.shop.flatMap(e => e.names.map(name => ({ type: e.type, name })));
 ```
 
 The others follow the same pattern. They're built from `BUILT_IN_GUEST_TYPES`, not the live registry, so runtime registrations and tests that register extra types don't change them (Requirement 6.3).
@@ -164,15 +183,18 @@ The others follow the same pattern. They're built from `BUILT_IN_GUEST_TYPES`, n
 ### initializeGame (game.store.ts)
 
 ```typescript
-const nextId = createGuestIdSource();
-const types = listGuestTypes();
+initializeGame(turnCount = 25, setup: GameSetup = DEFAULT_GAME_SETUP) {
+  validateGameSetup(setup);   // before any state changes
+  const nextId = createGuestIdSource();
 
-const deck = types.flatMap(t => t.roster.starting.map(name => createGuest(t.id, name, nextId)));
-shuffleDeck(deck);
+  const deck = setup.startingDeck.map(({ type, name }) => createGuest(type, name, nextId));
+  shuffleDeck(deck);
 
-const shopInventory = types
-  .filter(t => t.cost !== null && t.roster.shop.length > 0)
-  .map(t => ({ type: t.id, cost: t.cost!, guests: t.roster.shop.map(name => createGuest(t.id, name, nextId)) }));
+  const shopInventory = setup.shop.map(({ type, names }) => ({
+    type, guests: names.map(name => createGuest(type, name, nextId)), cost: getGuestType(type).cost!
+  }));
+  // ...
+}
 ```
 
 As today, starting guests get their ids before shop guests. Nothing depends on id order.
@@ -199,13 +221,19 @@ For every built-in type id, each Derived_View SHALL hold the same value it held 
 
 *For any* definition that breaks one rule in Requirement 3, `registerGuestType` SHALL throw, and `listGuestTypes()` SHALL be unchanged.
 
-**Validates: Requirements 3.1–3.7**
+**Validates: Requirements 3.1–3.5**
 
-### Property 4: Runtime Types Join the Next Game
+### Property 4: The Setup Decides the Deck and Shop
 
-*For any* valid definition registered before `initializeGame()`, the deck SHALL contain exactly one guest per `roster.starting` name of that type, and the shop SHALL contain an entry for the type with its cost and one guest per `roster.shop` name (when cost is non-null).
+*For any* setup built from a random subset of the default shop, a random starting deck of built-in and runtime-registered types, and (when the runtime type has a cost) a shop entry for the runtime type, the deck SHALL contain exactly the setup's `(type, name)` pairs, and the shop SHALL list exactly the setup's entries in order, each with its type's cost and the setup's names.
 
-**Validates: Requirements 4.1, 4.2, 5.1**
+**Validates: Requirements 4.1, 5.1, 8.1–8.3, 8.5**
+
+### Property 4b: Invalid Setups Are Rejected
+
+*For any* setup that breaks one rule in Requirement 8.4, `initializeGame` SHALL throw, and the current game's deck, shop and turn SHALL be unchanged.
+
+**Validates: Requirements 8.4**
 
 ### Property 5: Mid-Game Registration Doesn't Touch the Current Game
 
@@ -231,5 +259,5 @@ For every built-in type id, each Derived_View SHALL hold the same value it held 
 
 - Before starting, snapshot the current seven tables to a fixture (`built-in-tables.snapshot.ts`); Property 1 compares against it. Delete the fixture once the derived views are retired.
 - Every spec that registers types calls `resetGuestTypesForTesting()` in `afterEach`.
-- A generator `arbGuestTypeDefinition()` builds valid definitions (unique `TEST_` ids, integer properties, distinct roster names); `arbInvalidGuestTypeDefinition()` breaks exactly one rule.
+- A generator `arbGuestTypeDefinition()` builds valid definitions (`TEST_` ids, integer properties); `arbInvalidGuestTypeDefinition()` breaks exactly one rule; `arbGuestNames()` builds distinct names for setups.
 - Existing specs keep using the derived views, which is fine. New specs use the registry. The `Record<GuestType, string>` literals in `guest-card.component.property.spec.ts` become `Record<BuiltInGuestType, string>`.

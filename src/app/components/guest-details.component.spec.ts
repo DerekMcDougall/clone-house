@@ -71,7 +71,7 @@ describe('GuestDetailsComponent', () => {
     let el = render('CLIMBER');
     expect(el.querySelector('.guest-popularity')).toBeNull();
 
-    el = render('CLIMBER', { ...GUEST_TYPE_DEFAULTS.CLIMBER, popularityValue: 3 });
+    el = render('CLIMBER', { ...GUEST_TYPE_DEFAULTS['CLIMBER'], popularityValue: 3 });
     expect(el.querySelector('.guest-popularity .guest-value')?.textContent?.trim()).toBe('3');
   });
 });

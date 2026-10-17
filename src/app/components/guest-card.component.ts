@@ -1,5 +1,6 @@
 import { Component, Input } from '@angular/core';
-import { Guest, GUEST_TYPE_LABELS } from '../models/guest.model';
+import { Guest } from '../models/guest.model';
+import { guestTypeLabel } from '../models/guest-type-registry';
 import { GuestDetailsComponent } from './guest-details.component';
 
 @Component({
@@ -11,5 +12,5 @@ import { GuestDetailsComponent } from './guest-details.component';
 export class GuestCardComponent {
   @Input({ required: true }) guest!: Guest;
 
-  protected readonly GUEST_TYPE_LABELS = GUEST_TYPE_LABELS;
+  protected readonly guestTypeLabel = guestTypeLabel;
 }

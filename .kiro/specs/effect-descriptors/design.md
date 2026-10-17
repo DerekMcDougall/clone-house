@@ -178,12 +178,13 @@ export function parseGuestTypeDefinition(json: unknown): GuestTypeDefinition
 ```
 
 Checks, in order, collecting every problem with its path:
-- `json` is an object with exactly the keys `id`, `label`, `cost`, `properties`, `roster`, and optionally `effects`
+- `json` is an object with exactly the keys `id`, `label`, `cost`, `properties`, and optionally `effects`
 - `properties` has exactly the five GuestProperties keys, all integers
-- `roster.starting` and `roster.shop` are arrays of strings
 - each effect is `{ trigger, action }`; `action.kind` is registered and `dataOnly`; the kind's `validate` passes
 
-Throws one `Error` listing every problem, so a designer can fix them all at once. The result is then registered with `registerGuestType`, which runs the remaining rules (duplicate id, cost vs. shop roster, and so on). Parsing doesn't register, so callers can parse a batch and register only when all of it is valid.
+Throws one `Error` listing every problem, so a designer can fix them all at once. The result is then registered with `registerGuestType`, which runs the remaining rules (duplicate id and so on). Parsing doesn't register, so callers can parse a batch and register only when all of it is valid.
+
+A guest type doesn't say which games it's in. To put JSON-defined guests in a game, the caller adds them to a `GameSetup` (guest-type-registry, Requirement 8) passed to `initializeGame()`. Parsing a setup from JSON is out of scope here; it would be a small addition next to this parser.
 
 Example:
 
@@ -193,7 +194,6 @@ Example:
   "label": "Party Planner",
   "cost": 8,
   "properties": { "popularityValue": 1, "troubleValue": 0, "moneyValue": 0, "peaceValue": 0, "starValue": 0 },
-  "roster": { "starting": [], "shop": ["Pat", "Sam", "Alex", "Jo"] },
   "effects": [{ "trigger": "entrance", "action": { "kind": "autoInvite", "count": 1 } }]
 }
 ```

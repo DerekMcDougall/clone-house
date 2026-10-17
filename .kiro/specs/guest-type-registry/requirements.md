@@ -8,15 +8,18 @@ After this feature, adding a guest type means writing one definition. Types can 
 
 This is step 2 of 5 in the guest extensibility plan and depends on **guest-identity**. Entrance effects keep their current function form here; **effect-descriptors** (step 3) replaces them with data.
 
-There is no player-visible change: the same 22 types, with the same stats, costs, rosters and shop order.
+Which guests are in a game (the starting deck and the shop stock) is not part of a guest type. It comes from a Game_Setup passed to `initializeGame()`, so later features can stock a different subset of types each game or let the player customize the starting deck without changing any type.
+
+There is no player-visible change: the same 22 types, with the same stats, costs, starting deck, shop stock and shop order.
 
 ## Glossary
 
-- **Guest_Type_Definition**: One object describing a guest type: id, label, cost, default properties, starting and shop rosters, and entrance effect with its icons
+- **Guest_Type_Definition**: One object describing a guest type: id, label, cost, default properties, and entrance effect with its icons
 - **Guest_Type_Registry**: The module that holds every registered Guest_Type_Definition, in registration order
 - **Built_In_Guest_Types**: The list of definitions for the game's 22 current guest types
 - **Derived_Views**: The existing constants (`GUEST_TYPE_LABELS`, `GUEST_TYPE_DEFAULTS`, `GUEST_TYPE_COSTS`, `SHOP_GUESTS`, `INITIAL_GUESTS`, `GUEST_TYPE_ENTRANCE_EFFECTS`, `GUEST_TYPE_ENTRANCE_ICONS`), kept as values computed from Built_In_Guest_Types
-- **Roster**: The names of a type's guests in the starting deck (`starting`) and in the shop (`shop`)
+- **Game_Setup**: Which guests one game starts with: `startingDeck` (a list of type and name) and `shop` (a list of type and the names stocked)
+- **Default_Game_Setup**: The Game_Setup that reproduces today's game
 - **Game_Store**: The NgRx SignalStore managing all game state
 
 ## Requirements
@@ -27,8 +30,8 @@ There is no player-visible change: the same 22 types, with the same stats, costs
 
 #### Acceptance Criteria
 
-1. THE codebase SHALL define a `GuestTypeDefinition` interface with `id`, `label`, `cost` (a number, or null when not sold), `properties`, `roster` (`starting` and `shop` name lists), and optional `entranceEffect` with `entranceIcons`
-2. THE Built_In_Guest_Types SHALL contain one definition for each of the 22 current guest types, with the same label, default properties, cost and roster names as today
+1. THE codebase SHALL define a `GuestTypeDefinition` interface with `id`, `label`, `cost` (a number, or null when not sold), `properties`, and optional `entranceEffect` with `entranceIcons`
+2. THE Built_In_Guest_Types SHALL contain one definition for each of the 22 current guest types, with the same label, default properties and cost as today
 3. WHEN a definition has an `entranceEffect`, THE definition SHALL also have at least one entry in `entranceIcons`, and vice versa
 4. THE `GuestType` type SHALL be `string`, so guest types are not limited to a compile-time list
 
@@ -55,9 +58,7 @@ There is no player-visible change: the same 22 types, with the same stats, costs
 2. WHEN a definition has an empty id or label, THE Guest_Type_Registry SHALL throw an error
 3. WHEN a definition's `cost` is not null and not a non-negative integer, THE Guest_Type_Registry SHALL throw an error
 4. WHEN any property in a definition's `properties` is not an integer, THE Guest_Type_Registry SHALL throw an error
-5. WHEN a definition's roster contains an empty name, or the same name twice across `starting` and `shop`, THE Guest_Type_Registry SHALL throw an error
-6. WHEN a definition has `entranceEffect` without `entranceIcons`, or `entranceIcons` without `entranceEffect`, THE Guest_Type_Registry SHALL throw an error
-7. WHEN a definition has a non-empty `shop` roster and `cost` is null, THE Guest_Type_Registry SHALL throw an error
+5. WHEN a definition has `entranceEffect` without `entranceIcons`, or `entranceIcons` without `entranceEffect`, THE Guest_Type_Registry SHALL throw an error
 
 ### Requirement 4: Game Code Reads the Registry
 
@@ -65,10 +66,9 @@ There is no player-visible change: the same 22 types, with the same stats, costs
 
 #### Acceptance Criteria
 
-1. THE Game_Store SHALL build the starting deck from the `starting` rosters of all registered types, in registration order, before shuffling
-2. THE Game_Store SHALL build the shop inventory from the `shop` rosters and costs of all registered types with a non-null cost
-3. THE Game_Store, `admitGuest`, `getGuestDetails`, Guest_Card and Phase_Content SHALL get labels, default properties, costs, entrance effects and entrance icons from the Guest_Type_Registry, not from the Derived_Views
-4. WHEN a guest's type is not registered, THE Guest_Card SHALL show the type id as its label (current fallback behavior)
+1. THE Game_Store SHALL build the starting deck and the shop inventory from the Game_Setup (Requirement 8), with each shop entry's cost taken from its type
+2. THE Game_Store, `admitGuest`, `getGuestDetails`, Guest_Card and Phase_Content SHALL get labels, default properties, costs, entrance effects and entrance icons from the Guest_Type_Registry, not from the Derived_Views
+3. WHEN a guest's type is not registered, THE Guest_Card SHALL show the type id as its label (current fallback behavior)
 
 ### Requirement 5: Runtime-Registered Types
 
@@ -76,7 +76,7 @@ There is no player-visible change: the same 22 types, with the same stats, costs
 
 #### Acceptance Criteria
 
-1. WHEN a guest type is registered before `initializeGame()`, THE Game_Store SHALL include its starting roster in the deck and its shop roster in the shop inventory
+1. WHEN a guest type is registered before `initializeGame()` and the Game_Setup includes it, THE Game_Store SHALL put its guests in the deck and the shop exactly like a built-in type's
 2. WHEN a guest type is registered after `initializeGame()`, THE Game_Store SHALL NOT change the current game's deck or shop inventory
 3. WHEN a guest of a runtime-registered type is in the party, THE Game_Store SHALL count its properties in trouble, peace, stars and party settlement exactly like a built-in type
 
@@ -86,7 +86,7 @@ There is no player-visible change: the same 22 types, with the same stats, costs
 
 #### Acceptance Criteria
 
-1. THE Derived_Views SHALL remain exported, with the same values as today, computed from Built_In_Guest_Types
+1. THE Derived_Views SHALL remain exported, with the same values as today, computed from Built_In_Guest_Types and the Default_Game_Setup
 2. THE Derived_Views SHALL be marked `@deprecated` in favor of the registry
 3. THE Derived_Views SHALL NOT include runtime-registered types
 
@@ -96,6 +96,18 @@ There is no player-visible change: the same 22 types, with the same stats, costs
 
 #### Acceptance Criteria
 
-1. WHEN `initializeGame()` runs with only Built_In_Guest_Types registered, THE Game_Store SHALL produce the same deck contents (before shuffling) and the same shop inventory as before this feature
+1. WHEN `initializeGame()` runs with the Default_Game_Setup, THE Game_Store SHALL produce the same deck contents (before shuffling) and the same shop inventory as before this feature
 2. THE shop SHALL keep its current display order (ascending cost, then label)
 3. THE existing test suite SHALL pass with only mechanical changes
+
+### Requirement 8: Game Setup
+
+**User Story:** As a developer, I want the starting deck and the shop stock to come from a setup passed to the game, so that future features can stock a different subset of types each game or let the player customize the starting deck, without changing any guest type.
+
+#### Acceptance Criteria
+
+1. THE codebase SHALL define a `GameSetup` with `startingDeck` (a type and name per guest) and `shop` (a type and the stocked names per entry), and a `DEFAULT_GAME_SETUP` that reproduces today's starting deck and shop stock
+2. THE `initializeGame(turnCount, setup)` method SHALL accept an optional Game_Setup, defaulting to `DEFAULT_GAME_SETUP`
+3. WHEN the game is initialized, THE Game_Store SHALL create one guest per `startingDeck` entry and shuffle them into the deck, and one shop entry per `shop` entry, in setup order, stocked with one guest per name
+4. WHEN a Game_Setup names an unregistered type, has an empty name, stocks a type whose cost is null, or stocks the same type twice, THE Game_Store SHALL throw an error and leave the current game unchanged
+5. THE Game_Setup SHALL allow any registered type in the starting deck, including types that are not for sale

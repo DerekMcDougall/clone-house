@@ -2,7 +2,9 @@ import { computed } from '@angular/core';
 import { patchState, signalStore, withComputed, withMethods, withState } from '@ngrx/signals';
 import { GamePhase, GameState } from '../models';
 import { EffectContext, GameEffect } from '../models/effect-context';
-import { admitGuest, createGuest, createGuestIdSource, Guest, GUEST_TYPE_COSTS, GUEST_TYPE_LABELS, GuestType, INITIAL_GUESTS, SHOP_GUESTS, WINNING_STAR_COUNT } from '../models/guest.model';
+import { admitGuest, createGuest, createGuestIdSource, Guest, GuestType, WINNING_STAR_COUNT } from '../models/guest.model';
+import { DEFAULT_GAME_SETUP, GameSetup, validateGameSetup } from '../models/game-setup';
+import { getGuestType, guestTypeLabel } from '../models/guest-type-registry';
 
 export type { EffectContext };
 
@@ -163,7 +165,7 @@ export const GameStore = signalStore(
     banConfirmationMessage: computed(() => {
       const guest = store.selectedBanGuest();
       if (!guest) return '';
-      const typeLabel = GUEST_TYPE_LABELS[guest.type] ?? guest.type;
+      const typeLabel = guestTypeLabel(guest.type);
       return `${typeLabel} ${guest.name} will be banned from the next party.`;
     }),
 
@@ -171,8 +173,8 @@ export const GameStore = signalStore(
       const inventory = store.shopInventory();
       return [...inventory].sort((a, b) => {
         if (a.cost !== b.cost) return a.cost - b.cost;
-        const labelA = GUEST_TYPE_LABELS[a.type] ?? a.type;
-        const labelB = GUEST_TYPE_LABELS[b.type] ?? b.type;
+        const labelA = guestTypeLabel(a.type);
+        const labelB = guestTypeLabel(b.type);
         return labelA.localeCompare(labelB);
       });
     }),
@@ -287,33 +289,25 @@ export const GameStore = signalStore(
     };
 
     return {
-      initializeGame(turnCount: number = 25): void {
+      // The setup decides which guests this game starts with and stocks in the shop.
+      initializeGame(turnCount: number = 25, setup: GameSetup = DEFAULT_GAME_SETUP): void {
         if (turnCount <= 0) {
           throw new Error('Turn count must be greater than zero');
         }
-        
+        validateGameSetup(setup);
+
         // One id source for the whole game, so every guest's id is unique
         const nextId = createGuestIdSource();
 
-        // Create 10 guests from INITIAL_GUESTS (4 Old Friends + 4 Wild Buddies + 2 Rich Pals)
-        const deck: Guest[] = INITIAL_GUESTS.map(entry => createGuest(entry.type, entry.name, nextId));
-        
-        // Shuffle the deck
+        const deck: Guest[] = setup.startingDeck.map(({ type, name }) => createGuest(type, name, nextId));
         shuffleDeck(deck);
-        
-        // Build shop inventory from SHOP_GUESTS, filtering to purchasable types
-        const shopMap = new Map<GuestType, Guest[]>();
-        for (const entry of SHOP_GUESTS) {
-          const cost = GUEST_TYPE_COSTS[entry.type];
-          if (cost === null) continue; // Skip non-purchasable types
-          if (!shopMap.has(entry.type)) shopMap.set(entry.type, []);
-          shopMap.get(entry.type)!.push(createGuest(entry.type, entry.name, nextId));
-        }
 
-        const shopInventory: ShopInventoryEntry[] = [];
-        for (const [type, guests] of shopMap) {
-          shopInventory.push({ type, guests, cost: GUEST_TYPE_COSTS[type]! });
-        }
+        // Costs are read once here, so the shop keeps its prices for the whole game
+        const shopInventory: ShopInventoryEntry[] = setup.shop.map(({ type, names }) => ({
+          type,
+          guests: names.map(name => createGuest(type, name, nextId)),
+          cost: getGuestType(type).cost!
+        }));
 
         patchState(store, {
           currentTurn: 1,
@@ -557,7 +551,7 @@ export const GameStore = signalStore(
         const entry = inventory.find(e => e.type === type);
 
         if (!entry || entry.guests.length === 0) {
-          const label = GUEST_TYPE_LABELS[type] ?? type;
+          const label = guestTypeLabel(type);
           return { success: false, error: 'sold_out', message: `No ${label} available!` };
         }
 

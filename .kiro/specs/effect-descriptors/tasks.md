@@ -44,7 +44,7 @@ Describe guest effects as `{ trigger, action }` data backed by an action-kind re
   - [ ]* 4.2 Property tests 6–7
     - **Property 6: JSON Round-Trip** — **Validates: Requirements 7.2, 7.5**
     - **Property 7: Invalid JSON Is Rejected With a Path** — **Validates: Requirements 6.1–6.3, 7.3, 7.4**
-  - [ ] 4.3 Integration test: parse the Party Planner example from the design, register it, buy one, invite it, and check that it auto-invites
+  - [ ] 4.3 Integration test: parse the Party Planner example from the design, register it, start a game whose setup stocks it in the shop, buy one, invite it, and check that it auto-invites
     - _Requirements: 7.2_
   - [ ] 4.4 Integration test: register a new action kind, then parse and register a JSON type that uses it
     - _Requirements: 8.1, 8.2_

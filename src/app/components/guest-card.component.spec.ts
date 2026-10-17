@@ -1,7 +1,8 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { Guest, GUEST_TYPE_DEFAULTS } from '../models/guest.model';
 import { GuestCardComponent } from './guest-card.component';
-import { testGuest } from '../../testing/guests';
+import { registerTestGuestType, testGuest } from '../../testing/guests';
+import { resetGuestTypesForTesting } from '../models/guest-type-registry';
 
 describe('GuestCardComponent', () => {
   let component: GuestCardComponent;
@@ -258,5 +259,30 @@ describe('GuestCardComponent - Guest Details', () => {
     fixture.componentRef.setInput('guest', { ...guest, properties: { ...guest.properties, popularityValue: 1 } });
     fixture.detectChanges();
     expect(compiled.querySelector('.guest-popularity .guest-value')?.textContent?.trim()).toBe('1');
+  });
+});
+
+describe('GuestCardComponent - Runtime Guest Types', () => {
+  afterEach(() => resetGuestTypesForTesting());
+
+  it('shows the label of a guest type registered at runtime', () => {
+    // guest-type-registry Requirements 4.2, 5.1
+    const type = registerTestGuestType({ id: 'TEST_PARTY_PLANNER', label: 'Party Planner' });
+    const fixture = TestBed.createComponent(GuestCardComponent);
+    fixture.componentInstance.guest = testGuest(type, 'Pat');
+    fixture.detectChanges();
+
+    const compiled = fixture.nativeElement as HTMLElement;
+    expect(compiled.querySelector('.card-header')?.textContent?.trim()).toBe('Party Planner');
+  });
+
+  it('falls back to the type id for an unregistered type', () => {
+    // guest-type-registry Requirement 4.3
+    const fixture = TestBed.createComponent(GuestCardComponent);
+    fixture.componentInstance.guest = { ...testGuest('OLD_FRIEND', 'Pat'), type: 'UNKNOWN_TYPE' };
+    fixture.detectChanges();
+
+    const compiled = fixture.nativeElement as HTMLElement;
+    expect(compiled.querySelector('.card-header')?.textContent?.trim()).toBe('UNKNOWN_TYPE');
   });
 });
