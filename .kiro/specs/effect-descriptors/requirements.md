@@ -40,7 +40,7 @@ There is no player-visible change: the four existing entrance effects (Climber, 
 #### Acceptance Criteria
 
 1. THE Action_Kind_Registry SHALL include `autoInvite` with an integer parameter `count` ≥ 1, which enqueues `count` auto-invites, in order, each behaving exactly like today's `autoInvite`
-2. THE Action_Kind_Registry SHALL include `adjustSelf` with parameters `property` (a GuestProperties key), integer `delta`, and optional integer `min` and `max`, which changes that property of the triggering guest by `delta`, clamped to `[min, max]` when given
+2. THE Action_Kind_Registry SHALL include `adjustSelf` with parameters `property` (a GuestProperties key), non-zero integer `delta`, and optional integer `min` and `max`, which changes that property of the triggering guest by `delta`, clamped to `[min, max]` when given
 3. WHEN `adjustSelf` runs, THE Action_Kind SHALL apply the change to the triggering guest's current state in the party (found by Guest_Id), not to the guest as it was when the effect was enqueued
 4. WHEN `adjustSelf` runs and the triggering guest is no longer in the party, THE Action_Kind SHALL do nothing
 5. THE Action_Kind_Registry SHALL include `custom` with parameters `run` (an EffectHandler) and `icons`, for effects that can only be written in code
@@ -88,6 +88,7 @@ There is no player-visible change: the four existing entrance effects (Climber, 
 1. WHEN a definition has an effect with an unknown `trigger`, THE Guest_Type_Registry SHALL reject it
 2. WHEN a definition has an effect whose `kind` is not registered, THE Guest_Type_Registry SHALL reject it
 3. WHEN an action's parameters fail its Action_Kind's validation, THE Guest_Type_Registry SHALL reject the definition, with a message naming the type, the effect's position and the problem
+4. WHEN an action has a parameter its Action_Kind doesn't define, THE Guest_Type_Registry SHALL reject the definition
 
 ### Requirement 7: Guest Types From JSON
 

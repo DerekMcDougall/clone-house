@@ -114,7 +114,8 @@ describe('Guest Type Registry', () => {
   describe('Module load order', () => {
     // The model modules import each other in a cycle; each must work when loaded first.
     const modules = [
-      './guest-type-registry', './guest-effects', './built-in-guest-types', './guest.model', './guest-type', './game-setup'
+      './guest-type-registry', './guest-effects', './built-in-guest-types', './guest.model', './guest-type', './game-setup',
+      './action-kinds', './effect-definition', './guest-type-json'
     ];
 
     for (const path of modules) {
@@ -122,8 +123,11 @@ describe('Guest Type Registry', () => {
         vi.resetModules();
         await import(/* @vite-ignore */ path);
         const registry = await import('./guest-type-registry');
+        const { effectIcons } = await import('./action-kinds');
+        const model = await import('./guest.model');
         expect(registry.listGuestTypes()).toHaveLength(BUILT_IN_GUEST_TYPES.length);
-        expect(registry.getGuestType('CELEBRITY').entranceIcons).toHaveLength(2);
+        expect(effectIcons(registry.getGuestType('CELEBRITY').effects ?? [])).toHaveLength(2);
+        expect(model.GUEST_TYPE_ENTRANCE_ICONS['CELEBRITY']).toHaveLength(2);
       });
     }
   });

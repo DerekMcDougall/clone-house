@@ -4,9 +4,8 @@ export interface GuestIcon {
   label: string;
 }
 
-// Shared icons. This module imports nothing, so guest type definitions can use these
-// constants at load time without running into module cycles.
-export const INVITE_ICON: GuestIcon = { symbol: '👤', label: 'Invites a guest on entrance' };
+// Icons for points of peace, trouble and star. Effect icons come from action kinds (see
+// action-kinds.ts). This module imports nothing, so it's safe to use from any model module.
 export const PEACE_ICON: GuestIcon = { symbol: '☮️', label: 'Peace' };
 export const TROUBLE_ICON: GuestIcon = { symbol: '❌', label: 'Trouble' };
 export const STAR_ICON: GuestIcon = { symbol: '⭐', label: 'Star' };

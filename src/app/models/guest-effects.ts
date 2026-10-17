@@ -1,19 +1,20 @@
+import { runEffect } from './action-kinds';
 import type { EffectContext, GameEffect } from './effect-context';
 import type { Guest } from './guest.model';
 import { findGuestType } from './guest-type-registry';
 
-// These are function declarations, initialized before any module body runs, so the
-// built-in guest type definitions can refer to them despite the module cycle
-// (guest-effects -> registry -> built-in types -> guest-effects).
+// These are function declarations, initialized before any module body runs, so they work
+// despite the module cycle (guest-effects -> action-kinds -> guest-effects).
 
-// Adds a guest to the party, then enqueues its entrance effect (if any).
+// Adds a guest to the party, then enqueues each of its type's entrance effects, in order.
 export function admitGuest(guest: Guest): GameEffect {
   return (ctx) => {
     ctx.setParty([...ctx.getParty(), guest]);
 
-    const entranceEffect = findGuestType(guest.type)?.entranceEffect;
-    if (entranceEffect) {
-      ctx.enqueue((c) => entranceEffect(c, guest));
+    for (const effect of findGuestType(guest.type)?.effects ?? []) {
+      if (effect.trigger === 'entrance') {
+        ctx.enqueue((c) => runEffect(c, guest, effect));
+      }
     }
   };
 }

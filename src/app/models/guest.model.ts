@@ -1,3 +1,4 @@
+import { effectIcons, runEffect } from './action-kinds';
 import type { EffectContext, GameEffect } from './effect-context';
 import { BUILT_IN_GUEST_TYPES } from './built-in-guest-types';
 import { DEFAULT_GAME_SETUP } from './game-setup';
@@ -52,13 +53,20 @@ export const SHOP_GUESTS: readonly { type: GuestType; name: string }[] =
 /** @deprecated Use DEFAULT_GAME_SETUP.startingDeck. */
 export const INITIAL_GUESTS: readonly { type: GuestType; name: string }[] = DEFAULT_GAME_SETUP.startingDeck;
 
-/** @deprecated Use getGuestType(id).entranceEffect. */
-export const GUEST_TYPE_ENTRANCE_EFFECTS: Partial<Record<GuestType, EffectHandler>> =
-  Object.fromEntries(BUILT_IN_GUEST_TYPES.flatMap(d => (d.entranceEffect ? [[d.id, d.entranceEffect]] : [])));
+const builtInEntranceEffects = BUILT_IN_GUEST_TYPES
+  .map(d => ({ id: d.id, effects: (d.effects ?? []).filter(e => e.trigger === 'entrance') }))
+  .filter(d => d.effects.length > 0);
 
-/** @deprecated Use getGuestType(id).entranceIcons. */
+/** @deprecated Use getGuestType(id).effects. Runs every entrance effect directly, in order. */
+export const GUEST_TYPE_ENTRANCE_EFFECTS: Partial<Record<GuestType, EffectHandler>> =
+  Object.fromEntries(builtInEntranceEffects.map(({ id, effects }) => [
+    id,
+    (ctx: EffectContext, guest: Guest) => effects.forEach(e => runEffect(ctx, guest, e))
+  ]));
+
+/** @deprecated Use getGuestDetails(), or effectIcons(getGuestType(id).effects). */
 export const GUEST_TYPE_ENTRANCE_ICONS: Partial<Record<GuestType, readonly GuestIcon[]>> =
-  Object.fromEntries(BUILT_IN_GUEST_TYPES.flatMap(d => (d.entranceIcons ? [[d.id, d.entranceIcons]] : [])));
+  Object.fromEntries(builtInEntranceEffects.map(({ id, effects }) => [id, effectIcons(effects)]));
 
 export type GuestIdSource = () => string;
 
@@ -80,7 +88,7 @@ export interface GuestDetails {
 }
 
 // Works out what a card shows for a guest of the given type with the given properties.
-// Icons: entrance effects, then one per point of peace, trouble and star, in that order.
+// Icons: each effect's icons, in effect order, then one per point of peace, trouble and star.
 export function getGuestDetails(type: GuestType, properties: GuestProperties): GuestDetails {
   const repeat = (icon: GuestIcon, count: number): GuestIcon[] =>
     Array.from({ length: Math.max(0, count) }, () => icon);
@@ -89,7 +97,7 @@ export function getGuestDetails(type: GuestType, properties: GuestProperties): G
     popularity: properties.popularityValue === 0 ? null : properties.popularityValue,
     money: properties.moneyValue === 0 ? null : properties.moneyValue,
     icons: [
-      ...(findGuestType(type)?.entranceIcons ?? []),
+      ...effectIcons(findGuestType(type)?.effects ?? []),
       ...repeat(PEACE_ICON, properties.peaceValue),
       ...repeat(TROUBLE_ICON, properties.troubleValue),
       ...repeat(STAR_ICON, properties.starValue)
