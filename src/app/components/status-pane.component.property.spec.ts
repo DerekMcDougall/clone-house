@@ -6,6 +6,7 @@ import { GamePhase } from '../models';
 import { Guest, GUEST_TYPE_DEFAULTS } from '../models/guest.model';
 import { GameStore } from '../stores/game.store';
 import { StatusPaneComponent } from './status-pane.component';
+import { testGuest } from '../../testing/guests';
 
 /**
  * Property-Based Tests for StatusPaneComponent
@@ -899,11 +900,7 @@ describe('StatusPaneComponent - Property-Based Tests', () => {
 
             // Set base trouble limit and add peace guests to party
             const currentParty = store.party();
-            const peaceGuests: Guest[] = Array.from({ length: peaceGuestCount }, (_, i) => ({
-              type: 'HIPPY' as const,
-              name: `Hippy${i}`,
-              properties: { ...GUEST_TYPE_DEFAULTS['HIPPY'] }
-            }));
+            const peaceGuests: Guest[] = Array.from({ length: peaceGuestCount }, (_, i) => testGuest('HIPPY', `Hippy${i}`));
             patchState(store, { baseTroubleLimit, party: [...currentParty, ...peaceGuests] });
             fixture.detectChanges();
 
@@ -957,11 +954,7 @@ describe('StatusPaneComponent - Star Display Property', () => {
         fc.array(fc.constantFrom(...allTypes), { maxLength: 8 }),
         (types) => {
           store.initializeGame();
-          const party: Guest[] = types.map((type, i) => ({
-            type,
-            name: `G${i}`,
-            properties: { ...GUEST_TYPE_DEFAULTS[type] }
-          }));
+          const party: Guest[] = types.map((type, i) => testGuest(type, `G${i}`));
           patchState(store, { currentPhase: GamePhase.PARTY, party });
           fixture.detectChanges();
 

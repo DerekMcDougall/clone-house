@@ -1,6 +1,7 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { Guest, GUEST_TYPE_DEFAULTS } from '../models/guest.model';
 import { GuestCardComponent } from './guest-card.component';
+import { testGuest } from '../../testing/guests';
 
 describe('GuestCardComponent', () => {
   let component: GuestCardComponent;
@@ -16,14 +17,14 @@ describe('GuestCardComponent', () => {
   });
 
   it('should create', () => {
-    const guest: Guest = { type: 'OLD_FRIEND', name: 'Brian', properties: { ...GUEST_TYPE_DEFAULTS['OLD_FRIEND'] } };
+    const guest: Guest = testGuest('OLD_FRIEND', 'Brian');
     component.guest = guest;
     fixture.detectChanges();
     expect(component).toBeTruthy();
   });
 
   it('should render with correct structure', () => {
-    const guest: Guest = { type: 'OLD_FRIEND', name: 'Brian', properties: { ...GUEST_TYPE_DEFAULTS['OLD_FRIEND'] } };
+    const guest: Guest = testGuest('OLD_FRIEND', 'Brian');
     component.guest = guest;
     fixture.detectChanges();
 
@@ -35,7 +36,7 @@ describe('GuestCardComponent', () => {
   });
 
   it('should display guest name in caption', () => {
-    const guest: Guest = { type: 'OLD_FRIEND', name: 'Emily', properties: { ...GUEST_TYPE_DEFAULTS['OLD_FRIEND'] } };
+    const guest: Guest = testGuest('OLD_FRIEND', 'Emily');
     component.guest = guest;
     fixture.detectChanges();
 
@@ -45,7 +46,7 @@ describe('GuestCardComponent', () => {
   });
 
   it('should display "Old Friend" in header for OLD_FRIEND type', () => {
-    const guest: Guest = { type: 'OLD_FRIEND', name: 'Colin', properties: { ...GUEST_TYPE_DEFAULTS['OLD_FRIEND'] } };
+    const guest: Guest = testGuest('OLD_FRIEND', 'Colin');
     component.guest = guest;
     fixture.detectChanges();
 
@@ -55,7 +56,7 @@ describe('GuestCardComponent', () => {
   });
 
   it('should display "Wild Buddy" in header for WILD_BUDDY type', () => {
-    const guest: Guest = { type: 'WILD_BUDDY', name: 'Anthony', properties: { ...GUEST_TYPE_DEFAULTS['WILD_BUDDY'] } };
+    const guest: Guest = testGuest('WILD_BUDDY', 'Anthony');
     component.guest = guest;
     fixture.detectChanges();
 
@@ -65,7 +66,7 @@ describe('GuestCardComponent', () => {
   });
 
   it('should display "Rich Pal" in header for RICH_PAL type', () => {
-    const guest: Guest = { type: 'RICH_PAL', name: 'Khalil', properties: { ...GUEST_TYPE_DEFAULTS['RICH_PAL'] } };
+    const guest: Guest = testGuest('RICH_PAL', 'Khalil');
     component.guest = guest;
     fixture.detectChanges();
 
@@ -76,7 +77,7 @@ describe('GuestCardComponent', () => {
 
   it('should display "Monkey" in header for MONKEY type', () => {
     // Requirements: 8.1
-    const guest: Guest = { type: 'MONKEY', name: 'George', properties: { ...GUEST_TYPE_DEFAULTS['MONKEY'] } };
+    const guest: Guest = testGuest('MONKEY', 'George');
     component.guest = guest;
     fixture.detectChanges();
 
@@ -87,7 +88,7 @@ describe('GuestCardComponent', () => {
 
   it('should display Monkey guest name as caption', () => {
     // Requirements: 8.2
-    const guest: Guest = { type: 'MONKEY', name: 'Darwin', properties: { ...GUEST_TYPE_DEFAULTS['MONKEY'] } };
+    const guest: Guest = testGuest('MONKEY', 'Darwin');
     component.guest = guest;
     fixture.detectChanges();
 
@@ -97,7 +98,7 @@ describe('GuestCardComponent', () => {
   });
 
   it('should display person placeholder icon', () => {
-    const guest: Guest = { type: 'OLD_FRIEND', name: 'Anthony', properties: { ...GUEST_TYPE_DEFAULTS['OLD_FRIEND'] } };
+    const guest: Guest = testGuest('OLD_FRIEND', 'Anthony');
     component.guest = guest;
     fixture.detectChanges();
 
@@ -108,7 +109,7 @@ describe('GuestCardComponent', () => {
 
   it('should display "Auctioneer" in header for AUCTIONEER type', () => {
     // Requirements: 10.1
-    const guest: Guest = { type: 'AUCTIONEER', name: 'Christie', properties: { ...GUEST_TYPE_DEFAULTS['AUCTIONEER'] } };
+    const guest: Guest = testGuest('AUCTIONEER', 'Christie');
     component.guest = guest;
     fixture.detectChanges();
 
@@ -119,7 +120,7 @@ describe('GuestCardComponent', () => {
 
   it('should display Auctioneer guest name as caption', () => {
     // Requirements: 10.1
-    const guest: Guest = { type: 'AUCTIONEER', name: 'Sotheby', properties: { ...GUEST_TYPE_DEFAULTS['AUCTIONEER'] } };
+    const guest: Guest = testGuest('AUCTIONEER', 'Sotheby');
     component.guest = guest;
     fixture.detectChanges();
 
@@ -130,7 +131,7 @@ describe('GuestCardComponent', () => {
 
   it('should display "Gangster" in header for GANGSTER type', () => {
     // Requirements: 10.2
-    const guest: Guest = { type: 'GANGSTER', name: 'Tony', properties: { ...GUEST_TYPE_DEFAULTS['GANGSTER'] } };
+    const guest: Guest = testGuest('GANGSTER', 'Tony');
     component.guest = guest;
     fixture.detectChanges();
 
@@ -141,7 +142,7 @@ describe('GuestCardComponent', () => {
 
   it('should display Gangster guest name as caption', () => {
     // Requirements: 10.2
-    const guest: Guest = { type: 'GANGSTER', name: 'Legs', properties: { ...GUEST_TYPE_DEFAULTS['GANGSTER'] } };
+    const guest: Guest = testGuest('GANGSTER', 'Legs');
     component.guest = guest;
     fixture.detectChanges();
 
@@ -152,7 +153,7 @@ describe('GuestCardComponent', () => {
 
   it('should display "Rock Star" in header for ROCK_STAR type', () => {
     // Requirements: 10.3
-    const guest: Guest = { type: 'ROCK_STAR', name: 'Alanis', properties: { ...GUEST_TYPE_DEFAULTS['ROCK_STAR'] } };
+    const guest: Guest = testGuest('ROCK_STAR', 'Alanis');
     component.guest = guest;
     fixture.detectChanges();
 
@@ -163,7 +164,7 @@ describe('GuestCardComponent', () => {
 
   it('should display Rock Star guest name as caption', () => {
     // Requirements: 10.3
-    const guest: Guest = { type: 'ROCK_STAR', name: 'Gord', properties: { ...GUEST_TYPE_DEFAULTS['ROCK_STAR'] } };
+    const guest: Guest = testGuest('ROCK_STAR', 'Gord');
     component.guest = guest;
     fixture.detectChanges();
 
@@ -174,7 +175,7 @@ describe('GuestCardComponent', () => {
 
   it('should display "Gambler" in header for GAMBLER type', () => {
     // Requirements: 10.4
-    const guest: Guest = { type: 'GAMBLER', name: 'Kenny', properties: { ...GUEST_TYPE_DEFAULTS['GAMBLER'] } };
+    const guest: Guest = testGuest('GAMBLER', 'Kenny');
     component.guest = guest;
     fixture.detectChanges();
 
@@ -185,7 +186,7 @@ describe('GuestCardComponent', () => {
 
   it('should display Gambler guest name as caption', () => {
     // Requirements: 10.4
-    const guest: Guest = { type: 'GAMBLER', name: 'Ace', properties: { ...GUEST_TYPE_DEFAULTS['GAMBLER'] } };
+    const guest: Guest = testGuest('GAMBLER', 'Ace');
     component.guest = guest;
     fixture.detectChanges();
 
@@ -215,7 +216,7 @@ describe('GuestCardComponent - Star Guests', () => {
   for (const [type, label, name] of cases) {
     it(`should render the ${label} header and the guest name`, () => {
       const fixture = TestBed.createComponent(GuestCardComponent);
-      fixture.componentInstance.guest = { type, name, properties: { ...GUEST_TYPE_DEFAULTS[type] } };
+      fixture.componentInstance.guest = testGuest(type, name);
       fixture.detectChanges();
 
       const compiled = fixture.nativeElement as HTMLElement;
@@ -237,7 +238,7 @@ describe('GuestCardComponent - Guest Details', () => {
   });
 
   it('shows the current popularity of a Climber that has entered 3 times', () => {
-    const guest: Guest = { type: 'CLIMBER', name: 'Skye', properties: { ...GUEST_TYPE_DEFAULTS['CLIMBER'], popularityValue: 3 } };
+    const guest: Guest = testGuest('CLIMBER', 'Skye', { popularityValue: 3 });
     fixture.componentRef.setInput('guest', guest);
     fixture.detectChanges();
 
@@ -248,7 +249,7 @@ describe('GuestCardComponent - Guest Details', () => {
   });
 
   it('updates when its guest changes', () => {
-    const guest: Guest = { type: 'CLIMBER', name: 'Skye', properties: { ...GUEST_TYPE_DEFAULTS['CLIMBER'] } };
+    const guest: Guest = testGuest('CLIMBER', 'Skye');
     fixture.componentRef.setInput('guest', guest);
     fixture.detectChanges();
     const compiled = fixture.nativeElement as HTMLElement;

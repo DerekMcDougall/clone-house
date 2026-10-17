@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { formatMoney, getGuestDetails, GUEST_TYPE_COSTS, GUEST_TYPE_DEFAULTS, GUEST_TYPE_ENTRANCE_EFFECTS, GUEST_TYPE_ENTRANCE_ICONS, GUEST_TYPE_LABELS, INITIAL_GUESTS, SHOP_GUESTS, WINNING_STAR_COUNT, type Guest, type GuestProperties, type GuestType } from './guest.model';
+import { createGuest, createGuestIdSource, formatMoney, getGuestDetails, GUEST_TYPE_COSTS, GUEST_TYPE_DEFAULTS, GUEST_TYPE_ENTRANCE_EFFECTS, GUEST_TYPE_ENTRANCE_ICONS, GUEST_TYPE_LABELS, INITIAL_GUESTS, SHOP_GUESTS, WINNING_STAR_COUNT, type Guest, type GuestProperties, type GuestType } from './guest.model';
+import { testGuest } from '../../testing/guests';
 
 /**
  * Unit Tests for Guest Model
@@ -16,11 +17,7 @@ describe('Guest Model - Unit Tests', () => {
      * **Validates: Requirements 4.3**
      */
     it('should create guests with properties object', () => {
-      const guest: Guest = {
-        type: 'OLD_FRIEND',
-        name: 'Brian',
-        properties: { ...GUEST_TYPE_DEFAULTS['OLD_FRIEND'] }
-      };
+      const guest: Guest = testGuest('OLD_FRIEND', 'Brian');
 
       expect(guest.properties).toBeDefined();
       expect(guest.properties).toHaveProperty('popularityValue');
@@ -31,11 +28,7 @@ describe('Guest Model - Unit Tests', () => {
      * **Validates: Requirements 4.3**
      */
     it('should create OLD_FRIEND guests with popularityValue of 1', () => {
-      const guest: Guest = {
-        type: 'OLD_FRIEND',
-        name: 'Colin',
-        properties: { ...GUEST_TYPE_DEFAULTS['OLD_FRIEND'] }
-      };
+      const guest: Guest = testGuest('OLD_FRIEND', 'Colin');
 
       expect(guest.properties.popularityValue).toBe(1);
     });
@@ -54,17 +47,9 @@ describe('Guest Model - Unit Tests', () => {
      * This ensures modifications to one guest don't affect others
      */
     it('should create independent properties objects for each guest', () => {
-      const guest1: Guest = {
-        type: 'OLD_FRIEND',
-        name: 'Anthony',
-        properties: { ...GUEST_TYPE_DEFAULTS['OLD_FRIEND'] }
-      };
+      const guest1: Guest = testGuest('OLD_FRIEND', 'Anthony');
 
-      const guest2: Guest = {
-        type: 'OLD_FRIEND',
-        name: 'Emily',
-        properties: { ...GUEST_TYPE_DEFAULTS['OLD_FRIEND'] }
-      };
+      const guest2: Guest = testGuest('OLD_FRIEND', 'Emily');
 
       // Modify guest1's properties
       guest1.properties.popularityValue = 5;
@@ -78,11 +63,7 @@ describe('Guest Model - Unit Tests', () => {
      * **Validates: Requirements 10.1**
      */
     it('should create all INITIAL_GUESTS with properties', () => {
-      const guests: Guest[] = INITIAL_GUESTS.map(({ type, name }) => ({
-        type,
-        name,
-        properties: { ...GUEST_TYPE_DEFAULTS[type] }
-      }));
+      const guests: Guest[] = INITIAL_GUESTS.map(({ type, name }) => testGuest(type, name));
 
       expect(guests).toHaveLength(10);
       guests.forEach(guest => {
@@ -697,5 +678,39 @@ describe('Guest Model - Guest Details', () => {
   it('formats money with the minus sign before the dollar sign', () => {
     expect(formatMoney(3)).toBe('$3');
     expect(formatMoney(-3)).toBe('-$3');
+  });
+});
+
+describe('Guest Model - Guest Identity', () => {
+  it('yields sequential ids from an id source', () => {
+    const nextId = createGuestIdSource();
+    expect([nextId(), nextId(), nextId()]).toEqual(['g1', 'g2', 'g3']);
+  });
+
+  it('keeps separate id sources independent', () => {
+    const first = createGuestIdSource();
+    const second = createGuestIdSource();
+    first();
+    first();
+    expect(second()).toBe('g1');
+  });
+
+  it('creates a guest with a fresh id, its type and name, and the type defaults', () => {
+    const nextId = createGuestIdSource();
+    const guest = createGuest('CLIMBER', 'Skye', nextId);
+    expect(guest).toEqual({ id: 'g1', type: 'CLIMBER', name: 'Skye', properties: GUEST_TYPE_DEFAULTS.CLIMBER });
+  });
+
+  it('copies the type defaults rather than sharing them', () => {
+    const guest = createGuest('OLD_FRIEND', 'Brian', createGuestIdSource());
+    guest.properties.popularityValue = 99;
+    expect(GUEST_TYPE_DEFAULTS.OLD_FRIEND.popularityValue).toBe(1);
+  });
+
+  it('gives guests with the same type and name different ids', () => {
+    const nextId = createGuestIdSource();
+    const a = createGuest('OLD_FRIEND', 'Matt', nextId);
+    const b = createGuest('OLD_FRIEND', 'Matt', nextId);
+    expect(a.id).not.toBe(b.id);
   });
 });

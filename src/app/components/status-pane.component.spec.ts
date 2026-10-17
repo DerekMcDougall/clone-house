@@ -5,6 +5,7 @@ import { GamePhase } from '../models';
 import { Guest, GUEST_TYPE_DEFAULTS, GuestType } from '../models/guest.model';
 import { GameStore } from '../stores/game.store';
 import { StatusPaneComponent } from './status-pane.component';
+import { testGuest } from '../../testing/guests';
 
 /**
  * Unit Tests for StatusPaneComponent
@@ -655,11 +656,6 @@ describe('StatusPaneComponent - Stars and Victory', () => {
   let fixture: ComponentFixture<StatusPaneComponent>;
   let store: InstanceType<typeof GameStore>;
 
-  const makeGuest = (type: GuestType, name: string): Guest => ({
-    type,
-    name,
-    properties: { ...GUEST_TYPE_DEFAULTS[type] }
-  });
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
@@ -682,7 +678,7 @@ describe('StatusPaneComponent - Stars and Victory', () => {
   it('should show "2 / 4" stars with two star guests in the party', () => {
     patchState(store, {
       currentPhase: GamePhase.PARTY,
-      party: [makeGuest('ALIEN', 'ET'), makeGuest('OLD_FRIEND', 'Brian'), makeGuest('DRAGON', 'Smaug')]
+      party: [testGuest('ALIEN', 'ET'), testGuest('OLD_FRIEND', 'Brian'), testGuest('DRAGON', 'Smaug')]
     });
     fixture.detectChanges();
 
