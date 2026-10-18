@@ -163,7 +163,8 @@ describe('Action Kinds', () => {
       kind: 'chooseGuest',
       prompt: 'Who gets a boost?',
       from: 'party',
-      action: { kind: 'adjustSelf', property: 'popularityValue', delta: 2 }
+      action: { kind: 'adjustSelf', property: 'popularityValue', delta: 2 },
+      icons: [{ symbol: '🎁', label: 'Gives a party guest 2 popularity on entrance' }]
     });
 
     it('should ask for a party guest and run its action on the one chosen', () => {
@@ -186,18 +187,19 @@ describe('Action Kinds', () => {
       expect(ctx.party[1].properties.popularityValue).toBe(2);
     });
 
-    it('should show a target icon', () => {
-      expect(effectIcons([boost])).toEqual([{ symbol: '🎯', label: 'Chooses a party guest on entrance' }]);
+    it('should show the icons it is given', () => {
+      expect(effectIcons([boost])).toEqual([{ symbol: '🎁', label: 'Gives a party guest 2 popularity on entrance' }]);
     });
 
     it('should validate its own parameters and its nested action', () => {
       const validateAction = vi.fn(() => ['a.action.delta: nested problem']);
       expect(getActionKind('chooseGuest').validate(
-        { kind: 'chooseGuest', prompt: '', from: 'deck', action: { kind: 'adjustSelf' }, extra: 1 }, 'a', validateAction
+        { kind: 'chooseGuest', prompt: '', from: 'deck', action: { kind: 'adjustSelf' }, icons: [], extra: 1 }, 'a', validateAction
       )).toEqual([
         'a.prompt: expected a non-empty string',
         'a.from: expected "party"',
         'a.action.delta: nested problem',
+        'a.icons: expected a non-empty list of { symbol, label }',
         'a.extra: unknown parameter'
       ]);
       expect(validateAction).toHaveBeenCalledWith({ kind: 'adjustSelf' }, 'a.action');
@@ -209,7 +211,7 @@ describe('Action Kinds', () => {
         label: 'Chooser',
         cost: null,
         properties: { ...getGuestType('OLD_FRIEND').properties },
-        effects: [entrance({ kind: 'chooseGuest', prompt: 'Pick', from: 'party', action } as EffectDefinition['action'])]
+        effects: [entrance({ kind: 'chooseGuest', prompt: 'Pick', from: 'party', action, icons: [{ symbol: '?', label: 'Icon' }] } as EffectDefinition['action'])]
       });
       expect(() => registerGuestType(def({ kind: 'adjustSelf', property: 'moneyValue', delta: 0 })))
         .toThrow('effects[0].action.action.delta: expected a non-zero integer');

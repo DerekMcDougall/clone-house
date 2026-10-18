@@ -46,6 +46,11 @@ const isIcon = (value: unknown): boolean => {
   return typeof icon === 'object' && icon !== null && typeof icon.symbol === 'string' && typeof icon.label === 'string';
 };
 
+// Problems with an `icons` parameter, for kinds whose icons are given rather than derived.
+const iconsProblems = (icons: unknown, path: string): string[] =>
+  Array.isArray(icons) && icons.length > 0 && icons.every(isIcon)
+    ? [] : [`${path}.icons: expected a non-empty list of { symbol, label }`];
+
 // Invites the top `count` guests from the deck, one after another, each exactly like an
 // ordinary auto-invite.
 const autoInviteKind: ActionKind<{ count: number }> = {
@@ -104,24 +109,21 @@ const adjustSelfKind: ActionKind<AdjustSelfParams> = {
 const customKind: ActionKind<{ run: EffectHandler; icons: readonly GuestIcon[] }> = {
   kind: 'custom',
   dataOnly: false,
-  validate: (p, path) => {
-    const icons = p['icons'];
-    return [
-      ...(typeof p['run'] === 'function' ? [] : [`${path}.run: expected a function`]),
-      ...(Array.isArray(icons) && icons.length > 0 && icons.every(isIcon)
-        ? [] : [`${path}.icons: expected a non-empty list of { symbol, label }`]),
-      ...unknownParams(p, path, ['run', 'icons'])
-    ];
-  },
+  validate: (p, path) => [
+    ...(typeof p['run'] === 'function' ? [] : [`${path}.run: expected a function`]),
+    ...iconsProblems(p['icons'], path),
+    ...unknownParams(p, path, ['run', 'icons'])
+  ],
   run: (ctx, guest, p) => p.run(ctx, guest),
   icons: (p) => p.icons
 };
 
-type ChooseGuestParams = { prompt: string; from: 'party'; action: ActionDefinition };
+type ChooseGuestParams = { prompt: string; from: 'party'; action: ActionDefinition; icons: readonly GuestIcon[] };
 
 // Asks the player to pick a party guest, then runs `action` with that guest as the guest
 // whose effect it is, so an adjustSelf inside changes the chosen guest. The options are
-// the party when the choice is reached.
+// the party when the choice is reached. Its icons are given, not taken from `action`,
+// whose labels describe the guest itself rather than the one chosen.
 const chooseGuestKind: ActionKind<ChooseGuestParams> = {
   kind: 'chooseGuest',
   // Can be written in JSON whenever its action can, which validateAction checks
@@ -130,7 +132,8 @@ const chooseGuestKind: ActionKind<ChooseGuestParams> = {
     ...(typeof p['prompt'] === 'string' && p['prompt'] !== '' ? [] : [`${path}.prompt: expected a non-empty string`]),
     ...(p['from'] === 'party' ? [] : [`${path}.from: expected "party"`]),
     ...validateAction(p['action'], `${path}.action`),
-    ...unknownParams(p, path, ['prompt', 'from', 'action'])
+    ...iconsProblems(p['icons'], path),
+    ...unknownParams(p, path, ['prompt', 'from', 'action', 'icons'])
   ],
   run: (ctx, guest, { prompt, action }) => ctx.requestChoice({
     prompt,
@@ -138,7 +141,7 @@ const chooseGuestKind: ActionKind<ChooseGuestParams> = {
     options: (view) => view.getParty().map(g => ({ id: g.id, label: `${guestTypeLabel(g.type)} ${g.name}`, guest: g })),
     onChoose: (c, option) => getActionKind(action.kind).run(c, option.guest!, action)
   }),
-  icons: (_p, trigger) => [{ symbol: '🎯', label: `Chooses a party guest ${triggerPhrase(trigger)}` }]
+  icons: (p) => p.icons
 };
 
 const kinds = new Map<string, ActionKind>();

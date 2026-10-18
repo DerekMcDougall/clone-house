@@ -26,7 +26,7 @@ const choice = (prompt: string, ids: string[], chosen: string[], extra: Partial<
 
 const chooseGuest = (action: EffectDefinition['action']): EffectDefinition => ({
   trigger: 'entrance',
-  action: { kind: 'chooseGuest', prompt: 'Pick a guest', from: 'party', action }
+  action: { kind: 'chooseGuest', prompt: 'Pick a guest', from: 'party', action, icons: [{ symbol: '?', label: 'Icon' }] }
 });
 
 /**

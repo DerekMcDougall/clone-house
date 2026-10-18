@@ -24,8 +24,11 @@ export const arbGuestTypeDefinition = (): fc.Arbitrary<GuestTypeDefinition> =>
 // bounds are left out rather than set to undefined, as they would be in JSON.
 export const arbDataOnlyAction = (): fc.Arbitrary<ActionDefinition> => fc.oneof(
   arbSimpleAction(),
-  fc.tuple(fc.string({ minLength: 1, maxLength: 20 }), arbSimpleAction())
-    .map(([prompt, action]) => ({ kind: 'chooseGuest', prompt, from: 'party', action }))
+  fc.tuple(
+    fc.string({ minLength: 1, maxLength: 20 }),
+    arbSimpleAction(),
+    fc.array(fc.record({ symbol: fc.string({ minLength: 1, maxLength: 2 }), label: fc.string() }), { minLength: 1, maxLength: 2 })
+  ).map(([prompt, action, icons]) => ({ kind: 'chooseGuest', prompt, from: 'party', action, icons }))
 );
 
 const arbSimpleAction = (): fc.Arbitrary<ActionDefinition> => fc.oneof(

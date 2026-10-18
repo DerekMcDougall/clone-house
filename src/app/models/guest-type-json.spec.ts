@@ -75,7 +75,10 @@ describe('parseGuestTypeDefinition', () => {
   it('should accept chooseGuest with a data-only action, and reject a custom one inside it', () => {
     const withAction = (action: unknown) => ({
       ...JSON.parse(PARTY_PLANNER_JSON),
-      effects: [{ trigger: 'entrance', action: { kind: 'chooseGuest', prompt: 'Pick', from: 'party', action } }]
+      effects: [{
+        trigger: 'entrance',
+        action: { kind: 'chooseGuest', prompt: 'Pick', from: 'party', action, icons: [{ symbol: '?', label: 'Icon' }] }
+      }]
     });
     const adjust = { kind: 'adjustSelf', property: 'popularityValue', delta: 1 };
     const json = withAction({ ...adjust });

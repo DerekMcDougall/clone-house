@@ -141,7 +141,8 @@ describe('ChoicePanelComponent', () => {
           kind: 'chooseGuest',
           prompt: 'Who does the Hype Man hype?',
           from: 'party',
-          action: { kind: 'adjustSelf', property: 'popularityValue', delta: 2 }
+          action: { kind: 'adjustSelf', property: 'popularityValue', delta: 2 },
+          icons: [{ symbol: '📣', label: 'Gives a party guest 2 popularity on entrance' }]
         }
       }]
     }));

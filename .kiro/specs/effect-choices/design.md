@@ -244,19 +244,21 @@ const resolveChoice = (c: ActiveChoice, option: ChoiceOption) => {
 ### chooseGuest kind (models/action-kinds.ts)
 
 ```typescript
-const chooseGuestKind: ActionKind<{ prompt: string; from: 'party'; action: ActionDefinition }> = {
+const chooseGuestKind: ActionKind<{ prompt: string; from: 'party'; action: ActionDefinition; icons: readonly GuestIcon[] }> = {
   kind: 'chooseGuest',
   dataOnly: true,   // dataOnly only if the nested action's kind is
-  validate: /* prompt non-empty; from === 'party'; nested action valid via its kind */,
+  validate: /* prompt non-empty; from === 'party'; nested action valid via its kind; icons non-empty */,
   run: (ctx, guest, { prompt, action }) => ctx.requestChoice({
     prompt,
     sourceGuestId: guest.id,
     options: (view) => view.getParty().map(g => ({ id: g.id, label: `${guestTypeLabel(g.type)} ${g.name}`, guest: g })),
     onChoose: (c, option) => getActionKind(action.kind).run(c, option.guest!, action)
   }),
-  icons: (_p, trigger) => [{ symbol: '🎯', label: `Chooses a party guest ${triggerPhrase(trigger)}` }]
+  icons: (p) => p.icons
 };
 ```
+
+Its icons are given rather than derived from `action`: every choosing effect needs an icon for what it actually does, and the nested action's labels ("Gains 1 popularity") describe the guest itself, not the one chosen.
 
 The nested action treats the chosen guest as its triggering guest, so `adjustSelf` inside `chooseGuest` changes the chosen guest. Its validation is recursive, and `dataOnly` is computed from the nested action (a `custom` action inside makes the whole thing code-only).
 
