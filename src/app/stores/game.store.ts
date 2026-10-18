@@ -188,16 +188,6 @@ export const GameStore = signalStore(
       };
     }),
 
-    /** @deprecated Use isAwaitingChoice() or pendingChoice(). */
-    isBanSelectionActive: computed(() => store.choice()?.source === 'ban'),
-
-    /** @deprecated Use pendingChoice(). */
-    selectedBanGuest: computed((): Guest | null => {
-      const choice = store.choice();
-      if (choice?.source !== 'ban') return null;
-      return choice.options.find(o => o.id === choice.selectedOptionId)?.guest ?? null;
-    }),
-
     trouble: computed(() => {
       const party = store.party();
       return party.reduce((sum, guest) => sum + guest.properties.troubleValue, 0);
@@ -217,11 +207,6 @@ export const GameStore = signalStore(
   withComputed((store) => ({
     effectiveTroubleLimit: computed(() =>
       Math.max(0, store.baseTroubleLimit() + store.partyTroubleLimitModifier())
-    ),
-    
-    /** @deprecated Use pendingChoice().confirmation. */
-    banConfirmationMessage: computed(() =>
-      (store.isBanSelectionActive() ? store.pendingChoice()?.confirmation : null) ?? ''
     ),
 
     purchasableShopItems: computed(() => {
@@ -643,17 +628,6 @@ export const GameStore = signalStore(
 
       selectChoiceOption,
       confirmChoice,
-
-      /** @deprecated Use selectChoiceOption(guest.id). */
-      selectGuestToBan(index: number): void {
-        const guest = store.bustPartySnapshot()[index];
-        if (guest && store.isBanSelectionActive()) selectChoiceOption(guest.id);
-      },
-
-      /** @deprecated Use confirmChoice(). */
-      confirmBan(): void {
-        if (store.isBanSelectionActive()) confirmChoice();
-      },
 
       purchaseGuest(type: GuestType): PurchaseResult {
         if (store.isAwaitingChoice()) {

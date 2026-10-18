@@ -20,7 +20,7 @@ Step 4 of 5 in the guest extensibility plan. Depends on **effect-descriptors**.
 
 6. **No cancel**: Effects run to completion once started, and today's ban flow has no cancel either. A request that wants an opt-out includes a "Skip" option.
 
-7. **Compatibility wrappers for ban**: About 80 spec lines use `isBanSelectionActive`, `selectGuestToBan` and friends. They stay as deprecated wrappers, so this change doesn't have to rewrite those specs. CSS class names in the markup do change, and the specs that query them are updated.
+7. **Compatibility wrappers for ban**: About 80 spec lines use `isBanSelectionActive`, `selectGuestToBan` and friends. They stay as deprecated wrappers, so this change doesn't have to rewrite those specs. CSS class names in the markup do change, and the specs that query them are updated. (Removed later: the specs now use the choice API and the helpers in `src/testing/ban.ts`.)
 
 ## Architecture
 

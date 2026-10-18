@@ -272,7 +272,7 @@ describe('PhaseContentComponent', () => {
 
   describe('Ban Selection UI', () => {
 
-    it('should display blame prompt when isBanSelectionActive is true', () => {
+    it('should display blame prompt when a ban is being chosen', () => {
       // Requirements: 3.3
       startBanSelection(gameStore, [testGuest('OLD_FRIEND', 'Brian')]);
       component.phase = GamePhase.PARTY;
@@ -306,7 +306,7 @@ describe('PhaseContentComponent', () => {
       });
     });
 
-    it('should show confirmation modal when selectedBanGuest is set', () => {
+    it('should show confirmation modal when a guest is picked for banning', () => {
       // Requirements: 5.1
       startBanSelection(gameStore, [testGuest('WILD_BUDDY', 'Anthony')], 0);
       component.phase = GamePhase.PARTY;
@@ -337,7 +337,7 @@ describe('PhaseContentComponent', () => {
       expect(okButton?.textContent?.trim()).toBe('OK');
     });
 
-    it('should hide ban selection view when isBanSelectionActive is false', () => {
+    it('should hide ban selection view when no ban is being chosen', () => {
       // Requirements: 3.3 (inverse)
       patchState(unprotected(gameStore), { bustPartySnapshot: [] });
       component.phase = GamePhase.PARTY;

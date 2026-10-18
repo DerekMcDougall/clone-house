@@ -8,6 +8,7 @@ import { LandingPageComponent } from './components/landing-page.component';
 import { GamePhase } from './models';
 import { Guest } from './models/guest.model';
 import { GameStore } from './stores/game.store';
+import { isChoosingBan, pickBan } from '../testing/ban';
 
 const sortByPopularityDescending = (deck: Guest[]): Guest[] =>
   [...deck].sort((a, b) => b.properties.popularityValue - a.properties.popularityValue);
@@ -1274,9 +1275,9 @@ describe('Party Guest Deck System Integration Tests', () => {
         store.acknowledgeShutdown();
         fixture.detectChanges();
       }
-      if (store.isBanSelectionActive()) {
-        store.selectGuestToBan(0);
-        store.confirmBan();
+      if (isChoosingBan(store)) {
+        pickBan(store, 0);
+        store.confirmChoice();
         fixture.detectChanges();
       }
       
@@ -1443,9 +1444,9 @@ describe('Popularity Resource System Integration Tests', () => {
         // Shutdown occurred — popularity is NOT calculated on bust
         // Acknowledge shutdown and complete ban flow to advance turn
         store.acknowledgeShutdown();
-        if (store.isBanSelectionActive() && store.bustPartySnapshot().length > 0) {
-          store.selectGuestToBan(0);
-          store.confirmBan();
+        if (isChoosingBan(store) && store.bustPartySnapshot().length > 0) {
+          pickBan(store, 0);
+          store.confirmChoice();
         }
         fixture.detectChanges();
         

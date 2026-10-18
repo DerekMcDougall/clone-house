@@ -11,7 +11,7 @@ import { DEFAULT_GAME_SETUP } from '../models/game-setup';
 import { Guest, GUEST_TYPE_COSTS, GuestType } from '../models/guest.model';
 import { resetGuestTypesForTesting } from '../models/guest-type-registry';
 import { BAN_PROMPT, GameStore } from './game.store';
-import { startBanSelection } from '../../testing/ban';
+import { isChoosingBan, startBanSelection } from '../../testing/ban';
 import { customEntrance, registerTestGuestType, testGuest } from '../../testing/guests';
 
 const options = (...ids: string[]): ChoiceOption[] => ids.map(id => ({ id, label: `Option ${id}` }));
@@ -412,14 +412,13 @@ describe('GameStore - Effect Choices', () => {
   });
 
   describe('Property 7: Ban Outcome Unchanged', () => {
-    it('should ban the chosen guest and shuffle the rest into the deck, by either API', () => {
+    it('should ban the chosen guest and shuffle the rest into the deck', () => {
       // Feature: effect-choices, Property 7: Ban Outcome Unchanged
       fc.assert(
         fc.property(
           fc.integer({ min: 1, max: 8 }).chain(size => fc.tuple(fc.constant(size), fc.nat({ max: size - 1 }))),
           fc.integer({ min: 2, max: 20 }),
-          fc.boolean(),
-          ([size, index], turn, useChoiceApi) => {
+          ([size, index], turn) => {
             store.initializeGame(25);
             patchState(unprotected(store), { currentTurn: turn, currentPhase: GamePhase.PARTY });
             const snapshot = Array.from({ length: size }, (_, i) => testGuest('WILD_BUDDY', `Guest ${i}`));
@@ -428,14 +427,9 @@ describe('GameStore - Effect Choices', () => {
             startBanSelection(store, snapshot);
             expect(store.pendingChoice()).toMatchObject({ prompt: BAN_PROMPT });
             expect(store.pendingChoice()!.options.map(o => o.label)).toEqual(snapshot.map(g => `Ban ${g.name}`));
-            if (useChoiceApi) {
-              store.selectChoiceOption(snapshot[index].id);
-              expect(store.pendingChoice()!.confirmation).toBe(`Wild Buddy Guest ${index} will be banned from the next party.`);
-              store.confirmChoice();
-            } else {
-              store.selectGuestToBan(index);
-              store.confirmBan();
-            }
+            store.selectChoiceOption(snapshot[index].id);
+            expect(store.pendingChoice()!.confirmation).toBe(`Wild Buddy Guest ${index} will be banned from the next party.`);
+            store.confirmChoice();
 
             expect(store.discard().map(g => g.id)).toEqual([snapshot[index].id]);
             expect(store.deck().map(g => g.id).sort()).toEqual(
@@ -461,7 +455,7 @@ describe('GameStore - Effect Choices', () => {
       expect(store.isAwaitingChoice()).toBe(false);
 
       store.acknowledgeShutdown();
-      expect(store.isBanSelectionActive()).toBe(true);
+      expect(isChoosingBan(store)).toBe(true);
       expect(store.pendingChoice()?.options.map(o => o.guest)).toEqual([matt]);
     });
   });
