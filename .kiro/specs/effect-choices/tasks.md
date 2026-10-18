@@ -59,7 +59,7 @@ Move the effect stack into store state, add `requestChoice` and a pending-choice
   - [x] 7.3 Integration test: a JSON-defined test type whose entrance effect is `chooseGuest` + `adjustSelf`; invite it, pick a guest in the panel, and check that the chosen guest changed
     - _Requirements: 5.2_
 
-- [ ] 8. Final checkpoint — Ensure all tests pass and `ng build` succeeds; play a trouble bust in the app and check that the ban screen looks and works as before
+- [x] 8. Final checkpoint — Ensure all tests pass and `ng build` succeeds; play a trouble bust in the app and check that the ban screen looks and works as before
   - Ensure all tests pass, ask the user if questions arise.
 
 ## Notes
