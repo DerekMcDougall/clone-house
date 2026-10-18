@@ -7,6 +7,7 @@ import { BUILT_IN_TABLES_SNAPSHOT } from './built-in-tables.snapshot';
 import { EffectDefinition } from './effect-definition';
 import { admitGuest } from './guest-effects';
 import { getGuestDetails, Guest, GuestProperties } from './guest.model';
+import { DEFAULT_GAME_SETUP } from './game-setup';
 import { PROPERTY_KEYS } from './guest-type';
 import { getGuestType, registerGuestType, resetGuestTypesForTesting } from './guest-type-registry';
 import { TestEffectContext } from '../../testing/effect-context';
@@ -137,6 +138,90 @@ describe('Action Kinds', () => {
     });
   });
 
+  describe('cycleSelf', () => {
+    const moon = { symbol: '🌙', label: 'Switches between 0 and 1 trouble on entrance' };
+    const cycle = (values: number[]) =>
+      entrance({ kind: 'cycleSelf', property: 'troubleValue', values, icons: [moon] });
+    const withTrouble = (troubleValue: number) => testGuest('OLD_FRIEND', 'Remus', { troubleValue });
+
+    it('should step to the next value, wrapping around', () => {
+      for (const [from, to] of [[0, 1], [1, 2], [2, 0]]) {
+        const guest = withTrouble(from);
+        const ctx = new TestEffectContext({ party: [guest] });
+        run(ctx, guest, cycle([0, 1, 2]));
+        expect(ctx.party[0].properties.troubleValue).toBe(to);
+      }
+    });
+
+    it('should go to the first value when the current one is not listed', () => {
+      const guest = withTrouble(5);
+      const ctx = new TestEffectContext({ party: [guest] });
+      run(ctx, guest, cycle([0, 1]));
+      expect(ctx.party[0].properties.troubleValue).toBe(0);
+    });
+
+    it('should start from the guest as they are in the party when the effect runs', () => {
+      const guest = withTrouble(0);
+      const ctx = new TestEffectContext({ party: [withTrouble(1)] });
+      // Same id as the party guest, but with the trouble it had when enqueued
+      run(ctx, { ...guest, id: ctx.party[0].id }, cycle([0, 1]));
+      expect(ctx.party[0].properties.troubleValue).toBe(0);
+    });
+
+    it('should do nothing when the guest has left the party', () => {
+      const party = [testGuest('OLD_FRIEND', 'Colin')];
+      const ctx = new TestEffectContext({ party });
+      run(ctx, withTrouble(0), cycle([0, 1]));
+      expect(ctx.party).toEqual(party);
+    });
+
+    it('should show the icons it is given', () => {
+      expect(effectIcons([cycle([0, 1])])).toEqual([moon]);
+    });
+
+    it('should report every problem with its parameters', () => {
+      expect(getActionKind('cycleSelf').validate(
+        { kind: 'cycleSelf', property: 'charmValue', values: [1], icons: [], extra: 1 }, 'a', noNested
+      )).toEqual([
+        `a.property: expected one of ${PROPERTY_KEYS.join(', ')}`,
+        'a.values: expected a list of at least 2 integers',
+        'a.icons: expected a non-empty list of { symbol, label }',
+        'a.extra: unknown parameter'
+      ]);
+      for (const values of [undefined, 'x', [0, 0.5], [0, '1']]) {
+        expect(getActionKind('cycleSelf').validate(
+          { kind: 'cycleSelf', property: 'troubleValue', values, icons: [moon] }, 'a', noNested
+        )).toEqual(['a.values: expected a list of at least 2 integers']);
+      }
+    });
+
+    it('should step through its values in order and come back round', () => {
+      // Feature: werewolf-guest, Property 1: cycleSelf Steps Through Its Values
+      fc.assert(
+        fc.property(
+          fc.constantFrom(...PROPERTY_KEYS),
+          fc.uniqueArray(fc.integer({ min: -9, max: 9 }), { minLength: 2, maxLength: 5 }),
+          fc.integer({ min: -9, max: 9 }),
+          (property, values, start) => {
+            const guest = testGuest('OLD_FRIEND', 'Remus', { [property]: start });
+            const ctx = new TestEffectContext({ party: [guest] });
+            const effect = entrance({ kind: 'cycleSelf', property, values, icons: [moon] });
+
+            run(ctx, guest, effect);
+            const index = values.indexOf(start);
+            expect(ctx.party[0].properties[property]).toBe(values[(index + 1) % values.length]);
+
+            // Now on a listed value, values.length more steps come back to it
+            const listed = ctx.party[0].properties[property];
+            for (let i = 0; i < values.length; i++) run(ctx, guest, effect);
+            expect(ctx.party[0].properties[property]).toBe(listed);
+          }
+        ),
+        { numRuns: 100 }
+      );
+    });
+  });
+
   describe('custom', () => {
     it('should run its function with the guest and show its icons', () => {
       const icons = [{ symbol: '🧪', label: 'Test effect' }];
@@ -249,7 +334,7 @@ describe('Action Kinds', () => {
       registerActionKind(doubler);
       resetActionKindsForTesting();
       expect(findActionKind('TEST_DOUBLE_MONEY')).toBeUndefined();
-      expect(['autoInvite', 'adjustSelf', 'custom', 'chooseGuest'].every(k => findActionKind(k))).toBe(true);
+      expect(['autoInvite', 'adjustSelf', 'cycleSelf', 'custom', 'chooseGuest'].every(k => findActionKind(k))).toBe(true);
     });
   });
 
@@ -300,6 +385,26 @@ describe('Action Kinds', () => {
       expect(getGuestType('MR_POPULAR').effects).toEqual([entrance({ kind: 'autoInvite', count: 1 })]);
       expect(getGuestType('MERMAID').effects).toEqual([entrance({ kind: 'autoInvite', count: 1 })]);
       expect(getGuestType('CELEBRITY').effects).toEqual([entrance({ kind: 'autoInvite', count: 2 })]);
+    });
+  });
+
+  describe('Werewolf', () => {
+    it('should be defined as the werewolf-guest spec says', () => {
+      // werewolf-guest Requirements 2.1–2.4
+      const def = getGuestType('WEREWOLF');
+      expect(def).toMatchObject({
+        label: 'Werewolf',
+        cost: 5,
+        properties: { popularityValue: 4, troubleValue: 0, moneyValue: 0, peaceValue: 0, starValue: 0 }
+      });
+      expect(def.effects).toEqual([entrance({
+        kind: 'cycleSelf',
+        property: 'troubleValue',
+        values: [0, 1],
+        icons: [{ symbol: '🌙', label: 'Switches between 0 and 1 trouble on entrance' }]
+      })]);
+      expect(DEFAULT_GAME_SETUP.shop.find(e => e.type === 'WEREWOLF')?.names).toEqual(['Remus', 'Lawrence', 'Scott', 'Jacob']);
+      expect(DEFAULT_GAME_SETUP.startingDeck.some(g => g.type === 'WEREWOLF')).toBe(false);
     });
   });
 

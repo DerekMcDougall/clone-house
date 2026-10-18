@@ -22,7 +22,8 @@ export type BuiltInGuestType =
   | 'DINOSAUR'
   | 'MERMAID'
   | 'UNICORN'
-  | 'SUPERHERO';
+  | 'SUPERHERO'
+  | 'WEREWOLF';
 
 // The game's own guest types, in registration order. Which of them are in a game is up to
 // the game setup; see game-setup.ts.
@@ -164,5 +165,20 @@ export const BUILT_IN_GUEST_TYPES: readonly GuestTypeDefinition[] = [
     label: 'Superhero',
     cost: 50,
     properties: { popularityValue: 3, troubleValue: 0, moneyValue: 0, peaceValue: 0, starValue: 1 }
+  },
+  {
+    id: 'WEREWOLF',
+    label: 'Werewolf',
+    cost: 5,
+    properties: { popularityValue: 4, troubleValue: 0, moneyValue: 0, peaceValue: 0, starValue: 0 },
+    effects: [{
+      trigger: 'entrance',
+      action: {
+        kind: 'cycleSelf',
+        property: 'troubleValue',
+        values: [0, 1],
+        icons: [{ symbol: '🌙', label: 'Switches between 0 and 1 trouble on entrance' }]
+      }
+    }]
   }
 ];

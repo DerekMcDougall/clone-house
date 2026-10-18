@@ -11,6 +11,10 @@ import { startBanSelection } from '../../testing/ban';
 import { resetGuestTypesForTesting } from '../models/guest-type-registry';
 import { DEFAULT_GAME_SETUP, GameSetup } from '../models/game-setup';
 
+// The card whose header is `label`, so tests don't depend on where it sorts in the shop
+const cardLabeled = (cards: NodeListOf<Element>, label: string): Element | undefined =>
+  Array.from(cards).find(card => card.querySelector('.card-header')?.textContent?.trim() === label);
+
 describe('PhaseContentComponent', () => {
   let component: PhaseContentComponent;
   let fixture: ComponentFixture<PhaseContentComponent>;
@@ -365,8 +369,8 @@ describe('PhaseContentComponent', () => {
       const compiled = fixture.nativeElement as HTMLElement;
       const shopCards = compiled.querySelectorAll('.shop-card');
 
-      // Should have 21 purchasable guest types (including the 7 star types) + 1 Expand House card = 22
-      expect(shopCards.length).toBe(22);
+      // Should have 22 purchasable guest types (including the 7 star types) + 1 Expand House card = 23
+      expect(shopCards.length).toBe(23);
     });
 
     it('should show type labels on shop cards', () => {
@@ -441,8 +445,7 @@ describe('PhaseContentComponent', () => {
 
       const compiled = fixture.nativeElement as HTMLElement;
       const shopCards = compiled.querySelectorAll('.shop-card');
-      // Monkey is at index 1 (Old Friend=0, Monkey=1, Rich Pal=2, Expand House=3)
-      const monkeyCard = shopCards[1];
+      const monkeyCard = cardLabeled(shopCards, 'Monkey');
       const price = monkeyCard?.querySelector('.shop-price');
 
       expect(price?.textContent?.trim()).toBe('Price: 3');
@@ -455,8 +458,7 @@ describe('PhaseContentComponent', () => {
 
       const compiled = fixture.nativeElement as HTMLElement;
       const shopCards = compiled.querySelectorAll('.shop-card');
-      // Monkey is at index 1
-      const monkeyCard = shopCards[1];
+      const monkeyCard = cardLabeled(shopCards, 'Monkey');
       const stock = monkeyCard?.querySelector('.shop-stock');
 
       expect(stock?.textContent?.trim()).toBe('Available: 4');
@@ -481,8 +483,7 @@ describe('PhaseContentComponent', () => {
 
       const compiled = fixture.nativeElement as HTMLElement;
       const shopCards = compiled.querySelectorAll('.shop-card');
-      // Rock Star is at index 6 (Old Friend=0, Monkey=1, Rich Pal=2, Hippy=3, Ticket Taker=4, Caterer=5, Rock Star=6)
-      const rockStarCard = shopCards[6];
+      const rockStarCard = cardLabeled(shopCards, 'Rock Star');
       const price = rockStarCard?.querySelector('.shop-price');
 
       expect(price?.textContent?.trim()).toBe('Price: 5');
@@ -495,7 +496,7 @@ describe('PhaseContentComponent', () => {
 
       const compiled = fixture.nativeElement as HTMLElement;
       const shopCards = compiled.querySelectorAll('.shop-card');
-      const rockStarCard = shopCards[6];
+      const rockStarCard = cardLabeled(shopCards, 'Rock Star');
       const stock = rockStarCard?.querySelector('.shop-stock');
 
       expect(stock?.textContent?.trim()).toBe('Available: 4');
@@ -520,8 +521,7 @@ describe('PhaseContentComponent', () => {
 
       const compiled = fixture.nativeElement as HTMLElement;
       const shopCards = compiled.querySelectorAll('.shop-card');
-      // Gangster is at index 8 (Old Friend=0, Monkey=1, Rich Pal=2, Hippy=3, Ticket Taker=4, Caterer=5, Mr. Popular=6, Rock Star=7, Gangster=8)
-      const gangsterCard = shopCards[8];
+      const gangsterCard = cardLabeled(shopCards, 'Gangster');
       const price = gangsterCard?.querySelector('.shop-price');
 
       expect(price?.textContent?.trim()).toBe('Price: 6');
@@ -534,7 +534,7 @@ describe('PhaseContentComponent', () => {
 
       const compiled = fixture.nativeElement as HTMLElement;
       const shopCards = compiled.querySelectorAll('.shop-card');
-      const gangsterCard = shopCards[7];
+      const gangsterCard = cardLabeled(shopCards, 'Gangster');
       const stock = gangsterCard?.querySelector('.shop-stock');
 
       expect(stock?.textContent?.trim()).toBe('Available: 4');
@@ -559,8 +559,7 @@ describe('PhaseContentComponent', () => {
 
       const compiled = fixture.nativeElement as HTMLElement;
       const shopCards = compiled.querySelectorAll('.shop-card');
-      // Gambler is at index 9 (Old Friend=0, Monkey=1, Rich Pal=2, Hippy=3, Ticket Taker=4, Caterer=5, Rock Star=6, Gangster=7, Cute Dog=8, Gambler=9)
-      const gamblerCard = shopCards[9];
+      const gamblerCard = cardLabeled(shopCards, 'Gambler');
       const price = gamblerCard?.querySelector('.shop-price');
 
       expect(price?.textContent?.trim()).toBe('Price: 7');
@@ -573,7 +572,7 @@ describe('PhaseContentComponent', () => {
 
       const compiled = fixture.nativeElement as HTMLElement;
       const shopCards = compiled.querySelectorAll('.shop-card');
-      const gamblerCard = shopCards[9];
+      const gamblerCard = cardLabeled(shopCards, 'Gambler');
       const stock = gamblerCard?.querySelector('.shop-stock');
 
       expect(stock?.textContent?.trim()).toBe('Available: 4');
@@ -598,8 +597,7 @@ describe('PhaseContentComponent', () => {
 
       const compiled = fixture.nativeElement as HTMLElement;
       const shopCards = compiled.querySelectorAll('.shop-card');
-      // Auctioneer is at index 11 (Old Friend=0, Monkey=1, Rich Pal=2, Hippy=3, Ticket Taker=4, Caterer=5, Mr. Popular=6, Rock Star=7, Gangster=8, Cute Dog=9, Gambler=10, Auctioneer=11)
-      const auctioneerCard = shopCards[11];
+      const auctioneerCard = cardLabeled(shopCards, 'Auctioneer');
       const price = auctioneerCard?.querySelector('.shop-price');
 
       expect(price?.textContent?.trim()).toBe('Price: 9');
@@ -612,7 +610,7 @@ describe('PhaseContentComponent', () => {
 
       const compiled = fixture.nativeElement as HTMLElement;
       const shopCards = compiled.querySelectorAll('.shop-card');
-      const auctioneerCard = shopCards[10];
+      const auctioneerCard = cardLabeled(shopCards, 'Auctioneer');
       const stock = auctioneerCard?.querySelector('.shop-stock');
 
       expect(stock?.textContent?.trim()).toBe('Available: 4');
@@ -637,8 +635,7 @@ describe('PhaseContentComponent', () => {
 
       const compiled = fixture.nativeElement as HTMLElement;
       const shopCards = compiled.querySelectorAll('.shop-card');
-      // Climber is at index 13 (Old Friend=0, Monkey=1, Rich Pal=2, Hippy=3, Ticket Taker=4, Caterer=5, Mr. Popular=6, Rock Star=7, Gangster=8, Cute Dog=9, Gambler=10, Auctioneer=11, Celebrity=12, Climber=13)
-      const climberCard = shopCards[13];
+      const climberCard = cardLabeled(shopCards, 'Climber');
       const price = climberCard?.querySelector('.shop-price');
 
       expect(price?.textContent?.trim()).toBe('Price: 12');
@@ -651,8 +648,7 @@ describe('PhaseContentComponent', () => {
 
       const compiled = fixture.nativeElement as HTMLElement;
       const shopCards = compiled.querySelectorAll('.shop-card');
-      // Climber is at index 11
-      const climberCard = shopCards[11];
+      const climberCard = cardLabeled(shopCards, 'Climber');
       const stock = climberCard?.querySelector('.shop-stock');
 
       expect(stock?.textContent?.trim()).toBe('Available: 4');
@@ -774,7 +770,7 @@ describe('PhaseContentComponent', () => {
       expect(addedFeedback).toBeFalsy();
     });
 
-    it('should display shop cards in correct order: Old Friend, Monkey, Rich Pal, Hippy, Ticket Taker, Caterer, Mr. Popular, Rock Star, Gangster, Cute Dog, Gambler, Auctioneer, Celebrity, Climber, Dinosaur, Dragon, Mermaid, Alien, Unicorn, Leprechaun, Superhero, Expand House', () => {
+    it('should display shop cards in correct order: Old Friend, Monkey, Rich Pal, Hippy, Ticket Taker, Caterer, Mr. Popular, Rock Star, Werewolf, Gangster, Cute Dog, Gambler, Auctioneer, Celebrity, Climber, Dinosaur, Dragon, Mermaid, Alien, Unicorn, Leprechaun, Superhero, Expand House', () => {
       // Requirements: 9.2, 9.3
       component.phase = GamePhase.BUY;
       fixture.detectChanges();
@@ -782,29 +778,11 @@ describe('PhaseContentComponent', () => {
       const compiled = fixture.nativeElement as HTMLElement;
       const headers = compiled.querySelectorAll('.shop-card .card-header');
 
-      expect(headers.length).toBe(22);
-      expect(headers[0].textContent?.trim()).toBe('Old Friend');
-      expect(headers[1].textContent?.trim()).toBe('Monkey');
-      expect(headers[2].textContent?.trim()).toBe('Rich Pal');
-      expect(headers[3].textContent?.trim()).toBe('Hippy');
-      expect(headers[4].textContent?.trim()).toBe('Ticket Taker');
-      expect(headers[5].textContent?.trim()).toBe('Caterer');
-      expect(headers[6].textContent?.trim()).toBe('Mr. Popular');
-      expect(headers[7].textContent?.trim()).toBe('Rock Star');
-      expect(headers[8].textContent?.trim()).toBe('Gangster');
-      expect(headers[9].textContent?.trim()).toBe('Cute Dog');
-      expect(headers[10].textContent?.trim()).toBe('Gambler');
-      expect(headers[11].textContent?.trim()).toBe('Auctioneer');
-      expect(headers[12].textContent?.trim()).toBe('Celebrity');
-      expect(headers[13].textContent?.trim()).toBe('Climber');
-      expect(headers[14].textContent?.trim()).toBe('Dinosaur');
-      expect(headers[15].textContent?.trim()).toBe('Dragon');
-      expect(headers[16].textContent?.trim()).toBe('Mermaid');
-      expect(headers[17].textContent?.trim()).toBe('Alien');
-      expect(headers[18].textContent?.trim()).toBe('Unicorn');
-      expect(headers[19].textContent?.trim()).toBe('Leprechaun');
-      expect(headers[20].textContent?.trim()).toBe('Superhero');
-      expect(headers[21].textContent?.trim()).toBe('Expand House');
+      expect(Array.from(headers, h => h.textContent?.trim())).toEqual([
+        'Old Friend', 'Monkey', 'Rich Pal', 'Hippy', 'Ticket Taker', 'Caterer', 'Mr. Popular', 'Rock Star',
+        'Werewolf', 'Gangster', 'Cute Dog', 'Gambler', 'Auctioneer', 'Celebrity', 'Climber', 'Dinosaur', 'Dragon',
+        'Mermaid', 'Alien', 'Unicorn', 'Leprechaun', 'Superhero', 'Expand House'
+      ]);
     });
   });
 
@@ -1111,6 +1089,15 @@ describe('PhaseContentComponent - Victory and Star Guests', () => {
       expect(card.querySelector('.guest-money .guest-value')?.textContent?.trim()).toBe('$3');
       const icons = Array.from(card.querySelectorAll('.guest-icons [role="img"]')).map(i => i.textContent?.trim());
       expect(icons).toEqual(['👤', '👤']);
+    });
+
+    it('shows the Werewolf as first added to the deck: 4 popularity, a moon and no trouble', () => {
+      // werewolf-guest Requirements 4.1, 4.3
+      const card = shopCard('Werewolf');
+      expect(card.querySelector('.guest-popularity .guest-value')?.textContent?.trim()).toBe('4');
+      const icons = Array.from(card.querySelectorAll('.guest-icons [role="img"]')).map(i => i.textContent?.trim());
+      expect(icons).toEqual(['🌙']);
+      expect(card.querySelector('.shop-price')?.textContent?.trim()).toBe('Price: 5');
     });
 
     it('keeps the "Buy <type>" accessible name', () => {

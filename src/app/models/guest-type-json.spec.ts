@@ -72,6 +72,15 @@ describe('parseGuestTypeDefinition', () => {
     ].join('\n'));
   });
 
+  it('should accept cycleSelf, copying its values', () => {
+    const action = { kind: 'cycleSelf', property: 'troubleValue', values: [0, 1], icons: [{ symbol: '🌙', label: 'Moon' }] };
+    const json = { ...JSON.parse(PARTY_PLANNER_JSON), effects: [{ trigger: 'entrance', action }] };
+    const parsed = parseGuestTypeDefinition(json);
+    expect(parsed.effects?.[0].action).toEqual(action);
+    action.values.push(2);
+    expect(parsed.effects?.[0].action['values']).toEqual([0, 1]);
+  });
+
   it('should accept chooseGuest with a data-only action, and reject a custom one inside it', () => {
     const withAction = (action: unknown) => ({
       ...JSON.parse(PARTY_PLANNER_JSON),

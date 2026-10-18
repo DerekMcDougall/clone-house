@@ -67,6 +67,19 @@ const autoInviteKind: ActionKind<{ count: number }> = {
     Array.from({ length: count }, () => ({ symbol: '👤', label: `Invites a guest ${triggerPhrase(trigger)}` }))
 };
 
+// Problems with a `property` parameter naming one of the guest's properties.
+const propertyProblems = (property: unknown, path: string): string[] =>
+  typeof property === 'string' && Object.hasOwn(PROPERTY_NAMES, property)
+    ? [] : [`${path}.property: expected one of ${Object.keys(PROPERTY_NAMES).join(', ')}`];
+
+// The current party version of the guest whose effect this is, or undefined if they've left.
+const currentVersion = (ctx: EffectContext, guest: Guest): Guest | undefined =>
+  ctx.getParty().find(g => g.id === guest.id);
+
+const setProperty = (ctx: EffectContext, guest: Guest, property: keyof GuestProperties, value: number): void => {
+  ctx.updateGuest(guest, g => ({ ...g, properties: { ...g.properties, [property]: value } }));
+};
+
 type AdjustSelfParams = { property: keyof GuestProperties; delta: number; min?: number; max?: number };
 
 // Changes one property of the guest whose effect this is, clamped to [min, max] when given.
@@ -76,10 +89,7 @@ const adjustSelfKind: ActionKind<AdjustSelfParams> = {
   kind: 'adjustSelf',
   dataOnly: true,
   validate: (p, path) => {
-    const problems: string[] = [];
-    if (typeof p['property'] !== 'string' || !Object.hasOwn(PROPERTY_NAMES, p['property'])) {
-      problems.push(`${path}.property: expected one of ${Object.keys(PROPERTY_NAMES).join(', ')}`);
-    }
+    const problems = propertyProblems(p['property'], path);
     // Zero would do nothing and has no icon
     if (!isInteger(p['delta']) || p['delta'] === 0) problems.push(`${path}.delta: expected a non-zero integer`);
     for (const bound of ['min', 'max']) {
@@ -91,18 +101,48 @@ const adjustSelfKind: ActionKind<AdjustSelfParams> = {
     return [...problems, ...unknownParams(p, path, ['property', 'delta', 'min', 'max'])];
   },
   run: (ctx, guest, { property, delta, min, max }) => {
-    const current = ctx.getParty().find(g => g.id === guest.id);
+    const current = currentVersion(ctx, guest);
     if (!current) return;
 
     let value = current.properties[property] + delta;
     if (min !== undefined) value = Math.max(min, value);
     if (max !== undefined) value = Math.min(max, value);
-    ctx.updateGuest(current, g => ({ ...g, properties: { ...g.properties, [property]: value } }));
+    setProperty(ctx, current, property, value);
   },
   icons: ({ property, delta }, trigger) => [{
     symbol: delta > 0 ? '➕' : '➖',
     label: `${delta > 0 ? 'Gains' : 'Loses'} ${Math.abs(delta)} ${PROPERTY_NAMES[property]} ${triggerPhrase(trigger)}`
   }]
+};
+
+type CycleSelfParams = { property: keyof GuestProperties; values: readonly number[]; icons: readonly GuestIcon[] };
+
+// Sets one property of the guest whose effect this is to the value after its current one in
+// `values`, wrapping around, or to the first value if the current one isn't listed. Reads
+// the guest's current party version, like adjustSelf. Its icons are given: a derived one
+// couldn't say what the change means for the guest.
+const cycleSelfKind: ActionKind<CycleSelfParams> = {
+  kind: 'cycleSelf',
+  dataOnly: true,
+  validate: (p, path) => {
+    const values = p['values'];
+    return [
+      ...propertyProblems(p['property'], path),
+      ...(Array.isArray(values) && values.length >= 2 && values.every(isInteger)
+        ? [] : [`${path}.values: expected a list of at least 2 integers`]),
+      ...iconsProblems(p['icons'], path),
+      ...unknownParams(p, path, ['property', 'values', 'icons'])
+    ];
+  },
+  run: (ctx, guest, { property, values }) => {
+    const current = currentVersion(ctx, guest);
+    if (!current) return;
+
+    // indexOf is -1 for a value that isn't listed, which gives the first value
+    const next = values[(values.indexOf(current.properties[property]) + 1) % values.length];
+    setProperty(ctx, current, property, next);
+  },
+  icons: (p) => p.icons
 };
 
 // An effect written in code, for one-offs that no kind covers. Can't be used from JSON.
@@ -156,7 +196,7 @@ const add = (kind: ActionKind): void => {
 const ensureBuiltIns = (): void => {
   if (builtInsRegistered) return;
   builtInsRegistered = true;
-  [autoInviteKind, adjustSelfKind, customKind, chooseGuestKind].forEach(add);
+  [autoInviteKind, adjustSelfKind, cycleSelfKind, customKind, chooseGuestKind].forEach(add);
 };
 
 // Adds an action kind, making it available to every guest type, including ones from JSON.
