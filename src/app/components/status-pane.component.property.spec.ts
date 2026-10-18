@@ -832,11 +832,11 @@ describe('StatusPaneComponent - Property-Based Tests', () => {
    *
    * **Validates: Requirements 3.5**
    *
-   * For any game state where isBanSelectionActive is true, the phase button and
+   * For any game state where a ban is being chosen, the phase button and
    * invite button in the StatusPaneComponent SHALL be disabled.
    */
   describe('Property 5: Status Pane Buttons Disabled During Ban Selection', () => {
-    it('should disable phase button and invite button when isBanSelectionActive is true', () => {
+    it('should disable phase button and invite button when a ban is being chosen', () => {
       // Feature: ban-guest-after-bust, Property 5: Status Pane Buttons Disabled During Ban Selection
       fc.assert(
         fc.property(

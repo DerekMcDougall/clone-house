@@ -613,7 +613,7 @@ describe('StatusPaneComponent', () => {
   });
 
   describe('Ban Selection Disabled State', () => {
-    it('should disable invite button when isBanSelectionActive is true', () => {
+    it('should disable invite button when a ban is being chosen', () => {
       store.initializeGame();
       store.advancePhase(); // Move to PARTY phase
       startBanSelection(store, [testGuest('OLD_FRIEND', 'Brian')]);
@@ -624,7 +624,7 @@ describe('StatusPaneComponent', () => {
       expect(inviteButton.disabled).toBe(true);
     });
 
-    it('should disable phase button when isBanSelectionActive is true', () => {
+    it('should disable phase button when a ban is being chosen', () => {
       store.initializeGame();
       store.advancePhase(); // Move to PARTY phase
       startBanSelection(store, [testGuest('OLD_FRIEND', 'Brian')]);
@@ -634,7 +634,7 @@ describe('StatusPaneComponent', () => {
       expect(phaseButton.disabled).toBe(true);
     });
 
-    it('should enable buttons when both isPartyShutdown and isBanSelectionActive are false', () => {
+    it('should enable buttons when isPartyShutdown is false and no ban is being chosen', () => {
       store.initializeGame();
       store.advancePhase(); // Move to PARTY phase
       patchState(unprotected(store), { isPartyShutdown: false });

@@ -414,12 +414,12 @@ describe('PhaseContentComponent - Property-Based Tests', () => {
    *
    * **Validates: Requirements 3.3, 3.4**
    *
-   * For any game state where isBanSelectionActive is true and bustPartySnapshot
+   * For any game state where a ban is being chosen and bustPartySnapshot
    * contains N guests (N > 0), the PhaseContentComponent SHALL render the text
    * "Who takes the blame?" and exactly N guest card buttons.
    */
   describe('Property 4: Ban Selection UI Renders Blame Prompt and Snapshot Guests', () => {
-    it('should render blame prompt and N guest card buttons when isBanSelectionActive with N snapshot guests', () => {
+    it('should render blame prompt and N guest card buttons while a ban is being chosen with N snapshot guests', () => {
       // Feature: ban-guest-after-bust, Property 4: Ban Selection UI Renders Blame Prompt and Snapshot Guests
 
       const guestArb: fc.Arbitrary<Guest> = fc.tuple(

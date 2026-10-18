@@ -9,7 +9,7 @@ import { getGuestType, registerGuestType, resetGuestTypesForTesting } from '../m
 import { DEFAULT_GAME_SETUP, GameSetup } from '../models/game-setup';
 import { GameStore, ShopInventoryEntry } from './game.store';
 import { customEntrance, registerTestGuestType, testGuest } from '../../testing/guests';
-import { startBanSelection } from '../../testing/ban';
+import { isChoosingBan, pickBan, pickedBan, startBanSelection } from '../../testing/ban';
 import { arbGuestNames, arbGuestTypeDefinition } from '../../testing/guest-type-arbitraries';
 
 /**
@@ -3013,7 +3013,7 @@ describe('GameStore - Property-Based Tests', () => {
               expect(store.isPartyShutdown()).toBe(false);
             } else {
               // Non-final turn: enters ban selection (does NOT advance turn)
-              expect(store.isBanSelectionActive()).toBe(true);
+              expect(isChoosingBan(store)).toBe(true);
               expect(store.currentTurn()).toBe(validCurrentTurn);
               expect(store.isPartyShutdown()).toBe(false);
               expect(store.isGameComplete()).toBe(false);
@@ -3033,7 +3033,7 @@ describe('GameStore - Property-Based Tests', () => {
    * **Validates: Requirements 1.4, 8.1, 8.2, 8.3**
    *
    * For any sequence of game operations (inviteGuest, advancePhase from PARTY,
-   * triggerPartyShutdown, acknowledgeShutdown, selectGuestToBan, confirmBan),
+   * triggerPartyShutdown, acknowledgeShutdown, pickBan, confirmChoice),
    * the sum deck.length + party.length + discard.length SHALL equal 10.
    */
   describe('Property 1: Guest Conservation Invariant (ban-guest-after-bust)', () => {
@@ -3045,8 +3045,8 @@ describe('GameStore - Property-Based Tests', () => {
         'advancePhase',
         'triggerPartyShutdown',
         'acknowledgeShutdown',
-        'selectGuestToBan',
-        'confirmBan'
+        'pickBan',
+        'confirmChoice'
       );
 
       fc.assert(
@@ -3067,17 +3067,17 @@ describe('GameStore - Property-Based Tests', () => {
 
               switch (op) {
                 case 'invite':
-                  if (!store.isPartyShutdown() && !store.isBanSelectionActive()) {
+                  if (!store.isPartyShutdown() && !isChoosingBan(store)) {
                     store.inviteGuest();
                   }
                   break;
                 case 'advancePhase':
-                  if (!store.isPartyShutdown() && !store.isBanSelectionActive()) {
+                  if (!store.isPartyShutdown() && !isChoosingBan(store)) {
                     store.advancePhase();
                   }
                   break;
                 case 'triggerPartyShutdown':
-                  if (store.currentPhase() === GamePhase.PARTY && !store.isPartyShutdown() && !store.isBanSelectionActive()) {
+                  if (store.currentPhase() === GamePhase.PARTY && !store.isPartyShutdown() && !isChoosingBan(store)) {
                     store.triggerPartyShutdown();
                   }
                   break;
@@ -3086,14 +3086,14 @@ describe('GameStore - Property-Based Tests', () => {
                     store.acknowledgeShutdown();
                   }
                   break;
-                case 'selectGuestToBan':
-                  if (store.isBanSelectionActive() && store.bustPartySnapshot().length > 0) {
-                    store.selectGuestToBan(0);
+                case 'pickBan':
+                  if (isChoosingBan(store) && store.bustPartySnapshot().length > 0) {
+                    pickBan(store, 0);
                   }
                   break;
-                case 'confirmBan':
-                  if (store.isBanSelectionActive() && store.selectedBanGuest()) {
-                    store.confirmBan();
+                case 'confirmChoice':
+                  if (isChoosingBan(store) && pickedBan(store)) {
+                    store.confirmChoice();
                   }
                   break;
               }
@@ -3181,7 +3181,7 @@ describe('GameStore - Property-Based Tests', () => {
    * **Validates: Requirements 3.2, 4.3**
    *
    * For any game state where isPartyShutdown is true, calling acknowledgeShutdown()
-   * SHALL set isBanSelectionActive = true if non-final turn, or isGameComplete = true
+   * SHALL start the ban choice if non-final turn, or isGameComplete = true
    * if final turn.
    */
   describe('Property 3: Acknowledge Shutdown Enters Ban Selection If and Only If Non-Final Turn (ban-guest-after-bust)', () => {
@@ -3208,11 +3208,11 @@ describe('GameStore - Property-Based Tests', () => {
             if (validCurrentTurn === totalTurns) {
               // Final turn: game complete, no ban selection
               expect(store.isGameComplete()).toBe(true);
-              expect(store.isBanSelectionActive()).toBe(false);
+              expect(isChoosingBan(store)).toBe(false);
               expect(store.isPartyShutdown()).toBe(false);
             } else {
               // Non-final turn: enter ban selection
-              expect(store.isBanSelectionActive()).toBe(true);
+              expect(isChoosingBan(store)).toBe(true);
               expect(store.isPartyShutdown()).toBe(false);
               expect(store.isGameComplete()).toBe(false);
               // Turn should NOT have advanced yet
@@ -3233,7 +3233,7 @@ describe('GameStore - Property-Based Tests', () => {
    * **Validates: Requirements 5.2, 9.1, 9.2, 9.3**
    *
    * For any guest of type OLD_FRIEND, WILD_BUDDY, or RICH_PAL with any name,
-   * the banConfirmationMessage computed signal SHALL produce the string
+   * the ban choice's confirmation message SHALL produce the string
    * "{TypeLabel} {Name} will be banned from the next party."
    */
   describe('Property 6: Ban Confirmation Message Format (ban-guest-after-bust)', () => {
@@ -3257,7 +3257,7 @@ describe('GameStore - Property-Based Tests', () => {
             const expectedLabel = GUEST_TYPE_LABELS[guestType];
             const expectedMessage = `${expectedLabel} ${name} will be banned from the next party.`;
 
-            expect(store.banConfirmationMessage()).toBe(expectedMessage);
+            expect(store.pendingChoice()?.confirmation).toBe(expectedMessage);
 
             store.resetGame();
           }
@@ -3273,7 +3273,7 @@ describe('GameStore - Property-Based Tests', () => {
    * **Validates: Requirements 6.1, 6.2**
    *
    * For any bust party snapshot of N guests and any selected guest from that
-   * snapshot, calling confirmBan() SHALL place exactly the selected guest in
+   * snapshot, calling confirmChoice() SHALL place exactly the selected guest in
    * the discard pile and all other (N-1) guests from the snapshot in the deck.
    */
   describe('Property 7: Confirm Ban Splits Snapshot Correctly (ban-guest-after-bust)', () => {
@@ -3301,7 +3301,7 @@ describe('GameStore - Property-Based Tests', () => {
             patchState(unprotected(store), { currentPhase: GamePhase.PARTY, party: [] });
             startBanSelection(store, snapshotGuests, selectedIndex);
 
-            store.confirmBan();
+            store.confirmChoice();
 
             // Selected guest should be in discard
             const discard = store.discard();
@@ -3337,11 +3337,11 @@ describe('GameStore - Property-Based Tests', () => {
    * **Validates: Requirements 6.4, 6.5**
    *
    * For any game state where ban selection is active on turn T (non-final),
-   * calling confirmBan() SHALL result in currentTurn = T + 1, currentPhase = BUY,
+   * calling confirmChoice() SHALL result in currentTurn = T + 1, currentPhase = BUY,
    * and all ban state cleared.
    */
   describe('Property 8: Confirm Ban Advances Game State (ban-guest-after-bust)', () => {
-    it('should increment turn, set BUY phase, and clear ban state after confirmBan', () => {
+    it('should increment turn, set BUY phase, and clear ban state after confirming', () => {
       // Feature: ban-guest-after-bust, Property 8: Confirm Ban Advances Game State
 
       fc.assert(
@@ -3358,13 +3358,13 @@ describe('GameStore - Property-Based Tests', () => {
             patchState(unprotected(store), { currentTurn, currentPhase: GamePhase.PARTY, party: [] });
             startBanSelection(store, [dummyGuest], 0);
 
-            store.confirmBan();
+            store.confirmChoice();
 
             expect(store.currentTurn()).toBe(currentTurn + 1);
             expect(store.currentPhase()).toBe(GamePhase.BUY);
-            expect(store.isBanSelectionActive()).toBe(false);
+            expect(isChoosingBan(store)).toBe(false);
             expect(store.bustPartySnapshot().length).toBe(0);
-            expect(store.selectedBanGuest()).toBeNull();
+            expect(pickedBan(store)).toBeNull();
 
             store.resetGame();
           }
@@ -3450,8 +3450,8 @@ describe('GameStore - Property-Based Tests', () => {
         'advancePhase',
         'triggerPartyShutdown',
         'acknowledgeShutdown',
-        'selectGuestToBan',
-        'confirmBan'
+        'pickBan',
+        'confirmChoice'
       );
 
       fc.assert(
@@ -3476,17 +3476,17 @@ describe('GameStore - Property-Based Tests', () => {
 
               switch (op) {
                 case 'invite':
-                  if (!store.isPartyShutdown() && !store.isBanSelectionActive()) {
+                  if (!store.isPartyShutdown() && !isChoosingBan(store)) {
                     store.inviteGuest();
                   }
                   break;
                 case 'advancePhase':
-                  if (!store.isPartyShutdown() && !store.isBanSelectionActive()) {
+                  if (!store.isPartyShutdown() && !isChoosingBan(store)) {
                     store.advancePhase();
                   }
                   break;
                 case 'triggerPartyShutdown':
-                  if (store.currentPhase() === GamePhase.PARTY && !store.isPartyShutdown() && !store.isBanSelectionActive()) {
+                  if (store.currentPhase() === GamePhase.PARTY && !store.isPartyShutdown() && !isChoosingBan(store)) {
                     store.triggerPartyShutdown();
                   }
                   break;
@@ -3495,14 +3495,14 @@ describe('GameStore - Property-Based Tests', () => {
                     store.acknowledgeShutdown();
                   }
                   break;
-                case 'selectGuestToBan':
-                  if (store.isBanSelectionActive() && store.bustPartySnapshot().length > 0) {
-                    store.selectGuestToBan(0);
+                case 'pickBan':
+                  if (isChoosingBan(store) && store.bustPartySnapshot().length > 0) {
+                    pickBan(store, 0);
                   }
                   break;
-                case 'confirmBan':
-                  if (store.isBanSelectionActive() && store.selectedBanGuest()) {
-                    store.confirmBan();
+                case 'confirmChoice':
+                  if (isChoosingBan(store) && pickedBan(store)) {
+                    store.confirmChoice();
                   }
                   break;
               }
@@ -4417,7 +4417,7 @@ describe('GameStore - Shop Buy Guests Property Tests', () => {
    * **Validates: Requirements 3.2, 4.2, 5.1, 5.3**
    *
    * For any sequence of game operations (purchaseGuest, inviteGuest, advancePhase,
-   * triggerPartyShutdown, confirmBan), the sum
+   * triggerPartyShutdown, confirmChoice), the sum
    * deck.length + party.length + discard.length + sum(shopInventory[*].guests.length)
    * SHALL equal INITIAL_GUESTS.length + purchasableShopGuestsCount (10 + 12 = 22).
    */
@@ -4433,8 +4433,8 @@ describe('GameStore - Shop Buy Guests Property Tests', () => {
         'advancePhase',
         'triggerPartyShutdown',
         'acknowledgeShutdown',
-        'selectGuestToBan',
-        'confirmBan'
+        'pickBan',
+        'confirmChoice'
       );
 
       fc.assert(
@@ -4475,19 +4475,19 @@ describe('GameStore - Shop Buy Guests Property Tests', () => {
                   break;
                 }
                 case 'invite':
-                  if (store.currentPhase() === GamePhase.PARTY && !store.isPartyShutdown() && !store.isBanSelectionActive()) {
+                  if (store.currentPhase() === GamePhase.PARTY && !store.isPartyShutdown() && !isChoosingBan(store)) {
                     store.inviteGuest();
                   }
                   break;
                 case 'advancePhase':
-                  if (!store.isGameComplete() && !store.isPartyShutdown() && !store.isBanSelectionActive()) {
+                  if (!store.isGameComplete() && !store.isPartyShutdown() && !isChoosingBan(store)) {
                     store.advancePhase();
                     // Re-boost popularity after phase advance for future purchases
                     patchState(unprotected(store), { popularity: Math.max(store.popularity(), 200) });
                   }
                   break;
                 case 'triggerPartyShutdown':
-                  if (store.currentPhase() === GamePhase.PARTY && !store.isPartyShutdown() && !store.isBanSelectionActive()) {
+                  if (store.currentPhase() === GamePhase.PARTY && !store.isPartyShutdown() && !isChoosingBan(store)) {
                     store.triggerPartyShutdown();
                   }
                   break;
@@ -4496,15 +4496,15 @@ describe('GameStore - Shop Buy Guests Property Tests', () => {
                     store.acknowledgeShutdown();
                   }
                   break;
-                case 'selectGuestToBan':
-                  if (store.isBanSelectionActive() && store.bustPartySnapshot().length > 0) {
+                case 'pickBan':
+                  if (isChoosingBan(store) && store.bustPartySnapshot().length > 0) {
                     const idx = Math.floor(Math.random() * store.bustPartySnapshot().length);
-                    store.selectGuestToBan(idx);
+                    pickBan(store, idx);
                   }
                   break;
-                case 'confirmBan':
-                  if (store.isBanSelectionActive() && store.selectedBanGuest()) {
-                    store.confirmBan();
+                case 'confirmChoice':
+                  if (isChoosingBan(store) && pickedBan(store)) {
+                    store.confirmChoice();
                     // Re-boost popularity after ban advances turn
                     patchState(unprotected(store), { popularity: Math.max(store.popularity(), 200) });
                   }
@@ -4700,7 +4700,7 @@ describe('GameStore - Shop Buy Guests Property Tests', () => {
    * **Validates: Requirements 5.6, 6.2, 7.5, 11.1**
    *
    * For any sequence of game operations (purchaseGuest, inviteGuest, advancePhase,
-   * triggerPartyShutdown, confirmBan), the sum
+   * triggerPartyShutdown, confirmChoice), the sum
    * deck.length + party.length + discard.length + bustPartySnapshot.length +
    * sum(shopInventory[*].guests.length) SHALL equal 94
    * (10 initial guests + 84 purchasable shop guests).
@@ -4716,8 +4716,8 @@ describe('GameStore - Shop Buy Guests Property Tests', () => {
         'advancePhase',
         'triggerPartyShutdown',
         'acknowledgeShutdown',
-        'selectGuestToBan',
-        'confirmBan',
+        'pickBan',
+        'confirmChoice',
         'claimVictory'
       );
 
@@ -4754,19 +4754,19 @@ describe('GameStore - Shop Buy Guests Property Tests', () => {
                   break;
                 }
                 case 'inviteGuest':
-                  if (store.currentPhase() === GamePhase.PARTY && !store.isPartyShutdown() && !store.isBanSelectionActive()) {
+                  if (store.currentPhase() === GamePhase.PARTY && !store.isPartyShutdown() && !isChoosingBan(store)) {
                     store.inviteGuest();
                   }
                   break;
                 case 'advancePhase':
-                  if (!store.isGameComplete() && !store.isPartyShutdown() && !store.isBanSelectionActive()) {
+                  if (!store.isGameComplete() && !store.isPartyShutdown() && !isChoosingBan(store)) {
                     store.advancePhase();
                     // Re-boost popularity after phase advance for future purchases
                     patchState(unprotected(store), { popularity: Math.max(store.popularity(), 200) });
                   }
                   break;
                 case 'triggerPartyShutdown':
-                  if (store.currentPhase() === GamePhase.PARTY && !store.isPartyShutdown() && !store.isBanSelectionActive()) {
+                  if (store.currentPhase() === GamePhase.PARTY && !store.isPartyShutdown() && !isChoosingBan(store)) {
                     store.triggerPartyShutdown();
                   }
                   break;
@@ -4775,15 +4775,15 @@ describe('GameStore - Shop Buy Guests Property Tests', () => {
                     store.acknowledgeShutdown();
                   }
                   break;
-                case 'selectGuestToBan':
-                  if (store.isBanSelectionActive() && store.bustPartySnapshot().length > 0) {
+                case 'pickBan':
+                  if (isChoosingBan(store) && store.bustPartySnapshot().length > 0) {
                     const idx = Math.floor(Math.random() * store.bustPartySnapshot().length);
-                    store.selectGuestToBan(idx);
+                    pickBan(store, idx);
                   }
                   break;
-                case 'confirmBan':
-                  if (store.isBanSelectionActive() && store.selectedBanGuest()) {
-                    store.confirmBan();
+                case 'confirmChoice':
+                  if (isChoosingBan(store) && pickedBan(store)) {
+                    store.confirmChoice();
                     // Re-boost popularity after ban advances turn
                     patchState(unprotected(store), { popularity: Math.max(store.popularity(), 200) });
                   }
@@ -5023,9 +5023,9 @@ describe('GameStore - Star Guests & Winning Property Tests', () => {
           store.acknowledgeShutdown();
           expect(store.isVictory()).toBe(false);
 
-          if (store.isBanSelectionActive()) {
-            store.selectGuestToBan(0);
-            store.confirmBan();
+          if (isChoosingBan(store)) {
+            pickBan(store, 0);
+            store.confirmChoice();
           }
           expect(store.isVictory()).toBe(false);
           expect(store.stars()).toBe(0);
@@ -5218,7 +5218,7 @@ describe('GameStore Property Tests - Guest Identity', () => {
     it('should keep exactly the initial ids across any sequence of operations', () => {
       // Feature: guest-identity, Property 2: Id Conservation Across Operations
       const operationArb = fc.oneof(
-        fc.constantFrom('invite' as const, 'advancePhase' as const, 'acknowledgeShutdown' as const, 'confirmBan' as const),
+        fc.constantFrom('invite' as const, 'advancePhase' as const, 'acknowledgeShutdown' as const, 'confirmChoice' as const),
         fc.constantFrom(...purchasableTypes).map(type => ({ purchase: type })),
         fc.nat({ max: 9 }).map(index => ({ ban: index }))
       );
@@ -5233,17 +5233,17 @@ describe('GameStore Property Tests - Guest Identity', () => {
             if (typeof op === 'object' && 'purchase' in op) {
               store.purchaseGuest(op.purchase);
             } else if (typeof op === 'object') {
-              store.selectGuestToBan(op.ban);
+              pickBan(store, op.ban);
             } else if (op === 'invite') {
               if (store.currentPhase() === GamePhase.PARTY) store.inviteGuest();
             } else if (op === 'advancePhase') {
-              if (!store.isGameComplete() && !store.isPartyShutdown() && !store.isBanSelectionActive()) {
+              if (!store.isGameComplete() && !store.isPartyShutdown() && !isChoosingBan(store)) {
                 store.advancePhase();
               }
             } else if (op === 'acknowledgeShutdown') {
               if (store.isPartyShutdown()) store.acknowledgeShutdown();
             } else {
-              store.confirmBan();
+              store.confirmChoice();
             }
 
             expect([...allIds()].sort()).toEqual(initialIds);
@@ -5313,8 +5313,8 @@ describe('GameStore Property Tests - Guest Identity', () => {
             const deckBefore = store.deck();
             startBanSelection(store, snapshot);
 
-            store.selectGuestToBan(index);
-            store.confirmBan();
+            pickBan(store, index);
+            store.confirmChoice();
 
             expect(store.discard().map(g => g.id)).toEqual([snapshot[index].id]);
             const expectedDeck = [...deckBefore, ...snapshot.filter((_, i) => i !== index)].map(g => g.id).sort();

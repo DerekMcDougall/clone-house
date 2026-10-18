@@ -8,7 +8,7 @@ import { getGuestType, resetGuestTypesForTesting } from '../models/guest-type-re
 import { runEffect } from '../models/action-kinds';
 import { GameStore, ShopInventoryEntry } from './game.store';
 import { customEntrance, registerTestGuestType, testGuest } from '../../testing/guests';
-import { startBanSelection } from '../../testing/ban';
+import { isChoosingBan, pickBan, pickedBan, startBanSelection } from '../../testing/ban';
 
 const TEST_ICON = { symbol: '🧪', label: 'Test effect' };
 
@@ -800,7 +800,7 @@ describe('GameStore - Unit Tests', () => {
       it('should not invite a guest during ban selection', () => {
         bustOnThirdWildBuddy();
         store.acknowledgeShutdown();
-        expect(store.isBanSelectionActive()).toBe(true);
+        expect(isChoosingBan(store)).toBe(true);
         expect(store.canInviteGuest()).toBe(false);
         const deckBefore = store.deck();
 
@@ -1395,7 +1395,7 @@ describe('GameStore - Unit Tests', () => {
       store.acknowledgeShutdown();
 
       expect(store.isPartyShutdown()).toBe(false);
-      expect(store.isBanSelectionActive()).toBe(true);
+      expect(isChoosingBan(store)).toBe(true);
       // Turn should NOT advance — ban selection happens first
       expect(store.currentTurn()).toBe(2);
       expect(store.isGameComplete()).toBe(false);
@@ -1563,10 +1563,10 @@ describe('GameStore - Unit Tests', () => {
 
     describe('acknowledgeShutdown()', () => {
       /**
-       * Test acknowledgeShutdown() on non-final turn sets isBanSelectionActive
+       * Test acknowledgeShutdown() on non-final turn starts the ban choice
        * **Validates: Requirements 3.2**
        */
-      it('should set isBanSelectionActive on non-final turn', () => {
+      it('should start the ban choice on non-final turn', () => {
         store.initializeGame(5);
         patchState(unprotected(store), {
           currentTurn: 3,
@@ -1578,16 +1578,16 @@ describe('GameStore - Unit Tests', () => {
         store.acknowledgeShutdown();
 
         expect(store.isPartyShutdown()).toBe(false);
-        expect(store.isBanSelectionActive()).toBe(true);
+        expect(isChoosingBan(store)).toBe(true);
         // Turn should NOT advance yet
         expect(store.currentTurn()).toBe(3);
       });
 
       /**
-       * Test acknowledgeShutdown() on final turn does NOT set isBanSelectionActive
+       * Test acknowledgeShutdown() on final turn does NOT start the ban choice
        * **Validates: Requirements 4.3**
        */
-      it('should NOT set isBanSelectionActive on final turn', () => {
+      it('should NOT start the ban choice on final turn', () => {
         store.initializeGame(5);
         patchState(unprotected(store), {
           currentTurn: 5,
@@ -1600,19 +1600,19 @@ describe('GameStore - Unit Tests', () => {
         store.acknowledgeShutdown();
 
         expect(store.isPartyShutdown()).toBe(false);
-        expect(store.isBanSelectionActive()).toBe(false);
+        expect(isChoosingBan(store)).toBe(false);
         expect(store.isGameComplete()).toBe(true);
         expect(store.bustPartySnapshot()).toEqual([]);
-        expect(store.selectedBanGuest()).toBeNull();
+        expect(pickedBan(store)).toBeNull();
       });
     });
 
-    describe('selectGuestToBan()', () => {
+    describe('picking a guest to ban', () => {
       /**
-       * Test selectGuestToBan() sets selectedBanGuest
+       * Test picking a bust guest selects them
        * **Validates: Requirements 5.1**
        */
-      it('should set selectedBanGuest to the guest at the given index', () => {
+      it('should select the guest at the given index', () => {
         store.initializeGame(5);
         const guests = [
           testGuest('OLD_FRIEND', 'Brian'),
@@ -1621,31 +1621,31 @@ describe('GameStore - Unit Tests', () => {
         ];
         startBanSelection(store, guests);
 
-        store.selectGuestToBan(1);
+        pickBan(store, 1);
 
-        expect(store.selectedBanGuest()).toBe(guests[1]);
-        expect(store.selectedBanGuest()!.name).toBe('Anthony');
+        expect(pickedBan(store)).toBe(guests[1]);
+        expect(pickedBan(store)!.name).toBe('Anthony');
       });
 
       /**
-       * Test selectGuestToBan() with out-of-bounds index is no-op
+       * Test picking an out-of-bounds index is a no-op
        * **Validates: Requirements 5.1**
        */
       it('should be a no-op when index is out of bounds', () => {
         store.initializeGame(5);
         startBanSelection(store, [testGuest('OLD_FRIEND', 'Brian')]);
 
-        store.selectGuestToBan(5);
-        expect(store.selectedBanGuest()).toBeNull();
+        pickBan(store, 5);
+        expect(pickedBan(store)).toBeNull();
 
-        store.selectGuestToBan(-1);
-        expect(store.selectedBanGuest()).toBeNull();
+        pickBan(store, -1);
+        expect(pickedBan(store)).toBeNull();
       });
     });
 
-    describe('confirmBan()', () => {
+    describe('confirming a ban', () => {
       /**
-       * Test confirmBan() places selected in discard, returns rest to deck, advances turn
+       * Test confirming places selected in discard, returns rest to deck, advances turn
        * **Validates: Requirements 6.1, 6.2, 6.4**
        */
       it('should place selected guest in discard, return rest to deck, and advance turn', () => {
@@ -1662,7 +1662,7 @@ describe('GameStore - Unit Tests', () => {
         });
         startBanSelection(store, guests, 1); // Anthony
 
-        store.confirmBan();
+        store.confirmChoice();
 
         // Selected guest should be in discard
         expect(store.discard().length).toBe(1);
@@ -1675,13 +1675,13 @@ describe('GameStore - Unit Tests', () => {
         expect(store.currentTurn()).toBe(3);
         expect(store.currentPhase()).toBe(GamePhase.BUY);
         // Ban state should be cleared
-        expect(store.isBanSelectionActive()).toBe(false);
+        expect(isChoosingBan(store)).toBe(false);
         expect(store.bustPartySnapshot()).toEqual([]);
-        expect(store.selectedBanGuest()).toBeNull();
+        expect(pickedBan(store)).toBeNull();
       });
 
       /**
-       * Test confirmBan() with no selection is no-op
+       * Test confirming with no selection is a no-op
        * **Validates: Requirements 6.1**
        */
       it('should be a no-op when no guest is selected', () => {
@@ -1689,12 +1689,12 @@ describe('GameStore - Unit Tests', () => {
         patchState(unprotected(store), { currentTurn: 2, currentPhase: GamePhase.PARTY });
         startBanSelection(store, [testGuest('OLD_FRIEND', 'Brian')]);
 
-        store.confirmBan();
+        store.confirmChoice();
 
         // Nothing should change
         expect(store.currentTurn()).toBe(2);
         expect(store.currentPhase()).toBe(GamePhase.PARTY);
-        expect(store.isBanSelectionActive()).toBe(true);
+        expect(isChoosingBan(store)).toBe(true);
         expect(store.bustPartySnapshot().length).toBe(1);
       });
     });
@@ -1732,55 +1732,55 @@ describe('GameStore - Unit Tests', () => {
       });
     });
 
-    describe('banConfirmationMessage', () => {
+    describe('ban confirmation message', () => {
       /**
-       * Test banConfirmationMessage for Old Friend guest
+       * Test the ban confirmation message for Old Friend guest
        * **Validates: Requirements 9.1**
        */
       it('should return correct message for Old Friend guest', () => {
         store.initializeGame();
         startBanSelection(store, [testGuest('OLD_FRIEND', 'Brian')], 0);
 
-        expect(store.banConfirmationMessage()).toBe(
+        expect(store.pendingChoice()?.confirmation).toBe(
           'Old Friend Brian will be banned from the next party.'
         );
       });
 
       /**
-       * Test banConfirmationMessage for Wild Buddy guest
+       * Test the ban confirmation message for Wild Buddy guest
        * **Validates: Requirements 9.2**
        */
       it('should return correct message for Wild Buddy guest', () => {
         store.initializeGame();
         startBanSelection(store, [testGuest('WILD_BUDDY', 'Anthony')], 0);
 
-        expect(store.banConfirmationMessage()).toBe(
+        expect(store.pendingChoice()?.confirmation).toBe(
           'Wild Buddy Anthony will be banned from the next party.'
         );
       });
 
       /**
-       * Test banConfirmationMessage for Rich Pal guest
+       * Test the ban confirmation message for Rich Pal guest
        * **Validates: Requirements 9.3**
        */
       it('should return correct message for Rich Pal guest', () => {
         store.initializeGame();
         startBanSelection(store, [testGuest('RICH_PAL', 'Khalil')], 0);
 
-        expect(store.banConfirmationMessage()).toBe(
+        expect(store.pendingChoice()?.confirmation).toBe(
           'Rich Pal Khalil will be banned from the next party.'
         );
       });
 
       /**
-       * Test banConfirmationMessage when no guest selected returns empty string
+       * Test there is no confirmation message when no guest is selected
        * **Validates: Requirements 5.2**
        */
-      it('should return empty string when no guest is selected', () => {
+      it('should have no confirmation message when no guest is selected', () => {
         store.initializeGame();
         startBanSelection(store, [testGuest('OLD_FRIEND', 'Brian')]);
 
-        expect(store.banConfirmationMessage()).toBe('');
+        expect(store.pendingChoice()?.confirmation).toBeNull();
       });
     });
   });
@@ -3166,8 +3166,8 @@ describe('Star Guests & Winning — GameStore', () => {
       expect(store.bustPartySnapshot().filter(g => g.type === 'ALIEN')).toHaveLength(4);
 
       store.acknowledgeShutdown();
-      store.selectGuestToBan(0);
-      store.confirmBan();
+      pickBan(store, 0);
+      store.confirmChoice();
 
       expect(store.isVictory()).toBe(false);
       expect(store.currentTurn()).toBe(2);
@@ -3348,8 +3348,8 @@ describe('Guest Identity — GameStore', () => {
     patchState(unprotected(store), { deck: [] });
     startBanSelection(store, [first, second]);
 
-    store.selectGuestToBan(1);
-    store.confirmBan();
+    pickBan(store, 1);
+    store.confirmChoice();
 
     expect(store.discard().map(g => g.id)).toEqual([second.id]);
     expect(store.deck().map(g => g.id)).toEqual([first.id]);
