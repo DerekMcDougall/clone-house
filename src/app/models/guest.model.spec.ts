@@ -507,8 +507,8 @@ describe('Guest Model - New Guest Types (Auctioneer, Gangster, Rock Star, Gamble
      * SHOP_GUESTS has exactly 84 total entries (56 previous + 28 star guests)
      * **Validates: Requirements 5.6**
      */
-    it('should have exactly 84 total entries', () => {
-      expect(SHOP_GUESTS).toHaveLength(84);
+    it('should have exactly 88 total entries', () => {
+      expect(SHOP_GUESTS).toHaveLength(88);
     });
   });
 
@@ -558,7 +558,7 @@ describe('Guest Model - Star Guests', () => {
 
   it('should give every non-star guest type a starValue of 0', () => {
     const nonStarTypes = (Object.keys(GUEST_TYPE_DEFAULTS) as GuestType[]).filter(t => !STAR_TYPES.includes(t));
-    expect(nonStarTypes).toHaveLength(15);
+    expect(nonStarTypes).toHaveLength(16);
     for (const type of nonStarTypes) {
       expect(GUEST_TYPE_DEFAULTS[type].starValue).toBe(0);
     }
@@ -602,8 +602,10 @@ describe('Guest Model - Star Guests', () => {
     expect(cheapestStar).toBeGreaterThan(Math.max(...nonStarCosts));
   });
 
-  it('should keep every guest name unique across INITIAL_GUESTS and SHOP_GUESTS', () => {
-    const names = [...INITIAL_GUESTS, ...SHOP_GUESTS].map(g => g.name);
+  // Guests of different types may share a name (a Mr. Popular and a Werewolf are both
+  // Lawrence); guests are told apart by id
+  it('should keep guest names unique within each type across INITIAL_GUESTS and SHOP_GUESTS', () => {
+    const names = [...INITIAL_GUESTS, ...SHOP_GUESTS].map(g => `${g.type}:${g.name}`);
     expect(new Set(names).size).toBe(names.length);
   });
 });

@@ -4704,13 +4704,13 @@ describe('GameStore - Shop Buy Guests Property Tests', () => {
    * For any sequence of game operations (purchaseGuest, inviteGuest, advancePhase,
    * triggerPartyShutdown, confirmChoice), the sum
    * deck.length + party.length + discard.length + bustPartySnapshot.length +
-   * sum(shopInventory[*].guests.length) SHALL equal 94
+   * sum(shopInventory[*].guests.length) SHALL equal 98
    * (10 initial guests + 84 purchasable shop guests).
    */
   describe('Property 3: Guest Conservation with Expanded Pool', () => {
-    it('should conserve total guests at 94 across deck, party, discard, bustPartySnapshot, and shop through all operations', () => {
+    it('should conserve total guests at 98 across deck, party, discard, bustPartySnapshot, and shop through all operations', () => {
       // Feature: more-guest-types, Property 3: Guest Conservation with Expanded Pool
-      const EXPECTED_TOTAL = 94; // 10 initial + 84 shop
+      const EXPECTED_TOTAL = 98; // 10 initial + 88 shop
 
       const operationArb = fc.constantFrom(
         'purchaseGuest',
@@ -4866,7 +4866,7 @@ describe('GameStore - Starting Deck Shuffle Property Tests', () => {
 /**
  * Property-Based Tests for Star Guests & Winning
  *
- * Property 9 (Guest Conservation at 94) is the expanded-pool conservation test above.
+ * Property 9 (Guest Conservation at 98) is the expanded-pool conservation test above.
  */
 describe('GameStore - Star Guests & Winning Property Tests', () => {
   let store: InstanceType<typeof GameStore>;

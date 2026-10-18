@@ -7,6 +7,7 @@ import { BUILT_IN_TABLES_SNAPSHOT } from './built-in-tables.snapshot';
 import { EffectDefinition } from './effect-definition';
 import { admitGuest } from './guest-effects';
 import { getGuestDetails, Guest, GuestProperties } from './guest.model';
+import { DEFAULT_GAME_SETUP } from './game-setup';
 import { PROPERTY_KEYS } from './guest-type';
 import { getGuestType, registerGuestType, resetGuestTypesForTesting } from './guest-type-registry';
 import { TestEffectContext } from '../../testing/effect-context';
@@ -384,6 +385,26 @@ describe('Action Kinds', () => {
       expect(getGuestType('MR_POPULAR').effects).toEqual([entrance({ kind: 'autoInvite', count: 1 })]);
       expect(getGuestType('MERMAID').effects).toEqual([entrance({ kind: 'autoInvite', count: 1 })]);
       expect(getGuestType('CELEBRITY').effects).toEqual([entrance({ kind: 'autoInvite', count: 2 })]);
+    });
+  });
+
+  describe('Werewolf', () => {
+    it('should be defined as the werewolf-guest spec says', () => {
+      // werewolf-guest Requirements 2.1–2.4
+      const def = getGuestType('WEREWOLF');
+      expect(def).toMatchObject({
+        label: 'Werewolf',
+        cost: 5,
+        properties: { popularityValue: 4, troubleValue: 0, moneyValue: 0, peaceValue: 0, starValue: 0 }
+      });
+      expect(def.effects).toEqual([entrance({
+        kind: 'cycleSelf',
+        property: 'troubleValue',
+        values: [0, 1],
+        icons: [{ symbol: '🌙', label: 'Switches between 0 and 1 trouble on entrance' }]
+      })]);
+      expect(DEFAULT_GAME_SETUP.shop.find(e => e.type === 'WEREWOLF')?.names).toEqual(['Remus', 'Lawrence', 'Scott', 'Jacob']);
+      expect(DEFAULT_GAME_SETUP.startingDeck.some(g => g.type === 'WEREWOLF')).toBe(false);
     });
   });
 

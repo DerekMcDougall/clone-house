@@ -13,6 +13,13 @@ import {
 import { arbGuestTypeDefinition, arbInvalidGuestTypeDefinition } from '../../testing/guest-type-arbitraries';
 import { DEFAULT_GAME_SETUP, validateGameSetup } from './game-setup';
 
+// Built-in types added after the snapshot was taken, which the snapshot comparisons leave out
+const ADDED_SINCE_SNAPSHOT: readonly string[] = ['WEREWOLF'];
+const isOld = (type: string) => !ADDED_SINCE_SNAPSHOT.includes(type);
+const oldEntries = <T>(table: Record<string, T>): Record<string, T> =>
+  Object.fromEntries(Object.entries(table).filter(([type]) => isOld(type)));
+const oldGuests = <T extends { type: string }>(guests: readonly T[]): T[] => guests.filter(g => isOld(g.type));
+
 /**
  * Guest type registry: built-in definitions, derived views, registration and validation.
  *
@@ -32,17 +39,18 @@ describe('Guest Type Registry', () => {
   describe('Property 1: Derived Views Match the Old Tables', () => {
     it('should keep every view equal to the pre-registry tables', () => {
       // Feature: guest-type-registry, Property 1: Derived Views Match the Old Tables
-      expect(GUEST_TYPE_LABELS).toEqual(BUILT_IN_TABLES_SNAPSHOT.labels);
-      expect(GUEST_TYPE_DEFAULTS).toEqual(BUILT_IN_TABLES_SNAPSHOT.defaults);
-      expect(GUEST_TYPE_COSTS).toEqual(BUILT_IN_TABLES_SNAPSHOT.costs);
-      expect(SHOP_GUESTS).toEqual(BUILT_IN_TABLES_SNAPSHOT.shopGuests);
+      expect(oldEntries(GUEST_TYPE_LABELS)).toEqual(BUILT_IN_TABLES_SNAPSHOT.labels);
+      expect(oldEntries(GUEST_TYPE_DEFAULTS)).toEqual(BUILT_IN_TABLES_SNAPSHOT.defaults);
+      expect(oldEntries(GUEST_TYPE_COSTS)).toEqual(BUILT_IN_TABLES_SNAPSHOT.costs);
+      expect(oldGuests(SHOP_GUESTS)).toEqual(BUILT_IN_TABLES_SNAPSHOT.shopGuests);
       expect(INITIAL_GUESTS).toEqual(BUILT_IN_TABLES_SNAPSHOT.initialGuests);
-      expect(Object.keys(GUEST_TYPE_ENTRANCE_EFFECTS)).toEqual(BUILT_IN_TABLES_SNAPSHOT.entranceEffectTypes);
-      expect(GUEST_TYPE_ENTRANCE_ICONS).toEqual(BUILT_IN_TABLES_SNAPSHOT.entranceIcons);
+      expect(Object.keys(GUEST_TYPE_ENTRANCE_EFFECTS).filter(isOld)).toEqual(BUILT_IN_TABLES_SNAPSHOT.entranceEffectTypes);
+      expect(oldEntries(GUEST_TYPE_ENTRANCE_ICONS)).toEqual(BUILT_IN_TABLES_SNAPSHOT.entranceIcons);
     });
 
-    it('should register the 22 built-in types in table order', () => {
-      expect(listGuestTypes().map(d => d.id)).toEqual(Object.keys(BUILT_IN_TABLES_SNAPSHOT.labels));
+    it('should register the built-in types in table order, newer ones after the snapshot\'s', () => {
+      expect(listGuestTypes().map(d => d.id))
+        .toEqual([...Object.keys(BUILT_IN_TABLES_SNAPSHOT.labels), ...ADDED_SINCE_SNAPSHOT]);
     });
 
     it('should leave runtime-registered types out of the views', () => {
@@ -140,7 +148,7 @@ describe('Default Game Setup', () => {
 
   it('should reproduce the pre-registry starting deck and shop', () => {
     expect(DEFAULT_GAME_SETUP.startingDeck).toEqual(BUILT_IN_TABLES_SNAPSHOT.initialGuests);
-    expect(DEFAULT_GAME_SETUP.shop.flatMap(e => e.names.map(name => ({ type: e.type, name }))))
+    expect(oldGuests(DEFAULT_GAME_SETUP.shop.flatMap(e => e.names.map(name => ({ type: e.type, name })))))
       .toEqual(BUILT_IN_TABLES_SNAPSHOT.shopGuests);
   });
 });

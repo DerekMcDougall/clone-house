@@ -1949,7 +1949,7 @@ describe('Shop Buy Guests', () => {
       store.initializeGame();
 
       const inventory = store.shopInventory();
-      expect(inventory.length).toBe(21);
+      expect(inventory.length).toBe(22);
 
       const oldFriendEntry = inventory.find((e: ShopInventoryEntry) => e.type === 'OLD_FRIEND');
       const richPalEntry = inventory.find((e: ShopInventoryEntry) => e.type === 'RICH_PAL');
@@ -2111,8 +2111,8 @@ describe('Shop Buy Guests', () => {
      */
     it('should set shopInventory to empty array after resetGame()', () => {
       store.initializeGame();
-      // Verify shop has entries (OLD_FRIEND, RICH_PAL, MONKEY, + 4 new types + 2 peace types + 2 negative resource types + CLIMBER + MR_POPULAR + CELEBRITY + 7 star types)
-      expect(store.shopInventory().length).toBe(21);
+      // Verify shop has entries (OLD_FRIEND, RICH_PAL, MONKEY, + 4 new types + 2 peace types + 2 negative resource types + CLIMBER + MR_POPULAR + CELEBRITY + 7 star types + WEREWOLF)
+      expect(store.shopInventory().length).toBe(22);
 
       store.resetGame();
 
@@ -2380,7 +2380,7 @@ describe('Monkey Guest — Store Initialization', () => {
     const items = store.purchasableShopItems();
 
     // Expected order: Old Friend (2), Monkey (3), Rich Pal (3), Hippy (4), Ticket Taker (4), Caterer (5), Mr. Popular (5), Rock Star (5), Gangster (6), Cute Dog (7), Gambler (7), Auctioneer (9), Celebrity (11), Climber (12), then the 7 star types (25-50)
-    expect(items.length).toBe(21);
+    expect(items.length).toBe(22);
     expect(items[0].type).toBe('OLD_FRIEND');
     expect(items[1].type).toBe('MONKEY');
     expect(items[2].type).toBe('RICH_PAL');
@@ -2499,54 +2499,18 @@ describe('More Guest Types — Store Initialization', () => {
      * Old Friend (2), Monkey (3), Rich Pal (3), Rock Star (5), Gangster (6), Gambler (7), Auctioneer (9)
      * **Validates: Requirements 9.1, 9.2**
      */
-    it('should return all 21 types sorted by ascending cost then alphabetical label', () => {
+    it('should return all 22 types sorted by ascending cost then alphabetical label', () => {
       store.initializeGame();
 
       const items = store.purchasableShopItems();
 
-      expect(items.length).toBe(21);
-      expect(items[0].type).toBe('OLD_FRIEND');
-      expect(items[0].cost).toBe(2);
-      expect(items[1].type).toBe('MONKEY');
-      expect(items[1].cost).toBe(3);
-      expect(items[2].type).toBe('RICH_PAL');
-      expect(items[2].cost).toBe(3);
-      expect(items[3].type).toBe('HIPPY');
-      expect(items[3].cost).toBe(4);
-      expect(items[4].type).toBe('TICKET_TAKER');
-      expect(items[4].cost).toBe(4);
-      expect(items[5].type).toBe('CATERER');
-      expect(items[5].cost).toBe(5);
-      expect(items[6].type).toBe('MR_POPULAR');
-      expect(items[6].cost).toBe(5);
-      expect(items[7].type).toBe('ROCK_STAR');
-      expect(items[7].cost).toBe(5);
-      expect(items[8].type).toBe('GANGSTER');
-      expect(items[8].cost).toBe(6);
-      expect(items[9].type).toBe('CUTE_DOG');
-      expect(items[9].cost).toBe(7);
-      expect(items[10].type).toBe('GAMBLER');
-      expect(items[10].cost).toBe(7);
-      expect(items[11].type).toBe('AUCTIONEER');
-      expect(items[11].cost).toBe(9);
-      expect(items[12].type).toBe('CELEBRITY');
-      expect(items[12].cost).toBe(11);
-      expect(items[13].type).toBe('CLIMBER');
-      expect(items[13].cost).toBe(12);
-      expect(items[14].type).toBe('DINOSAUR');
-      expect(items[14].cost).toBe(25);
-      expect(items[15].type).toBe('DRAGON');
-      expect(items[15].cost).toBe(30);
-      expect(items[16].type).toBe('MERMAID');
-      expect(items[16].cost).toBe(35);
-      expect(items[17].type).toBe('ALIEN');
-      expect(items[17].cost).toBe(40);
-      expect(items[18].type).toBe('UNICORN');
-      expect(items[18].cost).toBe(45);
-      expect(items[19].type).toBe('LEPRECHAUN');
-      expect(items[19].cost).toBe(50);
-      expect(items[20].type).toBe('SUPERHERO');
-      expect(items[20].cost).toBe(50);
+      expect(items.map(i => [i.type, i.cost])).toEqual([
+        ['OLD_FRIEND', 2], ['MONKEY', 3], ['RICH_PAL', 3], ['HIPPY', 4], ['TICKET_TAKER', 4],
+        ['CATERER', 5], ['MR_POPULAR', 5], ['ROCK_STAR', 5], ['WEREWOLF', 5], ['GANGSTER', 6],
+        ['CUTE_DOG', 7], ['GAMBLER', 7], ['AUCTIONEER', 9], ['CELEBRITY', 11], ['CLIMBER', 12],
+        ['DINOSAUR', 25], ['DRAGON', 30], ['MERMAID', 35], ['ALIEN', 40], ['UNICORN', 45],
+        ['LEPRECHAUN', 50], ['SUPERHERO', 50]
+      ]);
     });
   });
 });
@@ -2608,10 +2572,10 @@ describe('Climber Entrance Effect — GameStore', () => {
 
       const items = store.purchasableShopItems();
 
-      expect(items.length).toBe(21);
+      expect(items.length).toBe(22);
       // Star guests (cost 25+) follow Climber
       const climberIndex = items.findIndex(i => i.type === 'CLIMBER');
-      expect(climberIndex).toBe(13);
+      expect(climberIndex).toBe(14);
       expect(items[climberIndex].cost).toBe(12);
       expect(items.slice(climberIndex + 1).every(i => GUEST_TYPE_DEFAULTS[i.type].starValue > 0)).toBe(true);
     });

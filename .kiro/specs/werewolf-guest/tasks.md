@@ -26,16 +26,16 @@ Add the `cycleSelf` action kind, check trouble after an arriving guest's entranc
 - [x] 3. Checkpoint — Ensure all tests pass
   - Ensure all tests pass, ask the user if questions arise.
 
-- [ ] 4. Werewolf
-  - [ ] 4.1 Add `WEREWOLF` to `BuiltInGuestType` and `BUILT_IN_GUEST_TYPES`, and to the default shop with Remus, Lawrence, Scott and Jacob
+- [x] 4. Werewolf
+  - [x] 4.1 Add `WEREWOLF` to `BuiltInGuestType` and `BUILT_IN_GUEST_TYPES`, and to the default shop with Remus, Lawrence, Scott and Jacob
     - _Requirements: 2.1–2.4_
-  - [ ] 4.2 Update counts that include every shop guest (94 → 98 conservation, shop size and type lists)
+  - [x] 4.2 Update counts that include every shop guest (94 → 98 conservation, shop size and type lists)
     - _Requirements: 2.3_
-  - [ ] 4.3 Store tests for the Werewolf: first entrance switches to 1; at the limit with 1 trouble it switches to 0 and the party continues; a switch to 1 that goes over the limit busts with the Werewolf at 1 trouble; trouble persists across parties and bans
+  - [x] 4.3 Store tests for the Werewolf: first entrance switches to 1; at the limit with 1 trouble it switches to 0 and the party continues; a switch to 1 that goes over the limit busts with the Werewolf at 1 trouble; trouble persists across parties and bans
     - _Requirements: 3.4–3.6_
-  - [ ] 4.4 Card tests: the shop card shows 4 popularity and 🌙 with no ❌; a house card shows ❌ only at 1 trouble, with 🌙 to its left
+  - [x] 4.4 Card tests: the shop card shows 4 popularity and 🌙 with no ❌; a house card shows ❌ only at 1 trouble, with 🌙 to its left
     - _Requirements: 4.1–4.3_
-  - [ ]* 4.5 Property tests 2 and 3
+  - [x]* 4.5 Property tests 2 and 3
     - **Property 2: Werewolf Switches on Each Entrance** — **Validates: Requirements 2.2, 3.6**
     - **Property 3: Trouble Waits for the Entrance Effect** — **Validates: Requirements 3.1, 3.4, 3.5**
 

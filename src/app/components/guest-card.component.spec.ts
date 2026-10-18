@@ -249,6 +249,18 @@ describe('GuestCardComponent - Guest Details', () => {
     expect(compiled.querySelector('.guest-icons')?.textContent?.trim()).toBe('➕');
   });
 
+  it('shows a Werewolf\'s trouble only while it has trouble, right of its moon', () => {
+    // werewolf-guest Requirements 4.1, 4.2
+    const icons = (troubleValue: number) => {
+      fixture.componentRef.setInput('guest', testGuest('WEREWOLF', 'Remus', { troubleValue }));
+      fixture.detectChanges();
+      return Array.from((fixture.nativeElement as HTMLElement).querySelectorAll('.guest-icons [role="img"]'))
+        .map(i => i.textContent?.trim());
+    };
+    expect(icons(1)).toEqual(['🌙', '❌']);
+    expect(icons(0)).toEqual(['🌙']);
+  });
+
   it('updates when its guest changes', () => {
     const guest: Guest = testGuest('CLIMBER', 'Skye');
     fixture.componentRef.setInput('guest', guest);

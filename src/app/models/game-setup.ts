@@ -44,7 +44,8 @@ export const DEFAULT_GAME_SETUP: GameSetup = {
     { type: 'DINOSAUR', names: ['Barney', 'Blue', 'Dino', 'Rex'] },
     { type: 'MERMAID', names: ['Ariel', 'Marina', 'Calypso', 'Oceana'] },
     { type: 'UNICORN', names: ['Sparkles', 'Glitter', 'Stardust', 'Moonbeam'] },
-    { type: 'SUPERHERO', names: ['Superman', 'Spider-man', 'Batman', 'Iron Man'] }
+    { type: 'SUPERHERO', names: ['Superman', 'Spider-man', 'Batman', 'Iron Man'] },
+    { type: 'WEREWOLF', names: ['Remus', 'Lawrence', 'Scott', 'Jacob'] }
   ]
 };
 
