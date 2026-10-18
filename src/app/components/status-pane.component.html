@@ -23,7 +23,7 @@
     <button
       class="invite-button"
       (click)="onInviteGuest()"
-      [disabled]="gameStore.isPartyShutdown() || gameStore.isBanSelectionActive() || gameStore.isVictory()"
+      [disabled]="gameStore.isPartyShutdown() || gameStore.isAwaitingChoice() || gameStore.isVictory()"
       aria-label="Invite Guest">
       Invite Guest
     </button>
@@ -31,7 +31,7 @@
   <button 
     class="phase-button"
     (click)="gameStore.advancePhase()"
-    [disabled]="gameStore.isPartyShutdown() || gameStore.isBanSelectionActive() || gameStore.isVictory()"
+    [disabled]="gameStore.isPartyShutdown() || gameStore.isAwaitingChoice() || gameStore.isVictory()"
     [attr.aria-label]="gameStore.phaseButtonLabel()">
     {{ gameStore.phaseButtonLabel() }}
   </button>

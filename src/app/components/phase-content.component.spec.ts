@@ -7,6 +7,7 @@ import { Guest, GUEST_TYPE_DEFAULTS } from '../models/guest.model';
 import { GameStore } from '../stores/game.store';
 import { PhaseContentComponent } from './phase-content.component';
 import { registerTestGuestType, testGuest } from '../../testing/guests';
+import { startBanSelection } from '../../testing/ban';
 import { resetGuestTypesForTesting } from '../models/guest-type-registry';
 import { DEFAULT_GAME_SETUP, GameSetup } from '../models/game-setup';
 
@@ -273,15 +274,12 @@ describe('PhaseContentComponent', () => {
 
     it('should display blame prompt when isBanSelectionActive is true', () => {
       // Requirements: 3.3
-      patchState(unprotected(gameStore), {
-        isBanSelectionActive: true,
-        bustPartySnapshot: [testGuest('OLD_FRIEND', 'Brian')]
-      });
+      startBanSelection(gameStore, [testGuest('OLD_FRIEND', 'Brian')]);
       component.phase = GamePhase.PARTY;
       fixture.detectChanges();
 
       const compiled = fixture.nativeElement as HTMLElement;
-      const prompt = compiled.querySelector('.blame-prompt');
+      const prompt = compiled.querySelector('.choice-prompt');
 
       expect(prompt).toBeTruthy();
       expect(prompt?.textContent?.trim()).toBe('Who takes the blame?');
@@ -294,15 +292,12 @@ describe('PhaseContentComponent', () => {
         testGuest('WILD_BUDDY', 'Anthony'),
         testGuest('RICH_PAL', 'Khalil')
       ];
-      patchState(unprotected(gameStore), {
-        isBanSelectionActive: true,
-        bustPartySnapshot: snapshot
-      });
+      startBanSelection(gameStore, snapshot);
       component.phase = GamePhase.PARTY;
       fixture.detectChanges();
 
       const compiled = fixture.nativeElement as HTMLElement;
-      const banButtons = compiled.querySelectorAll('.ban-guest-button');
+      const banButtons = compiled.querySelectorAll('.choice-option-button');
 
       expect(banButtons.length).toBe(3);
       // Each button should contain a guest card
@@ -313,18 +308,13 @@ describe('PhaseContentComponent', () => {
 
     it('should show confirmation modal when selectedBanGuest is set', () => {
       // Requirements: 5.1
-      const guest = testGuest('WILD_BUDDY', 'Anthony');
-      patchState(unprotected(gameStore), {
-        isBanSelectionActive: true,
-        bustPartySnapshot: [guest],
-        selectedBanGuest: guest
-      });
+      startBanSelection(gameStore, [testGuest('WILD_BUDDY', 'Anthony')], 0);
       component.phase = GamePhase.PARTY;
       fixture.detectChanges();
 
       const compiled = fixture.nativeElement as HTMLElement;
-      const overlay = compiled.querySelector('.ban-modal-overlay');
-      const modal = compiled.querySelector('.ban-modal');
+      const overlay = compiled.querySelector('.choice-confirm-overlay');
+      const modal = compiled.querySelector('.choice-confirm-modal');
 
       expect(overlay).toBeTruthy();
       expect(modal).toBeTruthy();
@@ -332,18 +322,13 @@ describe('PhaseContentComponent', () => {
 
     it('should show correct message and OK button in confirmation modal', () => {
       // Requirements: 5.2, 5.3
-      const guest = testGuest('RICH_PAL', 'Khalil');
-      patchState(unprotected(gameStore), {
-        isBanSelectionActive: true,
-        bustPartySnapshot: [guest],
-        selectedBanGuest: guest
-      });
+      startBanSelection(gameStore, [testGuest('RICH_PAL', 'Khalil')], 0);
       component.phase = GamePhase.PARTY;
       fixture.detectChanges();
 
       const compiled = fixture.nativeElement as HTMLElement;
-      const message = compiled.querySelector('#ban-title');
-      const okButton = compiled.querySelector('.ban-confirm-button');
+      const message = compiled.querySelector('#choice-confirm-title');
+      const okButton = compiled.querySelector('.choice-confirm-button');
 
       expect(message?.textContent?.trim()).toBe(
         'Rich Pal Khalil will be banned from the next party.'
@@ -354,18 +339,14 @@ describe('PhaseContentComponent', () => {
 
     it('should hide ban selection view when isBanSelectionActive is false', () => {
       // Requirements: 3.3 (inverse)
-      patchState(unprotected(gameStore), {
-        isBanSelectionActive: false,
-        bustPartySnapshot: [],
-        selectedBanGuest: null
-      });
+      patchState(unprotected(gameStore), { bustPartySnapshot: [] });
       component.phase = GamePhase.PARTY;
       fixture.detectChanges();
 
       const compiled = fixture.nativeElement as HTMLElement;
-      const banSelection = compiled.querySelector('.ban-selection');
-      const blamePrompt = compiled.querySelector('.blame-prompt');
-      const banModal = compiled.querySelector('.ban-modal-overlay');
+      const banSelection = compiled.querySelector('.choice-panel');
+      const blamePrompt = compiled.querySelector('.choice-prompt');
+      const banModal = compiled.querySelector('.choice-confirm-overlay');
 
       expect(banSelection).toBeFalsy();
       expect(blamePrompt).toBeFalsy();

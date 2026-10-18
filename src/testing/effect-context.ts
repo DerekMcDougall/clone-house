@@ -1,16 +1,22 @@
-import { EffectContext, GameEffect } from '../app/models/effect-context';
+import { ChoiceOption, ChoiceRequest, EffectContext, GameEffect } from '../app/models/effect-context';
 import { Guest } from '../app/models/guest.model';
 
+type Entry = { kind: 'effect'; run: GameEffect } | { kind: 'choice'; request: ChoiceRequest };
+
 // An in-memory EffectContext for running effects without the store. resolve() runs effects
-// the way the store's resolveEffects() does: depth-first, with the effects an effect enqueues
-// running, in order, before any effect already waiting. There are no bust checks.
+// the way the store's runQueue() does: depth-first, with the entries an effect queues
+// running, in order, before any entry already waiting. A choice with options pauses
+// resolution until choose() is called. There are no bust checks.
 export class TestEffectContext implements EffectContext {
   deck: Guest[];
   party: Guest[];
   discard: Guest[] = [];
   popularity = 0;
   money = 0;
-  private pending: GameEffect[] = [];
+  // The choice resolution is paused on, with the options worked out when it was reached
+  pendingChoice: { request: ChoiceRequest; options: ChoiceOption[] } | null = null;
+  private queued: Entry[] = [];
+  private stack: Entry[] = [];
 
   constructor({ deck = [], party = [] }: { deck?: Guest[]; party?: Guest[] } = {}) {
     this.deck = deck;
@@ -35,17 +41,37 @@ export class TestEffectContext implements EffectContext {
     return updated;
   }
 
-  enqueue(effect: GameEffect): void { this.pending.push(effect); }
+  enqueue(effect: GameEffect): void { this.queued.push({ kind: 'effect', run: effect }); }
+  requestChoice(request: ChoiceRequest): void { this.queued.push({ kind: 'choice', request }); }
 
-  // Runs the given effect, if any, then everything enqueued, until nothing is left.
+  // Runs the given effect, if any, then everything queued, until nothing is left or a
+  // choice is reached.
   resolve(effect?: GameEffect): void {
     if (effect) this.enqueue(effect);
-    const stack: GameEffect[] = [];
-    const flush = () => { stack.push(...this.pending.reverse()); this.pending = []; };
-    flush();
-    while (stack.length > 0) {
-      stack.pop()!(this);
-      flush();
+    this.flush();
+    while (this.stack.length > 0 && !this.pendingChoice) {
+      const entry = this.stack.pop()!;
+      if (entry.kind === 'choice') {
+        const options = entry.request.options(this);
+        if (options.length > 0) this.pendingChoice = { request: entry.request, options };
+      } else {
+        entry.run(this);
+        this.flush();
+      }
     }
+  }
+
+  // Answers the pending choice and carries on resolving.
+  choose(optionId: string): void {
+    const { request, options } = this.pendingChoice!;
+    const option = options.find(o => o.id === optionId);
+    if (!option) throw new Error(`No option "${optionId}"`);
+    this.pendingChoice = null;
+    this.resolve((ctx) => request.onChoose(ctx, option));
+  }
+
+  private flush(): void {
+    this.stack.push(...this.queued.reverse());
+    this.queued = [];
   }
 }

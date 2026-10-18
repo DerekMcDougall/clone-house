@@ -27,7 +27,8 @@ export function parseGuestTypeDefinition(json: unknown): GuestTypeDefinition {
     cost: def.cost,
     properties: { ...def.properties },
     ...(def.effects !== undefined && {
-      effects: def.effects.map(e => ({ trigger: e.trigger, action: { ...e.action } }))
+      // Plain data, so a JSON copy is a deep copy, nested actions included
+      effects: def.effects.map(e => ({ trigger: e.trigger, action: JSON.parse(JSON.stringify(e.action)) }))
     })
   };
 }

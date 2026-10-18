@@ -8,6 +8,7 @@ import { Guest, GUEST_TYPE_DEFAULTS, GUEST_TYPE_LABELS, GuestType } from '../mod
 import { GameStore, ShopInventoryEntry } from '../stores/game.store';
 import { PhaseContentComponent } from './phase-content.component';
 import { testGuest } from '../../testing/guests';
+import { startBanSelection } from '../../testing/ban';
 
 /**
  * Property-Based Tests for PhaseContentComponent
@@ -440,13 +441,8 @@ describe('PhaseContentComponent - Property-Based Tests', () => {
             store.initializeGame();
             store.advancePhase();
 
-            // Set ban selection active with the generated snapshot
-            patchState(unprotected(store), {
-              isBanSelectionActive: true,
-              bustPartySnapshot: snapshot,
-              isPartyShutdown: false,
-              selectedBanGuest: null
-            } as any);
+            // Start ban selection with the generated snapshot
+            startBanSelection(store, snapshot);
 
             testComponent.phase = GamePhase.PARTY;
             testFixture.detectChanges();
@@ -454,12 +450,12 @@ describe('PhaseContentComponent - Property-Based Tests', () => {
             const compiled = testFixture.nativeElement as HTMLElement;
 
             // Verify blame prompt is present
-            const blamePrompt = compiled.querySelector('.blame-prompt');
+            const blamePrompt = compiled.querySelector('.choice-prompt');
             expect(blamePrompt).toBeTruthy();
             expect(blamePrompt?.textContent?.trim()).toBe('Who takes the blame?');
 
             // Verify the correct number of ban guest buttons
-            const banButtons = compiled.querySelectorAll('.ban-guest-button');
+            const banButtons = compiled.querySelectorAll('.choice-option-button');
             expect(banButtons.length).toBe(snapshot.length);
 
             // Clean up

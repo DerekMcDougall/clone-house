@@ -75,9 +75,9 @@ This is step 4 of 5 in the guest extensibility plan and depends on **effect-desc
 
 #### Acceptance Criteria
 
-1. THE Action_Kind_Registry SHALL include `chooseGuest` with parameters `prompt` (non-empty string), `from` (`'party'`) and `action` (an Action_Definition)
+1. THE Action_Kind_Registry SHALL include `chooseGuest` with parameters `prompt` (non-empty string), `from` (`'party'`), `action` (an Action_Definition) and `icons` (a non-empty list of `{ symbol, label }`)
 2. WHEN `chooseGuest` runs, THE Action_Kind SHALL request a choice whose options are the guests in the party at the time the Choice_Point is reached, and whose `onChoose` runs `action` with the chosen guest as the triggering guest
-3. THE `chooseGuest` kind SHALL show a 🎯 icon labeled "Chooses a party guest {trigger phrase}"
+3. THE `chooseGuest` kind SHALL show its `icons`, which describe the effect on the chosen guest; there is no generic "chooses a guest" icon
 4. THE `chooseGuest` kind SHALL validate its nested `action` with that action's kind
 
 ### Requirement 6: Ban Selection Uses Choices

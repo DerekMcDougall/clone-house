@@ -244,21 +244,25 @@ const resolveChoice = (c: ActiveChoice, option: ChoiceOption) => {
 ### chooseGuest kind (models/action-kinds.ts)
 
 ```typescript
-const chooseGuestKind: ActionKind<{ prompt: string; from: 'party'; action: ActionDefinition }> = {
+const chooseGuestKind: ActionKind<{ prompt: string; from: 'party'; action: ActionDefinition; icons: readonly GuestIcon[] }> = {
   kind: 'chooseGuest',
   dataOnly: true,   // dataOnly only if the nested action's kind is
-  validate: /* prompt non-empty; from === 'party'; nested action valid via its kind */,
+  validate: /* prompt non-empty; from === 'party'; nested action valid via its kind; icons non-empty */,
   run: (ctx, guest, { prompt, action }) => ctx.requestChoice({
     prompt,
     sourceGuestId: guest.id,
     options: (view) => view.getParty().map(g => ({ id: g.id, label: `${guestTypeLabel(g.type)} ${g.name}`, guest: g })),
     onChoose: (c, option) => getActionKind(action.kind).run(c, option.guest!, action)
   }),
-  icons: (_p, trigger) => [{ symbol: '🎯', label: `Chooses a party guest ${triggerPhrase(trigger)}` }]
+  icons: (p) => p.icons
 };
 ```
 
+Its icons are given rather than derived from `action`: every choosing effect needs an icon for what it actually does, and the nested action's labels ("Gains 1 popularity") describe the guest itself, not the one chosen.
+
 The nested action treats the chosen guest as its triggering guest, so `adjustSelf` inside `chooseGuest` changes the chosen guest. Its validation is recursive, and `dataOnly` is computed from the nested action (a `custom` action inside makes the whole thing code-only).
+
+> **Implementation note:** `ActionKind.validate` gains a third argument, `validateAction(action, path)`, which checks a nested action exactly as a top-level one is checked: its kind must be registered, its parameters valid and, when parsing JSON, its kind `dataOnly`. `chooseGuest` is `dataOnly: true` and passes its `action` to that callback, so a `custom` action inside is rejected in JSON at `effects[0].action.action.kind` and accepted in code. Kinds without nested actions ignore the argument. `parseGuestTypeDefinition` now deep-copies actions, since they can nest.
 
 ### Ban selection
 
@@ -285,7 +289,9 @@ selectGuestToBan(index) { const g = store.bustPartySnapshot()[index]; if (g) thi
 confirmBan() { this.confirmChoice(); },
 ```
 
-`BAN_PROMPT` is a constant. A `kind` tag on `ActiveChoice` would be sturdier than matching the prompt; it's worth adding when a second system-level choice appears.
+`BAN_PROMPT` is a constant.
+
+> **Implementation note:** `ActiveChoice` has a `source: 'effect' | 'ban'` tag, and the wrappers check it instead of matching the prompt, so an effect that happens to ask "Who takes the blame?" isn't mistaken for ban selection. `startChoice` takes the source as its first argument. The wrappers act only during ban selection: `selectGuestToBan` used to set `selectedBanGuest` at any time, but nothing relied on that.
 
 ### Choice_Panel (components/choice-panel.component.*)
 
@@ -313,6 +319,8 @@ confirmBan() { this.confirmChoice(); },
 ```
 
 Styles move over from the `.ban-selection` and `.ban-modal` rules in `phase-content.component.scss`, renamed. Ban option labels are `Ban {name}`, so the accessible names stay as today.
+
+> **Implementation note:** the options container is `.choice-options` rather than `.guest-cards-container`, since component styles are scoped and the panel needs its own rule. Options without a guest get a `label-option` class that styles them as plain text buttons. The panel doesn't show `sourceGuestId` yet; it's in `pendingChoice()` for activated-abilities to use.
 
 ## Data Models
 
@@ -385,4 +393,6 @@ The id conservation invariant from guest-identity SHALL hold across operation se
 - Property 1 uses a generator of effect trees: each node either records its label, enqueues children, or requests a choice whose `onChoose` enqueues children. The expected order comes from a reference interpreter that runs `onChoose` inline. The test drives the store, answering each pending choice with a random option.
 - Test-only guest types (registered and reset per spec) provide entrance effects with `chooseGuest` and `custom` choices.
 - Ban specs: the existing ones stay, run through the wrappers. Specs that query `.ban-guest-button`, `.ban-confirm-button` or `.blame-prompt` switch to the new class names.
+- Specs that set `isBanSelectionActive` or `selectedBanGuest` directly can't any more, since they're computed. They call `startBanSelection(store, bustParty, selectedIndex?)` (`src/testing/ban.ts`), which reaches ban selection the way the game does: a trouble bust, acknowledged on a non-final turn. One status-pane property test had been generating ban selection on the final turn, which the game never reaches; it now stays on earlier turns.
+- `TestEffectContext` supports choices: `resolve()` stops at a choice with options, and `choose(optionId)` answers it.
 - Choice_Panel unit tests: guest options render cards, label-only options render text, the confirmation dialog appears only with `confirmMessage`, and accessible names match labels.
