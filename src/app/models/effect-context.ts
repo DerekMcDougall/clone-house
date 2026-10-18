@@ -36,6 +36,11 @@ export interface ChoiceRequest {
   sourceGuestId?: string;
 }
 
+// An entry on the effect queue: an effect to run, or a choice to ask the player.
+export type QueueEntry =
+  | { kind: 'effect'; run: GameEffect }
+  | { kind: 'choice'; request: ChoiceRequest };
+
 export interface EffectContext extends GameStateView {
   getDeck(): Guest[];
   setDeck(deck: Guest[]): void;

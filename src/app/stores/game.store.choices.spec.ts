@@ -458,6 +458,21 @@ describe('GameStore - Effect Choices', () => {
       expect(isChoosingBan(store)).toBe(true);
       expect(store.pendingChoice()?.options.map(o => o.guest)).toEqual([matt]);
     });
+
+    it('should skip ban selection and start the next turn when no one is left to ban', () => {
+      store.initializeGame(25);
+      patchState(unprotected(store), { currentTurn: 3, currentPhase: GamePhase.PARTY });
+      const deckBefore = store.deck().map(g => g.id).sort();
+
+      store.triggerPartyShutdown();
+      store.acknowledgeShutdown();
+
+      expect(store.choice()).toBeNull();
+      expect(store.isPartyShutdown()).toBe(false);
+      expect(store.currentTurn()).toBe(4);
+      expect(store.currentPhase()).toBe(GamePhase.BUY);
+      expect(store.deck().map(g => g.id).sort()).toEqual(deckBefore);
+    });
   });
 
   describe('Property 8: Guest Conservation Holds', () => {

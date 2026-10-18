@@ -3001,7 +3001,8 @@ describe('GameStore - Property-Based Tests', () => {
               currentTurn: validCurrentTurn,
               totalTurns: totalTurns,
               currentPhase: GamePhase.PARTY,
-              isPartyShutdown: true
+              isPartyShutdown: true,
+              bustPartySnapshot: [testGuest('WILD_BUDDY', 'Matt')]
             });
 
             // Call acknowledgeShutdown
@@ -3200,7 +3201,8 @@ describe('GameStore - Property-Based Tests', () => {
             patchState(unprotected(store), {
               currentTurn: validCurrentTurn,
               currentPhase: GamePhase.PARTY,
-              isPartyShutdown: true
+              isPartyShutdown: true,
+              bustPartySnapshot: [testGuest('WILD_BUDDY', 'Matt')]
             });
 
             store.acknowledgeShutdown();

@@ -207,6 +207,8 @@ const resolveEffects = (effect: GameEffect): void => {
 };
 ```
 
+> **Changed later:** `runQueue(next)` now takes the entries to run first and works on a local stack, writing it back to `pendingEffects` only when it pauses for a choice, so it no longer copies the queue and updates state on every step. `pushEntries` is gone.
+
 `bust()` is the bust branch of today's `resolveEffects`, plus `pendingEffects: []`. It replaces the duplicated logic in `triggerPartyShutdown` and `triggerOverflowShutdown`, which become calls to `bust(false)` and `bust(true)`.
 
 ### selectChoiceOption / confirmChoice
