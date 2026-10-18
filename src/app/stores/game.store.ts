@@ -351,6 +351,7 @@ export const GameStore = signalStore(
           return;
         }
 
+        const partyBefore = new Set(store.party().map(g => g.id));
         const ctx = new EffectContextImpl(
           store.deck(),
           store.party(),
@@ -369,9 +370,14 @@ export const GameStore = signalStore(
           money: ctx.getMoney()
         });
 
-        // Check overflow first (priority over trouble)
+        // A guest with entrance effects who just arrived is checked for trouble after their
+        // first entrance effect, which runs next, so an effect like the Werewolf's can change
+        // their trouble first. Overflow is checked at once, and takes priority over trouble.
+        const awaitingEntrance = store.party().some(g =>
+          !partyBefore.has(g.id) && (getGuestType(g.type).effects ?? []).some(e => e.trigger === 'entrance'));
         const isOverflow = store.party().length > store.houseCapacity();
-        if (isOverflow || store.trouble() > store.effectiveTroubleLimit()) {
+        const isTroubleBust = !awaitingEntrance && store.trouble() > store.effectiveTroubleLimit();
+        if (isOverflow || isTroubleBust) {
           bust(isOverflow);
           return;
         }

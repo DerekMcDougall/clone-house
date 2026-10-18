@@ -6,24 +6,24 @@ Add the `cycleSelf` action kind, check trouble after an arriving guest's entranc
 
 ## Tasks
 
-- [ ] 1. cycleSelf action kind
-  - [ ] 1.1 Add `cycleSelf` to `action-kinds.ts`: validation with paths, `run` on the current party version of the guest, given icons; register it with the built-ins
+- [x] 1. cycleSelf action kind
+  - [x] 1.1 Add `cycleSelf` to `action-kinds.ts`: validation with paths, `run` on the current party version of the guest, given icons; register it with the built-ins
     - _Requirements: 1.1–1.7_
-  - [ ] 1.2 Unit tests for validation, run, wrap-around, a value not in the list, a guest not in the party, icons, and JSON parsing; add `cycleSelf` to `arbDataOnlyAction`
+  - [x] 1.2 Unit tests for validation, run, wrap-around, a value not in the list, a guest not in the party, icons, and JSON parsing; add `cycleSelf` to `arbDataOnlyAction`
     - _Requirements: 1.1–1.7_
-  - [ ]* 1.3 Property test 1
+  - [x]* 1.3 Property test 1
     - **Property 1: cycleSelf Steps Through Its Values** — **Validates: Requirements 1.2, 1.3**
 
-- [ ] 2. Trouble check after the entrance effect
-  - [ ] 2.1 In `runQueue`, skip the trouble check after an effect in which a guest with entrance effects arrived; keep the overflow check after every effect
+- [x] 2. Trouble check after the entrance effect
+  - [x] 2.1 In `runQueue`, skip the trouble check after an effect in which a guest with entrance effects arrived; keep the overflow check after every effect
     - _Requirements: 3.1–3.3_
-  - [ ] 2.2 Unit tests with a test-only type whose entrance effect lowers its own trouble: safe at the limit, bust when the effect raises trouble over the limit, overflow still immediate; a type without entrance effects busts as before
+  - [x] 2.2 Unit tests with a test-only type whose entrance effect lowers its own trouble: safe at the limit, bust when the effect raises trouble over the limit, overflow still immediate; a type without entrance effects busts as before
     - _Requirements: 3.1–3.3_
-  - [ ]* 2.3 Property tests 4 and 5
+  - [x]* 2.3 Property tests 4 and 5
     - **Property 4: Guests Without Entrance Effects Are Checked at Once** — **Validates: Requirements 3.2**
     - **Property 5: Overflow Is Immediate** — **Validates: Requirements 3.3**
 
-- [ ] 3. Checkpoint — Ensure all tests pass
+- [x] 3. Checkpoint — Ensure all tests pass
   - Ensure all tests pass, ask the user if questions arise.
 
 - [ ] 4. Werewolf
