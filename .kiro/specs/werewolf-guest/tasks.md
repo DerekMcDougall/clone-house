@@ -39,7 +39,7 @@ Add the `cycleSelf` action kind, check trouble after an arriving guest's entranc
     - **Property 2: Werewolf Switches on Each Entrance** — **Validates: Requirements 2.2, 3.6**
     - **Property 3: Trouble Waits for the Entrance Effect** — **Validates: Requirements 3.1, 3.4, 3.5**
 
-- [ ] 5. Final checkpoint — Ensure all tests pass and `ng build` succeeds; buy a Werewolf in the app, invite it over several parties, and check that its ❌ appears and disappears and that it can enter a party at the trouble limit when it has 1 trouble
+- [x] 5. Final checkpoint — Ensure all tests pass and `ng build` succeeds; buy a Werewolf in the app, invite it over several parties, and check that its ❌ appears and disappears and that it can enter a party at the trouble limit when it has 1 trouble
   - Ensure all tests pass, ask the user if questions arise.
 
 ## Notes
