@@ -1,7 +1,7 @@
 import { computed } from '@angular/core';
 import { patchState, signalStore, withComputed, withMethods, withState } from '@ngrx/signals';
 import { GamePhase, GameState } from '../models';
-import { ChoiceOption, ChoiceRequest, EffectContext, GameEffect, GameStateView } from '../models/effect-context';
+import { ChoiceOption, ChoiceRequest, EffectContext, GameEffect, GameStateView, QueueEntry } from '../models/effect-context';
 import { admitGuest, createGuest, createGuestIdSource, Guest, GuestType, WINNING_STAR_COUNT } from '../models/guest.model';
 import { DEFAULT_GAME_SETUP, GameSetup, validateGameSetup } from '../models/game-setup';
 import { getGuestType, guestTypeLabel } from '../models/guest-type-registry';
@@ -53,10 +53,6 @@ class EffectContextImpl implements EffectContext {
   requestChoice(request: ChoiceRequest): void { this.queued.push({ kind: 'choice', request }); }
 }
 
-// An entry on the effect queue: an effect to run, or a choice to ask the player.
-export type QueueEntry =
-  | { kind: 'effect'; run: GameEffect }
-  | { kind: 'choice'; request: ChoiceRequest };
 
 // The choice the player has to make now. `resume` carries on with the chosen option: for an
 // effect's choice it runs onChoose and the rest of the queue; for ban selection it applies
@@ -288,11 +284,6 @@ export const GameStore = signalStore(
       getMoney: () => store.money()
     };
 
-    // Puts entries on the queue so the first of them runs next.
-    const pushEntries = (entries: readonly QueueEntry[]): void => {
-      patchState(store, { pendingEffects: [...store.pendingEffects(), ...[...entries].reverse()] });
-    };
-
     // Shuts the party down: the party is kept aside for ban selection, the discard pile goes
     // back to the deck, and any effects and choices still queued are dropped.
     const bust = (isOverflow: boolean): void => {
@@ -332,12 +323,20 @@ export const GameStore = signalStore(
     // effect interrupts the effect that admitted it. State is committed after each effect,
     // then checked for overflow and trouble; a bust shuts the party down and drops whatever
     // is still queued. A choice pauses resolution, with the rest of the queue kept in
-    // pendingEffects, until the player answers.
-    const runQueue = (): void => {
-      while (store.pendingEffects().length > 0 && !store.choice()) {
-        const stack = [...store.pendingEffects()];
+    // pendingEffects, until the player answers. `next` runs first, in order, before
+    // anything already in pendingEffects.
+    const runQueue = (next: readonly QueueEntry[]): void => {
+      // The queue lives in this local stack while it runs, and goes back into state only
+      // when resolution pauses. The top of the stack runs next.
+      const stack = [...store.pendingEffects(), ...[...next].reverse()];
+      patchState(store, { pendingEffects: [] });
+
+      while (stack.length > 0) {
+        if (store.choice()) {
+          patchState(store, { pendingEffects: stack });
+          return;
+        }
         const entry = stack.pop()!;
-        patchState(store, { pendingEffects: stack });
 
         if (entry.kind === 'choice') {
           const { request } = entry;
@@ -345,9 +344,9 @@ export const GameStore = signalStore(
           const options = request.options(view);
           if (options.length === 0) continue;
 
+          patchState(store, { pendingEffects: stack });
           startChoice('effect', request, options, (option) => {
-            pushEntries([{ kind: 'effect', run: (ctx) => request.onChoose(ctx, option) }]);
-            runQueue();
+            runQueue([{ kind: 'effect', run: (ctx) => request.onChoose(ctx, option) }]);
           });
           return;
         }
@@ -360,7 +359,7 @@ export const GameStore = signalStore(
           store.money()
         );
         entry.run(ctx);
-        pushEntries(ctx.queued);
+        stack.push(...[...ctx.queued].reverse());
 
         patchState(store, {
           deck: ctx.getDeck(),
@@ -381,8 +380,7 @@ export const GameStore = signalStore(
 
     // Resolves an effect and everything it queues.
     const resolveEffects = (effect: GameEffect): void => {
-      pushEntries([{ kind: 'effect', run: effect }]);
-      runQueue();
+      runQueue([{ kind: 'effect', run: effect }]);
     };
 
     // The ban outcome: the chosen guest sits out the next party in the discard pile, the
@@ -597,9 +595,9 @@ export const GameStore = signalStore(
             isGameComplete: true,
             bustPartySnapshot: []
           });
-        } else if (isOverflow) {
-          // Non-final turn with overflow: return every bust party guest to the deck (no ban),
-          // shuffle, skip ban selection and advance to next turn Buy phase
+        } else if (isOverflow || store.bustPartySnapshot().length === 0) {
+          // Non-final turn with overflow, or with no one to ban: return every bust party guest
+          // to the deck (no ban), shuffle, skip ban selection and advance to next turn Buy phase
           const updatedDeck = [...store.deck(), ...store.bustPartySnapshot()];
           shuffleDeck(updatedDeck);
 

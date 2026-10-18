@@ -1389,7 +1389,8 @@ describe('GameStore - Unit Tests', () => {
         currentTurn: 2,
         totalTurns: 5,
         currentPhase: GamePhase.PARTY,
-        isPartyShutdown: true
+        isPartyShutdown: true,
+        bustPartySnapshot: [testGuest('WILD_BUDDY', 'Matt')]
       });
 
       store.acknowledgeShutdown();

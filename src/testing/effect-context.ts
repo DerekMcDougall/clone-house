@@ -1,7 +1,5 @@
-import { ChoiceOption, ChoiceRequest, EffectContext, GameEffect } from '../app/models/effect-context';
+import { ChoiceOption, ChoiceRequest, EffectContext, GameEffect, QueueEntry } from '../app/models/effect-context';
 import { Guest } from '../app/models/guest.model';
-
-type Entry = { kind: 'effect'; run: GameEffect } | { kind: 'choice'; request: ChoiceRequest };
 
 // An in-memory EffectContext for running effects without the store. resolve() runs effects
 // the way the store's runQueue() does: depth-first, with the entries an effect queues
@@ -15,8 +13,8 @@ export class TestEffectContext implements EffectContext {
   money = 0;
   // The choice resolution is paused on, with the options worked out when it was reached
   pendingChoice: { request: ChoiceRequest; options: ChoiceOption[] } | null = null;
-  private queued: Entry[] = [];
-  private stack: Entry[] = [];
+  private queued: QueueEntry[] = [];
+  private stack: QueueEntry[] = [];
 
   constructor({ deck = [], party = [] }: { deck?: Guest[]; party?: Guest[] } = {}) {
     this.deck = deck;
@@ -45,8 +43,10 @@ export class TestEffectContext implements EffectContext {
   requestChoice(request: ChoiceRequest): void { this.queued.push({ kind: 'choice', request }); }
 
   // Runs the given effect, if any, then everything queued, until nothing is left or a
-  // choice is reached.
+  // choice is reached. Throws while a choice is pending, since the store can't resolve
+  // anything then either.
   resolve(effect?: GameEffect): void {
+    if (this.pendingChoice) throw new Error('A choice is pending; call choose() first');
     if (effect) this.enqueue(effect);
     this.flush();
     while (this.stack.length > 0 && !this.pendingChoice) {
@@ -63,7 +63,8 @@ export class TestEffectContext implements EffectContext {
 
   // Answers the pending choice and carries on resolving.
   choose(optionId: string): void {
-    const { request, options } = this.pendingChoice!;
+    if (!this.pendingChoice) throw new Error('No choice is pending');
+    const { request, options } = this.pendingChoice;
     const option = options.find(o => o.id === optionId);
     if (!option) throw new Error(`No option "${optionId}"`);
     this.pendingChoice = null;
