@@ -6,6 +6,7 @@ import { admitGuest, createGuest, createGuestIdSource, Guest, GuestType, WINNING
 import { DEFAULT_GAME_SETUP, GameSetup, validateGameSetup } from '../models/game-setup';
 import { getGuestType, guestTypeLabel } from '../models/guest-type-registry';
 import { runEffect } from '../models/action-kinds';
+import type { Trigger } from '../models/effect-definition';
 
 export type { EffectContext };
 
@@ -68,6 +69,26 @@ const settle = (popularity: number, money: number): { popularity: number; money:
     popularity: Math.max(0, Math.max(0, popularity) - moneyDeficit * MONEY_DEFICIT_PENALTY_RATE),
     money: Math.max(0, money)
   };
+};
+
+// Runs every effect of `guest` with the given trigger, in the type's effect order.
+const runTriggered = (ctx: EffectContext, guest: Guest, trigger: Trigger): void => {
+  for (const effect of getGuestType(guest.type).effects ?? []) {
+    if (effect.trigger === trigger) runEffect(ctx, guest, effect);
+  }
+};
+
+// Adds the own scoring bonuses ('score' effects) of `guests` to ctx, in order. Bonuses are
+// worked out from ctx's party, so scoring a single guest early can reuse this.
+const scoreOwnBonuses = (ctx: EffectContext, guests: readonly Guest[]): void => {
+  for (const guest of guests) runTriggered(ctx, guest, 'score');
+};
+
+// Adds the group bonuses ('groupScore' effects) of the types among `guests` to ctx: once per
+// type, as the effects of its first guest, in order of those first guests.
+const scoreGroupBonuses = (ctx: EffectContext, guests: readonly Guest[]): void => {
+  const firstOfEachType = guests.filter((guest, i) => guests.findIndex(g => g.type === guest.type) === i);
+  for (const guest of firstOfEachType) runTriggered(ctx, guest, 'groupScore');
 };
 
 // The choice the player has to make now. `resume` carries on with the chosen option: for an
@@ -548,19 +569,23 @@ export const GameStore = signalStore(
             store.money() + calculateMoneyChange()
           );
 
-          // Step 2: Add every guest's scoring bonuses to the settled totals, then settle again,
-          // so bonus money can't cover a shortfall from step 1. Every bonus sees the same party.
+          // Step 2: Add every guest's own scoring bonuses to the settled totals, then settle
+          // again, so bonus money can't cover a shortfall from step 1. Every bonus sees the
+          // same party.
           const ctx = new EffectContextImpl(
             store.deck(), store.party(), store.discard(), scored.popularity, scored.money, store.houseCapacity()
           );
-          for (const guest of store.party()) {
-            for (const effect of getGuestType(guest.type).effects ?? []) {
-              if (effect.trigger === 'score') runEffect(ctx, guest, effect);
-            }
-          }
+          scoreOwnBonuses(ctx, store.party());
+          const withOwn = settle(ctx.getPopularity(), ctx.getMoney());
+
+          // Step 3: Add each type's group bonus once, then settle again, so group bonus money
+          // can't cover a shortfall from step 2 either
+          ctx.setPopularity(withOwn.popularity);
+          ctx.setMoney(withOwn.money);
+          scoreGroupBonuses(ctx, store.party());
           patchState(store, settle(ctx.getPopularity(), ctx.getMoney()));
 
-          // Step 3: Return both party guests and discard pile to deck, then shuffle
+          // Step 4: Return both party guests and discard pile to deck, then shuffle
           const party = store.party();
           const currentDiscard = store.discard();
           const currentDeck = store.deck();
@@ -573,7 +598,7 @@ export const GameStore = signalStore(
             discard: [],
           });
 
-          // Step 4: Advance turn or complete game
+          // Step 5: Advance turn or complete game
           if (currentTurn === totalTurns) {
             patchState(store, { isGameComplete: true });
           } else {

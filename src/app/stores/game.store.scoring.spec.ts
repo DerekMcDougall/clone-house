@@ -137,6 +137,156 @@ describe('GameStore - Scoring Bonuses', () => {
     expect(store.popularity()).toBe(4);
   });
 
+  describe('Group bonuses', () => {
+    // A test type with a group bonus: `amounts` by how many of its guests are in the party
+    const groupType = (id: string, amounts: number[], { resource = 'popularity', properties = {} as Partial<GuestProperties> } = {}): GuestType =>
+      registerTestGuestType({
+        id,
+        properties: { ...NO_PROPERTIES, ...properties },
+        effects: [{
+          trigger: 'groupScore',
+          action: { kind: 'scoreBonus', resource, amounts, per: 'guestOfType', guestType: id, icons: ICON }
+        }]
+      });
+    const several = (type: GuestType, n: number) => Array.from({ length: n }, (_, i) => testGuest(type, `${type} ${i}`));
+
+    it('should pay a group bonus once, sized by the group', () => {
+      const type = groupType('TEST_GROUP', [1, 4, 9, 16]);
+      startParty([testGuest('RICH_PAL', 'Khalil'), ...several(type, 3)], { popularity: 2 });
+
+      store.advancePhase();
+
+      expect(store.popularity()).toBe(11);
+      expect(store.money()).toBe(1);
+    });
+
+    it('should pay each group type once', () => {
+      const a = groupType('TEST_GROUP_A', [1, 4, 9]);
+      const b = groupType('TEST_GROUP_B', [10, 20]);
+      startParty([...several(a, 2), ...several(b, 1), ...several(a, 1)]);
+
+      store.advancePhase();
+
+      // A: 3 guests → 9; B: 1 guest → 10
+      expect(store.popularity()).toBe(19);
+    });
+
+    it('should add group bonuses after own bonuses', () => {
+      const group = groupType('TEST_GROUP', [5]);
+      const own = bonusType('TEST_OWN', { amount: 2 });
+      startParty([testGuest(group, 'G'), testGuest(own, 'O'), testGuest(own, 'P')]);
+
+      store.advancePhase();
+
+      expect(store.popularity()).toBe(9);
+    });
+
+    it('should not let group bonus money cover a shortfall from own bonuses', () => {
+      const own = bonusType('TEST_DEBT', { resource: 'money', amount: -1 });
+      const group = groupType('TEST_PAYS', [3], { resource: 'money' });
+      startParty([testGuest(own, 'Debt'), testGuest(group, 'Pays')], { popularity: 10, money: 0 });
+
+      store.advancePhase();
+
+      // Own bonuses: money -1 → 0, costing 7 popularity. Then the group bonus adds 3 money.
+      expect(store.popularity()).toBe(3);
+      expect(store.money()).toBe(3);
+    });
+
+    it('should run no group bonuses on a bust, a win or an entrance', () => {
+      const type = groupType('TEST_GROUP', [5]);
+
+      startParty([], { popularity: 4, deck: [testGuest(type, 'G')] });
+      store.inviteGuest();
+      expect(store.popularity()).toBe(4);
+
+      const aliens = ['ET', 'Rocky', 'Olimar', 'Alf'].map(name => testGuest('ALIEN', name));
+      startParty([...aliens, testGuest(type, 'G')], { popularity: 4 });
+      store.advancePhase();
+      expect(store.isVictory()).toBe(true);
+      expect(store.popularity()).toBe(4);
+
+      startParty([testGuest(type, 'G'), ...several('WILD_BUDDY', 2)], { popularity: 4, deck: [testGuest('WILD_BUDDY', 'Jodie')] });
+      store.inviteGuest();
+      expect(store.isPartyShutdown()).toBe(true);
+      store.acknowledgeShutdown();
+      expect(store.popularity()).toBe(4);
+    });
+
+    it('should settle normal amounts, own bonuses and group bonuses in turn, one group bonus per type', () => {
+      // Feature: group-scoring-bonuses, Property 2: Three Settled Steps, One Group Bonus per Type
+      fc.assert(
+        fc.property(
+          fc.array(fc.nat(5), { minLength: 1, maxLength: 8 }),
+          fc.nat(20),
+          fc.nat(4),
+          (picks, popularity, money) => {
+            resetGuestTypesForTesting();
+            const types = [
+              groupType('TEST_SQUARES', [1, 4, 9, 16]),
+              groupType('TEST_GROUP_MONEY', [2, -3], { resource: 'money' }),
+              bonusType('TEST_OWN', { amount: 2 }, { moneyValue: -1 }),
+              bonusType('TEST_OWN_DEBT', { resource: 'money', amount: -1 }),
+              'OLD_FRIEND',
+              'RICH_PAL'
+            ];
+            const tables: Record<string, { resource: 'popularity' | 'money'; amounts: number[] }> = {
+              TEST_SQUARES: { resource: 'popularity', amounts: [1, 4, 9, 16] },
+              TEST_GROUP_MONEY: { resource: 'money', amounts: [2, -3] }
+            };
+            const party = picks.map((p, i) => testGuest(types[p], `Guest ${i}`));
+            startParty(party, { popularity, money, capacity: 10 });
+
+            const normal = settle(
+              popularity + party.reduce((sum, g) => sum + g.properties.popularityValue, 0),
+              money + party.reduce((sum, g) => sum + g.properties.moneyValue, 0)
+            );
+            const ownPopularity = 2 * party.filter(g => g.type === 'TEST_OWN').length;
+            const ownMoney = -party.filter(g => g.type === 'TEST_OWN_DEBT').length;
+            const withOwn = settle(normal.popularity + ownPopularity, normal.money + ownMoney);
+            let groupPopularity = 0;
+            let groupMoney = 0;
+            for (const [type, { resource, amounts }] of Object.entries(tables)) {
+              const n = party.filter(g => g.type === type).length;
+              const bonus = n === 0 ? 0 : amounts[Math.min(n, amounts.length) - 1];
+              if (resource === 'popularity') groupPopularity += bonus;
+              else groupMoney += bonus;
+            }
+            const expected = settle(withOwn.popularity + groupPopularity, withOwn.money + groupMoney);
+
+            store.advancePhase();
+
+            expect({ popularity: store.popularity(), money: store.money() }).toEqual(expected);
+          }
+        ),
+        { numRuns: 150 }
+      );
+    });
+
+    it('should leave the totals alone when a party with group bonus guests busts or wins', () => {
+      // Feature: group-scoring-bonuses, Property 4: No Group Bonuses Without Scoring
+      fc.assert(
+        fc.property(fc.integer({ min: 1, max: 4 }), fc.boolean(), fc.nat(30), fc.nat(5), (n, win, popularity, money) => {
+          resetGuestTypesForTesting();
+          const group = several(groupType('TEST_GROUP', [1, 4, 9, 16]), n);
+          if (win) {
+            startParty([...several('ALIEN', 4), ...group], { popularity, money });
+            store.advancePhase();
+            expect(store.isVictory()).toBe(true);
+          } else {
+            startParty([...several('WILD_BUDDY', 2), ...group], { popularity, money, deck: [testGuest('WILD_BUDDY', 'Jodie')] });
+            store.inviteGuest();
+            expect(store.isPartyShutdown()).toBe(true);
+            store.acknowledgeShutdown();
+          }
+          expect(store.popularity()).toBe(popularity);
+          expect(store.money()).toBe(money);
+        }),
+        { numRuns: 100 }
+      );
+    });
+  });
+
   describe('Bonus guest types', () => {
     // Ends a party of `party` from 10 popularity and 10 money and returns what it earned
     const earned = (party: Guest[], capacity: number) => {

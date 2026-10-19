@@ -157,9 +157,11 @@ const cycleSelfKind: ActionKind<CycleSelfParams> = {
   icons: (p) => p.icons
 };
 
+// Exactly one of amount and amounts is given.
 type ScoreBonusParams = {
   resource: 'popularity' | 'money';
-  amount: number;
+  amount?: number;
+  amounts?: readonly number[];
   per?: 'emptySpace' | 'trouble' | 'guestOfType';
   guestType?: string;
   when?: 'houseFull';
@@ -169,18 +171,29 @@ type ScoreBonusParams = {
 const SCORE_BONUS_PER = ['emptySpace', 'trouble', 'guestOfType'];
 
 // Adds `amount` of `resource` for each counted thing in the house (once, without `per`), or
-// nothing when `when` doesn't hold. Runs at scoring, on the finished party. A guestType that
-// isn't registered counts 0: JSON types can be registered in any order, so it isn't checked.
+// with `amounts`, looks the bonus up by count: amounts[count - 1], the last entry past the
+// end, 0 for none. Adds nothing when `when` doesn't hold. Runs at scoring, on the finished
+// party. A guestType that isn't registered counts 0: JSON types can be registered in any
+// order, so it isn't checked.
 const scoreBonusKind: ActionKind<ScoreBonusParams> = {
   kind: 'scoreBonus',
   dataOnly: true,
-  triggers: ['score'],
+  triggers: ['score', 'groupScore'],
   validate: (p, path) => {
     const problems: string[] = [];
     if (p['resource'] !== 'popularity' && p['resource'] !== 'money') {
       problems.push(`${path}.resource: expected "popularity" or "money"`);
     }
-    if (!isInteger(p['amount']) || p['amount'] === 0) problems.push(`${path}.amount: expected a non-zero integer`);
+    if ((p['amount'] === undefined) === (p['amounts'] === undefined)) {
+      problems.push(`${path}.amount: give exactly one of amount and amounts`);
+    } else if (p['amount'] !== undefined && (!isInteger(p['amount']) || p['amount'] === 0)) {
+      problems.push(`${path}.amount: expected a non-zero integer`);
+    } else if (p['amounts'] !== undefined) {
+      const amounts = p['amounts'];
+      if (!(Array.isArray(amounts) && amounts.length > 0 && amounts.every(isInteger))) {
+        problems.push(`${path}.amounts: expected a non-empty list of integers`);
+      }
+    }
     if (p['per'] !== undefined && !SCORE_BONUS_PER.includes(p['per'] as string)) {
       problems.push(`${path}.per: expected one of ${SCORE_BONUS_PER.join(', ')}`);
     }
@@ -195,10 +208,10 @@ const scoreBonusKind: ActionKind<ScoreBonusParams> = {
     return [
       ...problems,
       ...iconsProblems(p['icons'], path),
-      ...unknownParams(p, path, ['resource', 'amount', 'per', 'guestType', 'when', 'icons'])
+      ...unknownParams(p, path, ['resource', 'amount', 'amounts', 'per', 'guestType', 'when', 'icons'])
     ];
   },
-  run: (ctx, _guest, { resource, amount, per, guestType, when }) => {
+  run: (ctx, _guest, { resource, amount, amounts, per, guestType, when }) => {
     const party = ctx.getParty();
     const capacity = ctx.getHouseCapacity();
     if (when === 'houseFull' && party.length < capacity) return;
@@ -209,8 +222,11 @@ const scoreBonusKind: ActionKind<ScoreBonusParams> = {
       per === 'guestOfType' ? party.filter(g => g.type === guestType).length :
       1;
 
-    if (resource === 'popularity') ctx.setPopularity(ctx.getPopularity() + amount * count);
-    else ctx.setMoney(ctx.getMoney() + amount * count);
+    const bonus = amounts
+      ? (count <= 0 ? 0 : amounts[Math.min(count, amounts.length) - 1])
+      : amount! * count;
+    if (resource === 'popularity') ctx.setPopularity(ctx.getPopularity() + bonus);
+    else ctx.setMoney(ctx.getMoney() + bonus);
   },
   icons: (p) => p.icons
 };

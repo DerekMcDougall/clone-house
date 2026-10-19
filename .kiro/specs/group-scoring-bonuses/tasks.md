@@ -6,21 +6,21 @@ Add the `groupScore` trigger and `scoreBonus` `amounts`, move bonus scoring into
 
 ## Tasks
 
-- [ ] 1. groupScore and amounts
-  - [ ] 1.1 Add `'groupScore'` to `Trigger`, `TRIGGERS` and `triggerPhrase` ("once per group when scored"); let `scoreBonus` allow it
+- [x] 1. groupScore and amounts
+  - [x] 1.1 Add `'groupScore'` to `Trigger`, `TRIGGERS` and `triggerPhrase` ("once per group when scored"); let `scoreBonus` allow it
     - _Requirements: 1.1, 1.2_
-  - [ ] 1.2 Add `amounts` to `scoreBonus`: validation (exactly one of `amount` and `amounts`, non-empty integer list) and lookup in `run`
+  - [x] 1.2 Add `amounts` to `scoreBonus`: validation (exactly one of `amount` and `amounts`, non-empty integer list) and lookup in `run`
     - _Requirements: 2.1–2.6_
-  - [ ] 1.3 Unit tests for the trigger and `amounts`, JSON parsing, arbitraries that cover both; property test 1
+  - [x] 1.3 Unit tests for the trigger and `amounts`, JSON parsing, arbitraries that cover both; property test 1
     - _Requirements: 1.1, 1.2, 2.1–2.6_
 
-- [ ] 2. Scoring pass
-  - [ ] 2.1 Add `scoreOwnBonuses` and `scoreGroupBonuses` to the store (group effects once per type, as its first guest's); in `advancePhase`, settle after own bonuses, then run group bonuses and settle again
+- [x] 2. Scoring pass
+  - [x] 2.1 Add `scoreOwnBonuses` and `scoreGroupBonuses` to the store (group effects once per type, as its first guest's); in `advancePhase`, settle after own bonuses, then run group bonuses and settle again
     - _Requirements: 1.3, 3.1–3.6_
-  - [ ] 2.2 Store tests with test-only group types: one payout per type, two group types, mixed with per-guest bonuses, group money not covering an own-bonus shortfall, nothing on bust or win or entrance; property tests 2 and 4
+  - [x] 2.2 Store tests with test-only group types: one payout per type, two group types, mixed with per-guest bonuses, group money not covering an own-bonus shortfall, nothing on bust or win or entrance; property tests 2 and 4
     - _Requirements: 1.3, 3.1–3.5_
 
-- [ ] 3. Checkpoint — Ensure all tests pass
+- [x] 3. Checkpoint — Ensure all tests pass
   - Ensure all tests pass, ask the user if questions arise.
 
 - [ ] 4. Dancer
