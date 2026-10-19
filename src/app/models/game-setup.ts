@@ -45,7 +45,12 @@ export const DEFAULT_GAME_SETUP: GameSetup = {
     { type: 'MERMAID', names: ['Ariel', 'Marina', 'Calypso', 'Oceana'] },
     { type: 'UNICORN', names: ['Sparkles', 'Glitter', 'Stardust', 'Moonbeam'] },
     { type: 'SUPERHERO', names: ['Superman', 'Spider-man', 'Batman', 'Iron Man'] },
-    { type: 'WEREWOLF', names: ['Remus', 'Lawrence', 'Scott', 'Jacob'] }
+    { type: 'WEREWOLF', names: ['Remus', 'Lawrence', 'Scott', 'Jacob'] },
+    { type: 'COMEDIAN', names: ['Jerry', 'Nate', 'Bill', 'Norm'] },
+    { type: 'MASCOT', names: ['Sparty', 'Gritty', 'Goofball', 'Benny'] },
+    { type: 'INTROVERT', names: ['Sheldon', 'Leonard', 'Raj', 'Howard'] },
+    { type: 'BARTENDER', names: ['Sam', 'Woody', 'Diane', 'Carla'] },
+    { type: 'WRITER', names: ['Franklin', 'Carolyn', 'Laura', 'Erin'] }
   ]
 };
 

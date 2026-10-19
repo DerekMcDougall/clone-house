@@ -18,7 +18,7 @@ Each turn has two phases.
 When a party ends normally:
 
 - with 4+ stars, the player wins immediately ("Congrats! You threw the ultimate party!") and nothing is scored
-- otherwise each guest's popularity and money are added to the totals, and the party and discard pile are shuffled back into the deck
+- otherwise the party is scored: each guest's popularity and money are added to the totals (and settled: see Resources), then each guest's scoring bonus is added and the totals are settled again. The party and discard pile are then shuffled back into the deck.
 
 ## Resources
 
@@ -28,7 +28,7 @@ When a party ends normally:
 - **Peace**: counted only during a party. Each point raises the trouble limit by 1.
 - **Stars**: counted only during a party. 4 at the end of a party wins.
 
-Guests can grant negative popularity or money; those amounts are subtracted when the party is scored.
+Guests can grant negative popularity or money; those amounts are subtracted when the party is scored. Scoring bonuses come after the money penalty is applied, so bonus money can't cover a shortfall from the guests' normal money.
 
 ## The House
 
@@ -51,13 +51,23 @@ The starting deck has 4 Old Friends, 4 Wild Buddies and 2 Rich Pals. The shop st
 
 ### Effects
 
-Effects run when a guest enters the party. A guest's effect runs before anything already in progress continues, so if a Celebrity invites a Climber, the Climber's effect happens before the Celebrity's second invite. Effects can change the guest itself; those changes stay with that guest for the rest of the game.
+Most effects run when a guest enters the party; scoring bonuses run when the party is scored. A guest's effect runs before anything already in progress continues, so if a Celebrity invites a Climber, the Climber's effect happens before the Celebrity's second invite. Effects can change the guest itself; those changes stay with that guest for the rest of the game.
 
 - **Auto-invite** (👤): invites the top guest of the deck, exactly as the player would, except it can overflow the house.
 - **Climber** (➕): gains 1 popularity on each entrance, up to 9.
 - **Werewolf** (🌙): switches between 0 and 1 trouble on each entrance. The switch happens before the trouble check.
 
 Effects can also ask the player to choose (for example, to pick a guest), pausing the party until they do.
+
+Scoring bonuses are worked out from the finished party, after its normal popularity and money:
+
+- **Comedian** (🏠): 5 popularity if the house is full.
+- **Mascot** (bold O): 1 popularity per Old Friend.
+- **Introvert** (🏡): 1 popularity per empty space.
+- **Bartender** (🍸): 2 money per trouble.
+- **Writer** (bold gold X): 2 popularity per trouble.
+
+Trouble here is the party's trouble before peace.
 
 ### Guest Types
 
@@ -69,14 +79,19 @@ Effects can also ask the player to choose (for example, to pick a guest), pausin
 | Monkey | 3 | 4 | | 1 trouble |
 | Ticket Taker | 4 | -1 | 2 | |
 | Hippy | 4 | 1 | | 1 peace |
+| Introvert | 4 | 1 | | bonus: 1 popularity per empty space |
 | Caterer | 5 | 4 | -1 | |
+| Comedian | 5 | | -1 | bonus: 5 popularity if the house is full |
+| Mascot | 5 | 1 | | bonus: 1 popularity per Old Friend |
 | Rock Star | 5 | 3 | 2 | 1 trouble |
 | Mr. Popular | 5 | 3 | | auto-invites 1 |
 | Werewolf | 5 | 4 | | 0 or 1 trouble, switches each entrance |
 | Gangster | 6 | | 4 | 1 trouble |
 | Gambler | 7 | 2 | 3 | 1 trouble |
 | Cute Dog | 7 | 2 | | 1 peace |
+| Writer | 8 | 1 | | bonus: 2 popularity per trouble |
 | Auctioneer | 9 | | 3 | |
+| Bartender | 11 | 1 | | bonus: 2 money per trouble |
 | Celebrity | 11 | 2 | 3 | auto-invites 2 |
 | Climber | 12 | 0, +1 each entrance (max 9) | | |
 | Dinosaur | 25 | | | 1 star, 1 trouble |

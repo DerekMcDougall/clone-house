@@ -4704,13 +4704,13 @@ describe('GameStore - Shop Buy Guests Property Tests', () => {
    * For any sequence of game operations (purchaseGuest, inviteGuest, advancePhase,
    * triggerPartyShutdown, confirmChoice), the sum
    * deck.length + party.length + discard.length + bustPartySnapshot.length +
-   * sum(shopInventory[*].guests.length) SHALL equal 98
-   * (10 initial guests + 84 purchasable shop guests).
+   * sum(shopInventory[*].guests.length) SHALL equal 118
+   * (10 initial guests + 108 purchasable shop guests).
    */
   describe('Property 3: Guest Conservation with Expanded Pool', () => {
-    it('should conserve total guests at 98 across deck, party, discard, bustPartySnapshot, and shop through all operations', () => {
+    it('should conserve total guests at 118 across deck, party, discard, bustPartySnapshot, and shop through all operations', () => {
       // Feature: more-guest-types, Property 3: Guest Conservation with Expanded Pool
-      const EXPECTED_TOTAL = 98; // 10 initial + 88 shop
+      const EXPECTED_TOTAL = 118; // 10 initial + 108 shop
 
       const operationArb = fc.constantFrom(
         'purchaseGuest',
@@ -4866,7 +4866,7 @@ describe('GameStore - Starting Deck Shuffle Property Tests', () => {
 /**
  * Property-Based Tests for Star Guests & Winning
  *
- * Property 9 (Guest Conservation at 98) is the expanded-pool conservation test above.
+ * Property 9 (Guest Conservation at 118) is the expanded-pool conservation test above.
  */
 describe('GameStore - Star Guests & Winning Property Tests', () => {
   let store: InstanceType<typeof GameStore>;
@@ -4874,6 +4874,9 @@ describe('GameStore - Star Guests & Winning Property Tests', () => {
   const STAR_TYPES: GuestType[] = ['ALIEN', 'LEPRECHAUN', 'DRAGON', 'DINOSAUR', 'MERMAID', 'UNICORN', 'SUPERHERO'];
   const ALL_TYPES = Object.keys(GUEST_TYPE_DEFAULTS) as GuestType[];
   const NON_STAR_TYPES = ALL_TYPES.filter(t => !STAR_TYPES.includes(t));
+  // Types without scoring bonuses, for checks of the normal scoring formula. Bonuses are
+  // covered in game.store.scoring.spec.ts.
+  const NO_BONUS_TYPES = NON_STAR_TYPES.filter(t => !(getGuestType(t).effects ?? []).some(e => e.trigger === 'score'));
 
   const makeParty = (types: GuestType[], prefix = 'G'): Guest[] =>
     types.map((type, i) => testGuest(type, `${prefix}${i}-${type}`));
@@ -4957,7 +4960,7 @@ describe('GameStore - Star Guests & Winning Property Tests', () => {
     fc.assert(
       fc.property(
         fc.array(fc.constantFrom(...STAR_TYPES), { maxLength: 3 }),
-        fc.array(fc.constantFrom(...NON_STAR_TYPES), { maxLength: 4 }),
+        fc.array(fc.constantFrom(...NO_BONUS_TYPES), { maxLength: 4 }),
         fc.integer({ min: 1, max: 5 }),
         fc.integer({ min: 0, max: 100 }),
         fc.integer({ min: 0, max: 20 }),
@@ -5125,7 +5128,7 @@ describe('GameStore - Star Guests & Winning Property Tests', () => {
     fc.assert(
       fc.property(
         fc.array(fc.constantFrom(...STAR_TYPES), { minLength: 1, maxLength: 3 }),
-        fc.array(fc.constantFrom(...NON_STAR_TYPES), { maxLength: 3 }),
+        fc.array(fc.constantFrom(...NO_BONUS_TYPES), { maxLength: 3 }),
         (starTypes, otherTypes) => {
           store.initializeGame();
           const types = [...starTypes, ...otherTypes];

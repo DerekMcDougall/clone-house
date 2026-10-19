@@ -23,7 +23,12 @@ export type BuiltInGuestType =
   | 'MERMAID'
   | 'UNICORN'
   | 'SUPERHERO'
-  | 'WEREWOLF';
+  | 'WEREWOLF'
+  | 'COMEDIAN'
+  | 'MASCOT'
+  | 'INTROVERT'
+  | 'BARTENDER'
+  | 'WRITER';
 
 // The game's own guest types, in registration order. Which of them are in a game is up to
 // the game setup; see game-setup.ts.
@@ -178,6 +183,87 @@ export const BUILT_IN_GUEST_TYPES: readonly GuestTypeDefinition[] = [
         property: 'troubleValue',
         values: [0, 1],
         icons: [{ symbol: '🌙', label: 'Switches between 0 and 1 trouble on entrance' }]
+      }
+    }]
+  },
+  {
+    id: 'COMEDIAN',
+    label: 'Comedian',
+    cost: 5,
+    properties: { popularityValue: 0, troubleValue: 0, moneyValue: -1, peaceValue: 0, starValue: 0 },
+    effects: [{
+      trigger: 'score',
+      action: {
+        kind: 'scoreBonus',
+        resource: 'popularity',
+        amount: 5,
+        when: 'houseFull',
+        icons: [{ symbol: '🏠', label: '5 popularity when scored if the house is full' }]
+      }
+    }]
+  },
+  {
+    id: 'MASCOT',
+    label: 'Mascot',
+    cost: 5,
+    properties: { popularityValue: 1, troubleValue: 0, moneyValue: 0, peaceValue: 0, starValue: 0 },
+    effects: [{
+      trigger: 'score',
+      action: {
+        kind: 'scoreBonus',
+        resource: 'popularity',
+        amount: 1,
+        per: 'guestOfType',
+        guestType: 'OLD_FRIEND',
+        icons: [{ symbol: 'O', label: '1 popularity per Old Friend when scored', bold: true }]
+      }
+    }]
+  },
+  {
+    id: 'INTROVERT',
+    label: 'Introvert',
+    cost: 4,
+    properties: { popularityValue: 1, troubleValue: 0, moneyValue: 0, peaceValue: 0, starValue: 0 },
+    effects: [{
+      trigger: 'score',
+      action: {
+        kind: 'scoreBonus',
+        resource: 'popularity',
+        amount: 1,
+        per: 'emptySpace',
+        icons: [{ symbol: '🏡', label: '1 popularity per empty space when scored' }]
+      }
+    }]
+  },
+  {
+    id: 'BARTENDER',
+    label: 'Bartender',
+    cost: 11,
+    properties: { popularityValue: 1, troubleValue: 0, moneyValue: 0, peaceValue: 0, starValue: 0 },
+    effects: [{
+      trigger: 'score',
+      action: {
+        kind: 'scoreBonus',
+        resource: 'money',
+        amount: 2,
+        per: 'trouble',
+        icons: [{ symbol: '🍸', label: '2 money per trouble when scored' }]
+      }
+    }]
+  },
+  {
+    id: 'WRITER',
+    label: 'Writer',
+    cost: 8,
+    properties: { popularityValue: 1, troubleValue: 0, moneyValue: 0, peaceValue: 0, starValue: 0 },
+    effects: [{
+      trigger: 'score',
+      action: {
+        kind: 'scoreBonus',
+        resource: 'popularity',
+        amount: 2,
+        per: 'trouble',
+        icons: [{ symbol: 'X', label: '2 popularity per trouble when scored', color: '#f9a825', bold: true }]
       }
     }]
   }

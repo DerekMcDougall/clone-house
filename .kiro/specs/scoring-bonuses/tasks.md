@@ -37,19 +37,19 @@ Add the `score` trigger and the per-kind trigger check, then the `scoreBonus` ki
 - [x] 4. Checkpoint — Ensure all tests pass
   - Ensure all tests pass, ask the user if questions arise.
 
-- [ ] 5. Bonus guest types
-  - [ ] 5.1 Add `COMEDIAN`, `MASCOT`, `INTROVERT`, `BARTENDER` and `WRITER` to `BuiltInGuestType`, `BUILT_IN_GUEST_TYPES` and the default shop with their names
+- [x] 5. Bonus guest types
+  - [x] 5.1 Add `COMEDIAN`, `MASCOT`, `INTROVERT`, `BARTENDER` and `WRITER` to `BuiltInGuestType`, `BUILT_IN_GUEST_TYPES` and the default shop with their names
     - _Requirements: 4.1–4.4_
-  - [ ] 5.2 Update counts that include every shop guest (98 → 118 conservation, shop size and type lists)
+  - [x] 5.2 Update counts that include every shop guest (98 → 118 conservation, shop size and type lists)
     - _Requirements: 4.3_
-  - [ ] 5.3 Store tests for each type's bonus in a real party, including an expansion changing the Introvert's and Comedian's bonuses
+  - [x] 5.3 Store tests for each type's bonus in a real party, including an expansion changing the Introvert's and Comedian's bonuses
     - _Requirements: 3.1, 4.1_
-  - [ ] 5.4 Card tests: each type's icon in the shop and house, left of any trouble icon; the Mascot's bold "O" and the Writer's bold gold "X"
+  - [x] 5.4 Card tests: each type's icon in the shop and house, left of any trouble icon; the Mascot's bold "O" and the Writer's bold gold "X"
     - _Requirements: 4.2, 5.2, 5.5_
-  - [ ] 5.5 Property test 5
+  - [x] 5.5 Property test 5
     - **Property 5: Guest Conservation** — **Validates: Requirement 4.3**
 
-- [ ] 6. Final checkpoint — Ensure all tests pass and `ng build` succeeds; buy each bonus guest in the app, end parties with and without its condition met, and check the totals and icons
+- [x] 6. Final checkpoint — Ensure all tests pass and `ng build` succeeds; buy each bonus guest in the app, end parties with and without its condition met, and check the totals and icons
   - Ensure all tests pass, ask the user if questions arise.
 
 ## Notes

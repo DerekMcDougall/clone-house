@@ -95,6 +95,12 @@ describe('GuestDetailsComponent', () => {
     }
   });
 
+  it('puts a scoring bonus icon left of trouble on a guest in the house', () => {
+    const el = render('WRITER', { ...GUEST_TYPE_DEFAULTS['WRITER'], troubleValue: 1 });
+    const symbols = Array.from(el.querySelectorAll('.guest-icons [role="img"]')).map(i => i.textContent?.trim());
+    expect(symbols).toEqual(['X', '❌']);
+  });
+
   it('updates when the properties change', () => {
     let el = render('CLIMBER');
     expect(el.querySelector('.guest-popularity')).toBeNull();

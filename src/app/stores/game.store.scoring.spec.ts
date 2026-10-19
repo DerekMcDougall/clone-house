@@ -137,6 +137,56 @@ describe('GameStore - Scoring Bonuses', () => {
     expect(store.popularity()).toBe(4);
   });
 
+  describe('Bonus guest types', () => {
+    // Ends a party of `party` from 10 popularity and 10 money and returns what it earned
+    const earned = (party: Guest[], capacity: number) => {
+      startParty(party, { popularity: 10, money: 10, capacity });
+      store.advancePhase();
+      return { popularity: store.popularity() - 10, money: store.money() - 10 };
+    };
+    const friends = (n: number) => Array.from({ length: n }, (_, i) => testGuest('OLD_FRIEND', `Friend ${i}`));
+
+    it('should give a Comedian 5 popularity only when the house is full', () => {
+      // Comedian: -1 money; Old Friends: 1 popularity each
+      expect(earned([testGuest('COMEDIAN', 'Jerry'), ...friends(3)], 5)).toEqual({ popularity: 3, money: -1 });
+      expect(earned([testGuest('COMEDIAN', 'Jerry'), ...friends(4)], 5)).toEqual({ popularity: 9, money: -1 });
+    });
+
+    it('should give a Mascot 1 popularity per Old Friend', () => {
+      const party = [testGuest('MASCOT', 'Sparty'), ...friends(3), testGuest('RICH_PAL', 'Khalil')];
+      // 1 Mascot + 3 Old Friends + 3 bonus
+      expect(earned(party, 6)).toEqual({ popularity: 7, money: 1 });
+    });
+
+    it('should give an Introvert 1 popularity per empty space', () => {
+      expect(earned([testGuest('INTROVERT', 'Sheldon'), ...friends(1)], 6)).toEqual({ popularity: 6, money: 0 });
+    });
+
+    it('should give a Bartender 2 money and a Writer 2 popularity per trouble', () => {
+      const party = [testGuest('BARTENDER', 'Sam'), testGuest('WRITER', 'Erin'), testGuest('WILD_BUDDY', 'Anthony'), testGuest('ROCK_STAR', 'Gord')];
+      // Normal: 1 + 1 + 2 + 3 popularity, 2 money. 2 trouble: Bartender +4 money, Writer +4 popularity
+      expect(earned(party, 5)).toEqual({ popularity: 11, money: 6 });
+    });
+
+    it('should count spaces from a house expansion', () => {
+      store.initializeGame();
+      patchState(unprotected(store), { money: 2 });
+      expect(store.purchaseExpansion().success).toBe(true);
+      expect(store.houseCapacity()).toBe(6);
+
+      const comedianParty = [testGuest('COMEDIAN', 'Jerry'), ...friends(4)];
+      patchState(unprotected(store), { currentPhase: GamePhase.PARTY, party: comedianParty, popularity: 0, money: 1 });
+      store.advancePhase();
+      // 5 guests in a 6-space house: not full, so only the Old Friends' popularity
+      expect(store.popularity()).toBe(4);
+
+      patchState(unprotected(store), { currentPhase: GamePhase.PARTY, party: [testGuest('INTROVERT', 'Raj')], popularity: 0 });
+      store.advancePhase();
+      // 1 + 5 empty spaces
+      expect(store.popularity()).toBe(6);
+    });
+  });
+
   describe('Properties', () => {
     // Test bonus types covering every count and the houseFull condition
     const registerBonusTypes = (): GuestType[] => [
