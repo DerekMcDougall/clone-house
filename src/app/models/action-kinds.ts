@@ -12,6 +12,9 @@ export interface ActionKind<P = Record<string, unknown>> {
   kind: string;
   // False for kinds whose parameters can't be written in JSON, such as custom.
   dataOnly: boolean;
+  // The triggers this kind can be used with; ['entrance'] when not given. Score effects run
+  // outside the effect queue, so kinds that queue effects or choices can't be used there.
+  triggers?: readonly Trigger[];
   // Returns every problem with the parameters, each starting with `path`; empty when valid.
   // `params` is the whole ActionDefinition, including `kind`. A kind whose parameters
   // include another action checks it with `validateAction`, which applies the same rules
@@ -47,9 +50,15 @@ const isIcon = (value: unknown): boolean => {
 };
 
 // Problems with an `icons` parameter, for kinds whose icons are given rather than derived.
-const iconsProblems = (icons: unknown, path: string): string[] =>
-  Array.isArray(icons) && icons.length > 0 && icons.every(isIcon)
-    ? [] : [`${path}.icons: expected a non-empty list of { symbol, label }`];
+const iconsProblems = (icons: unknown, path: string): string[] => {
+  if (!(Array.isArray(icons) && icons.length > 0 && icons.every(isIcon))) {
+    return [`${path}.icons: expected a non-empty list of { symbol, label }`];
+  }
+  return icons.flatMap((icon: Partial<GuestIcon>, i) => [
+    ...(icon.color === undefined || typeof icon.color === 'string' ? [] : [`${path}.icons[${i}].color: expected a string`]),
+    ...(icon.bold === undefined || typeof icon.bold === 'boolean' ? [] : [`${path}.icons[${i}].bold: expected a boolean`])
+  ]);
+};
 
 // Invites the top `count` guests from the deck, one after another, each exactly like an
 // ordinary auto-invite.
@@ -145,6 +154,64 @@ const cycleSelfKind: ActionKind<CycleSelfParams> = {
   icons: (p) => p.icons
 };
 
+type ScoreBonusParams = {
+  resource: 'popularity' | 'money';
+  amount: number;
+  per?: 'emptySpace' | 'trouble' | 'guestOfType';
+  guestType?: string;
+  when?: 'houseFull';
+  icons: readonly GuestIcon[];
+};
+
+const SCORE_BONUS_PER = ['emptySpace', 'trouble', 'guestOfType'];
+
+// Adds `amount` of `resource` for each counted thing in the house (once, without `per`), or
+// nothing when `when` doesn't hold. Runs at scoring, on the finished party. A guestType that
+// isn't registered counts 0: JSON types can be registered in any order, so it isn't checked.
+const scoreBonusKind: ActionKind<ScoreBonusParams> = {
+  kind: 'scoreBonus',
+  dataOnly: true,
+  triggers: ['score'],
+  validate: (p, path) => {
+    const problems: string[] = [];
+    if (p['resource'] !== 'popularity' && p['resource'] !== 'money') {
+      problems.push(`${path}.resource: expected "popularity" or "money"`);
+    }
+    if (!isInteger(p['amount']) || p['amount'] === 0) problems.push(`${path}.amount: expected a non-zero integer`);
+    if (p['per'] !== undefined && !SCORE_BONUS_PER.includes(p['per'] as string)) {
+      problems.push(`${path}.per: expected one of ${SCORE_BONUS_PER.join(', ')}`);
+    }
+    if (p['per'] === 'guestOfType') {
+      if (typeof p['guestType'] !== 'string' || p['guestType'] === '') {
+        problems.push(`${path}.guestType: expected a non-empty string`);
+      }
+    } else if (p['guestType'] !== undefined) {
+      problems.push(`${path}.guestType: only allowed when per is "guestOfType"`);
+    }
+    if (p['when'] !== undefined && p['when'] !== 'houseFull') problems.push(`${path}.when: expected "houseFull"`);
+    return [
+      ...problems,
+      ...iconsProblems(p['icons'], path),
+      ...unknownParams(p, path, ['resource', 'amount', 'per', 'guestType', 'when', 'icons'])
+    ];
+  },
+  run: (ctx, _guest, { resource, amount, per, guestType, when }) => {
+    const party = ctx.getParty();
+    const capacity = ctx.getHouseCapacity();
+    if (when === 'houseFull' && party.length < capacity) return;
+
+    const count =
+      per === 'emptySpace' ? Math.max(0, capacity - party.length) :
+      per === 'trouble' ? party.reduce((sum, g) => sum + g.properties.troubleValue, 0) :
+      per === 'guestOfType' ? party.filter(g => g.type === guestType).length :
+      1;
+
+    if (resource === 'popularity') ctx.setPopularity(ctx.getPopularity() + amount * count);
+    else ctx.setMoney(ctx.getMoney() + amount * count);
+  },
+  icons: (p) => p.icons
+};
+
 // An effect written in code, for one-offs that no kind covers. Can't be used from JSON.
 const customKind: ActionKind<{ run: EffectHandler; icons: readonly GuestIcon[] }> = {
   kind: 'custom',
@@ -196,7 +263,7 @@ const add = (kind: ActionKind): void => {
 const ensureBuiltIns = (): void => {
   if (builtInsRegistered) return;
   builtInsRegistered = true;
-  [autoInviteKind, adjustSelfKind, cycleSelfKind, customKind, chooseGuestKind].forEach(add);
+  [autoInviteKind, adjustSelfKind, cycleSelfKind, scoreBonusKind, customKind, chooseGuestKind].forEach(add);
 };
 
 // Adds an action kind, making it available to every guest type, including ones from JSON.
@@ -215,6 +282,11 @@ export function getActionKind(name: string): ActionKind {
 export function findActionKind(name: string): ActionKind | undefined {
   ensureBuiltIns();
   return kinds.get(name);
+}
+
+// The triggers a kind can be used with.
+export function allowedTriggers(kind: ActionKind): readonly Trigger[] {
+  return kind.triggers ?? ['entrance'];
 }
 
 // Removes every kind except the built-ins. For tests only.

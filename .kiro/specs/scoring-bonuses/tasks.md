@@ -6,35 +6,35 @@ Add the `score` trigger and the per-kind trigger check, then the `scoreBonus` ki
 
 ## Tasks
 
-- [ ] 1. The score trigger
-  - [ ] 1.1 Add `'score'` to `Trigger`, `TRIGGERS` and `triggerPhrase` ("when scored")
+- [x] 1. The score trigger
+  - [x] 1.1 Add `'score'` to `Trigger`, `TRIGGERS` and `triggerPhrase` ("when scored")
     - _Requirements: 1.1_
-  - [ ] 1.2 Add `triggers` to `ActionKind` (default `['entrance']`) and reject an effect whose kind doesn't allow its trigger, nested actions included
+  - [x] 1.2 Add `triggers` to `ActionKind` (default `['entrance']`) and reject an effect whose kind doesn't allow its trigger, nested actions included
     - _Requirements: 1.2, 1.3_
-  - [ ] 1.3 Unit tests for the trigger check (top level, nested in `chooseGuest`, JSON) and property test 4
+  - [x] 1.3 Unit tests for the trigger check (top level, nested in `chooseGuest`, JSON) and property test 4
     - _Requirements: 1.2, 1.3_
 
-- [ ] 2. scoreBonus and scoring
-  - [ ] 2.1 Add `getHouseCapacity()` to `GameStateView`, `EffectContextImpl` and the store's view; update test fakes of the context
+- [x] 2. scoreBonus and scoring
+  - [x] 2.1 Add `getHouseCapacity()` to `GameStateView`, `EffectContextImpl` and the store's view; update test fakes of the context
     - _Requirements: 2.2_
-  - [ ] 2.2 Add the `scoreBonus` kind: validation with paths, `run`, given icons, `triggers: ['score']`; register it with the built-ins
+  - [x] 2.2 Add the `scoreBonus` kind: validation with paths, `run`, given icons, `triggers: ['score']`; register it with the built-ins
     - _Requirements: 2.1–2.5_
-  - [ ] 2.3 In `advancePhase`, extract the floor and money penalty into `settle`; settle normal scoring as today, then run every party guest's `score` effects on the settled totals and settle again
+  - [x] 2.3 In `advancePhase`, extract the floor and money penalty into `settle`; settle normal scoring as today, then run every party guest's `score` effects on the settled totals and settle again
     - _Requirements: 1.4, 3.1–3.5_
-  - [ ] 2.4 Unit tests for `scoreBonus` (each count, `houseFull`, flat, money, unknown `guestType`, validation) and for scoring with a test-only bonus type (bonus added after normal scoring, bonus money not offsetting a normal-scoring shortfall, nothing on bust or win); add `scoreBonus` to `arbDataOnlyAction`
+  - [x] 2.4 Unit tests for `scoreBonus` (each count, `houseFull`, flat, money, unknown `guestType`, validation) and for scoring with a test-only bonus type (bonus added after normal scoring, bonus money not offsetting a normal-scoring shortfall, nothing on bust or win); add score-trigger `scoreBonus` effects to `arbDataOnlyEffect`
     - _Requirements: 2.1–2.5, 3.1–3.5_
-  - [ ] 2.5 Property tests 1, 2 and 3
+  - [x] 2.5 Property tests 1, 2 and 3
     - **Property 1: Bonus Formula** — **Validates: Requirements 2.2, 2.3**
     - **Property 2: Scoring Is Normal Amounts Plus Bonuses** — **Validates: Requirements 3.1, 3.2, 3.3**
     - **Property 3: No Bonuses Without Scoring** — **Validates: Requirement 3.4**
 
-- [ ] 3. Styled icons
-  - [ ] 3.1 Add optional `color` and `bold` to `GuestIcon`; accept and validate them in given icons; apply them in `guest-details`
+- [x] 3. Styled icons
+  - [x] 3.1 Add optional `color` and `bold` to `GuestIcon`; accept and validate them in given icons; apply them in `guest-details`
     - _Requirements: 5.1–5.4_
-  - [ ] 3.2 Tests: validation (including JSON), a colored bold icon renders with its color and weight, existing icons unchanged
+  - [x] 3.2 Tests: validation (including JSON), a colored bold icon renders with its color and weight, existing icons unchanged
     - _Requirements: 5.1–5.4_
 
-- [ ] 4. Checkpoint — Ensure all tests pass
+- [x] 4. Checkpoint — Ensure all tests pass
   - Ensure all tests pass, ask the user if questions arise.
 
 - [ ] 5. Bonus guest types

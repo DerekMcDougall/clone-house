@@ -54,11 +54,34 @@ const arbSimpleAction = (): fc.Arbitrary<ActionDefinition> => fc.oneof(
   }))
 );
 
-export const arbDataOnlyEffect = (): fc.Arbitrary<EffectDefinition> =>
-  arbDataOnlyAction().map(action => ({ trigger: 'entrance' as const, action }));
+// Valid scoreBonus actions. Optional parameters are left out when absent, as in JSON.
+const arbScoreBonusAction = (): fc.Arbitrary<ActionDefinition> => fc.record({
+  resource: fc.constantFrom('popularity', 'money'),
+  amount: fc.integer({ min: -5, max: 5 }).filter(n => n !== 0),
+  per: fc.constantFrom(undefined, 'emptySpace', 'trouble', 'guestOfType'),
+  houseFull: fc.boolean(),
+  icons: fc.array(fc.record(
+    { symbol: fc.string({ minLength: 1, maxLength: 2 }), label: fc.string(), color: fc.string(), bold: fc.boolean() },
+    { requiredKeys: ['symbol', 'label'] }
+  ), { minLength: 1, maxLength: 2 })
+}).map(({ resource, amount, per, houseFull, icons }) => ({
+  kind: 'scoreBonus',
+  resource,
+  amount,
+  ...(per && { per }),
+  ...(per === 'guestOfType' && { guestType: 'OLD_FRIEND' }),
+  ...(houseFull && { when: 'houseFull' }),
+  icons
+}));
+
+// Valid data-only effects: entrance effects, and scoring bonuses on the score trigger.
+export const arbDataOnlyEffect = (): fc.Arbitrary<EffectDefinition> => fc.oneof(
+  arbDataOnlyAction().map(action => ({ trigger: 'entrance' as const, action })),
+  arbScoreBonusAction().map(action => ({ trigger: 'score' as const, action }))
+);
 
 // Valid definitions that can be written as JSON: either no effects field, or up to three
-// autoInvite and adjustSelf effects.
+// data-only effects.
 export const arbDataOnlyDefinition = (): fc.Arbitrary<GuestTypeDefinition> =>
   fc.tuple(arbGuestTypeDefinition(), fc.option(fc.array(arbDataOnlyEffect(), { maxLength: 3 })))
     .map(([def, effects]) => (effects === null ? def : { ...def, effects }));
@@ -96,7 +119,8 @@ export const arbInvalidGuestTypeDefinition = (): fc.Arbitrary<{ rule: string; de
 export const arbBrokenGuestTypeJson = (): fc.Arbitrary<{ rule: string; json: Record<string, unknown>; path: string }> =>
   fc.tuple(arbDataOnlyDefinition(), fc.constantFrom(
     'wrong id type', 'missing label', 'extra field', 'wrong cost type', 'missing property', 'extra property',
-    'effects not a list', 'unknown trigger', 'unknown kind', 'bad parameter', 'unknown parameter', 'custom kind'
+    'effects not a list', 'unknown trigger', 'unknown kind', 'bad parameter', 'unknown parameter', 'custom kind',
+    'kind on wrong trigger'
   )).map(([valid, rule]) => {
     const json = JSON.parse(JSON.stringify(valid)) as Record<string, unknown>;
     const properties = json['properties'] as Record<string, unknown>;
@@ -125,6 +149,9 @@ export const arbBrokenGuestTypeJson = (): fc.Arbitrary<{ rule: string; json: Rec
       case 'unknown parameter':
         addEffect({ trigger: 'entrance', action: { kind: 'autoInvite', count: 1, times: 2 } });
         return { rule, json, path: `${at}.action.times` };
+      case 'kind on wrong trigger':
+        addEffect({ trigger: 'score', action: { kind: 'autoInvite', count: 1 } });
+        return { rule, json, path: `${at}.action.kind` };
       default:
         addEffect({ trigger: 'entrance', action: { kind: 'custom', icons: [{ symbol: '?', label: 'Icon' }] } });
         return { rule, json, path: `${at}.action.kind` };

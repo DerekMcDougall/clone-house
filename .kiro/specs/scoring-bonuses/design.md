@@ -215,7 +215,7 @@ The existing conservation property holds with the larger shop: 10 starting guest
 
 - `action-kinds.spec.ts`: `scoreBonus` validation problems with paths; each count; `houseFull` met and not met; flat bonus; money vs popularity; an unregistered `guestType` counts 0; icons
 - `guest-type.spec` / `guest-type-registry.spec.ts`: the trigger check, top level and nested; existing kinds still accepted on entrance
-- `guest-type-json.spec.ts`: a bonus type from JSON; icons with `color` and `bold`; bad `color` / `bold` rejected; `arbDataOnlyAction` gains `scoreBonus` with `trigger: 'score'`
+- `guest-type-json.spec.ts`: a bonus type from JSON; icons with `color` and `bold`; bad `color` / `bold` rejected; `arbDataOnlyEffect` gains `scoreBonus` effects with `trigger: 'score'` (not `arbDataOnlyAction`, whose actions can also be nested in `chooseGuest`)
 - `game.store.spec.ts`: each new guest type's bonus in a real party; with 0 money, a Comedian's -1 money costs 7 popularity even when a Bartender's bonus pays out; bonuses not applied on bust or win; capacity raised by an expansion changes the Introvert's and Comedian's bonuses
 - Guest card tests: each new type's icon in the shop and house; the Mascot's "O" is bold; the Writer's "X" is bold and gold; existing icons have no inline color
 - Property tests 1–5

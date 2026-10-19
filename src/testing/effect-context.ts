@@ -11,14 +11,16 @@ export class TestEffectContext implements EffectContext {
   discard: Guest[] = [];
   popularity = 0;
   money = 0;
+  houseCapacity: number;
   // The choice resolution is paused on, with the options worked out when it was reached
   pendingChoice: { request: ChoiceRequest; options: ChoiceOption[] } | null = null;
   private queued: QueueEntry[] = [];
   private stack: QueueEntry[] = [];
 
-  constructor({ deck = [], party = [] }: { deck?: Guest[]; party?: Guest[] } = {}) {
+  constructor({ deck = [], party = [], houseCapacity = 5 }: { deck?: Guest[]; party?: Guest[]; houseCapacity?: number } = {}) {
     this.deck = deck;
     this.party = party;
+    this.houseCapacity = houseCapacity;
   }
 
   getDeck(): Guest[] { return this.deck; }
@@ -31,6 +33,7 @@ export class TestEffectContext implements EffectContext {
   setPopularity(value: number): void { this.popularity = value; }
   getMoney(): number { return this.money; }
   setMoney(value: number): void { this.money = value; }
+  getHouseCapacity(): number { return this.houseCapacity; }
 
   // Same as the store's: applies the updater to `guest` and replaces the party guest with its id.
   updateGuest(guest: Guest, updater: (g: Guest) => Guest): Guest {

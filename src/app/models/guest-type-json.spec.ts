@@ -81,6 +81,31 @@ describe('parseGuestTypeDefinition', () => {
     expect(parsed.effects?.[0].action['values']).toEqual([0, 1]);
   });
 
+  it('should accept a scoring bonus with styled icons, and reject it on entrance', () => {
+    const action = {
+      kind: 'scoreBonus', resource: 'popularity', amount: 2, per: 'trouble',
+      icons: [{ symbol: 'X', label: 'Writer', color: '#f9a825', bold: true }]
+    };
+    const withEffect = (trigger: string) => ({ ...JSON.parse(PARTY_PLANNER_JSON), effects: [{ trigger, action }] });
+    expect(parseGuestTypeDefinition(withEffect('score')).effects).toEqual([{ trigger: 'score', action }]);
+    expect(() => parseGuestTypeDefinition(withEffect('entrance')))
+      .toThrow('\n  effects[0].action.kind: "scoreBonus" can\'t be used with trigger "entrance"');
+  });
+
+  it('should reject a badly typed icon color or bold', () => {
+    const json = {
+      ...JSON.parse(PARTY_PLANNER_JSON),
+      effects: [{
+        trigger: 'entrance',
+        action: { kind: 'cycleSelf', property: 'troubleValue', values: [0, 1], icons: [{ symbol: 'O', label: 'O', color: 1, bold: 'yes' }] }
+      }]
+    };
+    expect(() => parseGuestTypeDefinition(json)).toThrow([
+      '  effects[0].action.icons[0].color: expected a string',
+      '  effects[0].action.icons[0].bold: expected a boolean'
+    ].join('\n'));
+  });
+
   it('should accept chooseGuest with a data-only action, and reject a custom one inside it', () => {
     const withAction = (action: unknown) => ({
       ...JSON.parse(PARTY_PLANNER_JSON),
