@@ -369,8 +369,8 @@ describe('PhaseContentComponent', () => {
       const compiled = fixture.nativeElement as HTMLElement;
       const shopCards = compiled.querySelectorAll('.shop-card');
 
-      // Should have 27 purchasable guest types (including the 7 star types) + 1 Expand House card = 28
-      expect(shopCards.length).toBe(28);
+      // Should have 28 purchasable guest types (including the 7 star types) + 1 Expand House card = 29
+      expect(shopCards.length).toBe(29);
     });
 
     it('should show type labels on shop cards', () => {
@@ -780,7 +780,7 @@ describe('PhaseContentComponent', () => {
 
       expect(Array.from(headers, h => h.textContent?.trim())).toEqual([
         'Old Friend', 'Monkey', 'Rich Pal', 'Hippy', 'Introvert', 'Ticket Taker', 'Caterer', 'Comedian', 'Mascot',
-        'Mr. Popular', 'Rock Star', 'Werewolf', 'Gangster', 'Cute Dog', 'Gambler', 'Writer', 'Auctioneer',
+        'Mr. Popular', 'Rock Star', 'Werewolf', 'Gangster', 'Cute Dog', 'Dancer', 'Gambler', 'Writer', 'Auctioneer',
         'Bartender', 'Celebrity', 'Climber', 'Dinosaur', 'Dragon', 'Mermaid', 'Alien', 'Unicorn', 'Leprechaun',
         'Superhero', 'Expand House'
       ]);
@@ -1119,6 +1119,17 @@ describe('PhaseContentComponent - Victory and Star Guests', () => {
         expect(icons[0].getAttribute('aria-label')).toBe(iconLabel);
         expect(card.querySelector('.shop-price')?.textContent?.trim()).toBe(price);
       }
+    });
+
+    it('shows the Dancer with its group bonus icon and no values', () => {
+      // group-scoring-bonuses Requirements 4.3, 4.6
+      const card = shopCard('Dancer');
+      expect(card.querySelector('.guest-popularity')).toBeNull();
+      expect(card.querySelector('.guest-money')).toBeNull();
+      const icons = Array.from(card.querySelectorAll('.guest-icons [role="img"]'));
+      expect(icons.map(i => i.textContent?.trim())).toEqual(['💃']);
+      expect(icons[0].getAttribute('aria-label')).toBe('1, 4, 9 or 16 popularity for 1–4 Dancers, once per group, when scored');
+      expect(card.querySelector('.shop-price')?.textContent?.trim()).toBe('Price: 7');
     });
 
     it('shows the Mascot\'s O in bold and the Writer\'s X in bold gold', () => {

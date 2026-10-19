@@ -4704,13 +4704,13 @@ describe('GameStore - Shop Buy Guests Property Tests', () => {
    * For any sequence of game operations (purchaseGuest, inviteGuest, advancePhase,
    * triggerPartyShutdown, confirmChoice), the sum
    * deck.length + party.length + discard.length + bustPartySnapshot.length +
-   * sum(shopInventory[*].guests.length) SHALL equal 118
-   * (10 initial guests + 108 purchasable shop guests).
+   * sum(shopInventory[*].guests.length) SHALL equal 122
+   * (10 initial guests + 112 purchasable shop guests).
    */
   describe('Property 3: Guest Conservation with Expanded Pool', () => {
-    it('should conserve total guests at 118 across deck, party, discard, bustPartySnapshot, and shop through all operations', () => {
+    it('should conserve total guests at 122 across deck, party, discard, bustPartySnapshot, and shop through all operations', () => {
       // Feature: more-guest-types, Property 3: Guest Conservation with Expanded Pool
-      const EXPECTED_TOTAL = 118; // 10 initial + 108 shop
+      const EXPECTED_TOTAL = 122; // 10 initial + 112 shop
 
       const operationArb = fc.constantFrom(
         'purchaseGuest',
@@ -4866,7 +4866,7 @@ describe('GameStore - Starting Deck Shuffle Property Tests', () => {
 /**
  * Property-Based Tests for Star Guests & Winning
  *
- * Property 9 (Guest Conservation at 118) is the expanded-pool conservation test above.
+ * Property 9 (Guest Conservation at 122) is the expanded-pool conservation test above.
  */
 describe('GameStore - Star Guests & Winning Property Tests', () => {
   let store: InstanceType<typeof GameStore>;
@@ -4876,7 +4876,8 @@ describe('GameStore - Star Guests & Winning Property Tests', () => {
   const NON_STAR_TYPES = ALL_TYPES.filter(t => !STAR_TYPES.includes(t));
   // Types without scoring bonuses, for checks of the normal scoring formula. Bonuses are
   // covered in game.store.scoring.spec.ts.
-  const NO_BONUS_TYPES = NON_STAR_TYPES.filter(t => !(getGuestType(t).effects ?? []).some(e => e.trigger === 'score'));
+  const NO_BONUS_TYPES = NON_STAR_TYPES.filter(t =>
+    !(getGuestType(t).effects ?? []).some(e => e.trigger === 'score' || e.trigger === 'groupScore'));
 
   const makeParty = (types: GuestType[], prefix = 'G'): Guest[] =>
     types.map((type, i) => testGuest(type, `${prefix}${i}-${type}`));

@@ -287,6 +287,60 @@ describe('GameStore - Scoring Bonuses', () => {
     });
   });
 
+  describe('Dancer', () => {
+    const dancers = (n: number) => ['Fred', 'Carlton', 'Elaine', 'Jennifer', 'Extra'].slice(0, n).map(name => testGuest('DANCER', name));
+
+    it('should score 1, 4, 9 or 16 popularity for 1 to 4 Dancers', () => {
+      for (const [n, bonus] of [[1, 1], [2, 4], [3, 9], [4, 16]]) {
+        startParty(dancers(n), { popularity: 0 });
+        store.advancePhase();
+        expect(store.popularity()).toBe(bonus);
+      }
+    });
+
+    it('should score 16 for a fifth Dancer from a custom setup', () => {
+      startParty(dancers(5), { popularity: 0 });
+      store.advancePhase();
+      expect(store.popularity()).toBe(16);
+    });
+
+    it('should add the group bonus after other bonus guests\' bonuses', () => {
+      // 2 Dancers (4) + an Introvert (1 + 3 empty spaces) + a Mascot with 1 Old Friend (1 + 1) + the Old Friend (1)
+      startParty(
+        [testGuest('DANCER', 'Fred'), testGuest('INTROVERT', 'Raj'), testGuest('MASCOT', 'Benny'), testGuest('OLD_FRIEND', 'Brian'), testGuest('DANCER', 'Elaine')],
+        { popularity: 0, capacity: 8 }
+      );
+      store.advancePhase();
+      expect(store.popularity()).toBe(4 + 4 + 2 + 1);
+    });
+
+    it('should score the group bonus for its size wherever the Dancers sit in the party', () => {
+      // Feature: group-scoring-bonuses, Property 3: Dancer Group Size
+      fc.assert(
+        fc.property(
+          fc.integer({ min: 1, max: 4 }),
+          fc.array(fc.constantFrom<GuestType>('OLD_FRIEND', 'WILD_BUDDY', 'RICH_PAL', 'HIPPY'), { maxLength: 4 }),
+          fc.integer({ min: 0, max: 1000 }),
+          (n, others, seed) => {
+            const guests = [...dancers(n), ...others.map((t, i) => testGuest(t, `Other ${i}`))];
+            // Shuffle with a seeded swap so Dancers land anywhere
+            for (let i = guests.length - 1; i > 0; i--) {
+              const j = (seed * (i + 7)) % (i + 1);
+              [guests[i], guests[j]] = [guests[j], guests[i]];
+            }
+            startParty(guests, { popularity: 0, money: 10 });
+            const normal = guests.reduce((sum, g) => sum + g.properties.popularityValue, 0);
+
+            store.advancePhase();
+
+            expect(store.popularity()).toBe(normal + [1, 4, 9, 16][n - 1]);
+          }
+        ),
+        { numRuns: 100 }
+      );
+    });
+  });
+
   describe('Bonus guest types', () => {
     // Ends a party of `party` from 10 popularity and 10 money and returns what it earned
     const earned = (party: Guest[], capacity: number) => {

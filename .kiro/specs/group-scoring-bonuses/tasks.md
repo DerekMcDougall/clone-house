@@ -23,19 +23,19 @@ Add the `groupScore` trigger and `scoreBonus` `amounts`, move bonus scoring into
 - [x] 3. Checkpoint — Ensure all tests pass
   - Ensure all tests pass, ask the user if questions arise.
 
-- [ ] 4. Dancer
-  - [ ] 4.1 Add `DANCER` to `BuiltInGuestType`, `BUILT_IN_GUEST_TYPES` and the default shop with Fred, Carlton, Elaine and Jennifer
+- [x] 4. Dancer
+  - [x] 4.1 Add `DANCER` to `BuiltInGuestType`, `BUILT_IN_GUEST_TYPES` and the default shop with Fred, Carlton, Elaine and Jennifer
     - _Requirements: 4.1–4.5_
-  - [ ] 4.2 Update counts that include every shop guest (118 → 122 conservation, 27 → 28 shop types, order lists)
+  - [x] 4.2 Update counts that include every shop guest (118 → 122 conservation, 27 → 28 shop types, order lists)
     - _Requirements: 4.4_
-  - [ ] 4.3 Store tests: 1–4 Dancers score 1, 4, 9, 16; Dancers with other bonus guests; property tests 3 and 5
+  - [x] 4.3 Store tests: 1–4 Dancers score 1, 4, 9, 16; Dancers with other bonus guests; property tests 3 and 5
     - _Requirements: 4.2_
-  - [ ] 4.4 Card tests: the Dancer shows 💃 and no values, between Cute Dog and Gambler in the shop
+  - [x] 4.4 Card tests: the Dancer shows 💃 and no values, between Cute Dog and Gambler in the shop
     - _Requirements: 4.3, 4.6_
-  - [ ] 4.5 Update `product.md` and clear the Dancer from the scratchpad
+  - [x] 4.5 Update `product.md` and clear the Dancer from the scratchpad
     - _Requirements: 4.1–4.4_
 
-- [ ] 5. Final checkpoint — Ensure all tests pass and `ng build` succeeds; buy Dancers in the app and check that a party with several scores the group bonus once
+- [x] 5. Final checkpoint — Ensure all tests pass and `ng build` succeeds; buy Dancers in the app and check that a party with several scores the group bonus once
   - Ensure all tests pass, ask the user if questions arise.
 
 ## Notes

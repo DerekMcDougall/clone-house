@@ -14,7 +14,7 @@ import { arbGuestTypeDefinition, arbInvalidGuestTypeDefinition } from '../../tes
 import { DEFAULT_GAME_SETUP, validateGameSetup } from './game-setup';
 
 // Built-in types added after the snapshot was taken, which the snapshot comparisons leave out
-const ADDED_SINCE_SNAPSHOT: readonly string[] = ['WEREWOLF', 'COMEDIAN', 'MASCOT', 'INTROVERT', 'BARTENDER', 'WRITER'];
+const ADDED_SINCE_SNAPSHOT: readonly string[] = ['WEREWOLF', 'COMEDIAN', 'MASCOT', 'INTROVERT', 'BARTENDER', 'WRITER', 'DANCER'];
 const isOld = (type: string) => !ADDED_SINCE_SNAPSHOT.includes(type);
 const oldEntries = <T>(table: Record<string, T>): Record<string, T> =>
   Object.fromEntries(Object.entries(table).filter(([type]) => isOld(type)));
