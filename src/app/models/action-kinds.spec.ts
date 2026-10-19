@@ -1,7 +1,7 @@
 import * as fc from 'fast-check';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
-  ActionKind, allowedTriggers, effectIcons, findActionKind, getActionKind, registerActionKind, resetActionKindsForTesting,
+  ActionKind, effectIcons, findActionKind, getActionKind, registerActionKind, resetActionKindsForTesting,
   runEffect
 } from './action-kinds';
 import { BUILT_IN_TABLES_SNAPSHOT } from './built-in-tables.snapshot';
@@ -433,6 +433,7 @@ describe('Action Kinds', () => {
   describe('Registry', () => {
     const doubler: ActionKind<{ times: number }> = {
       kind: 'TEST_DOUBLE_MONEY',
+      triggers: ['entrance'],
       dataOnly: true,
       validate: () => [],
       run: (ctx) => ctx.setMoney(ctx.getMoney() * 2),
@@ -484,7 +485,7 @@ describe('Action Kinds', () => {
 
     it('should accept a kind once it is registered', () => {
       expect(() => registerGuestType(def([entrance({ kind: 'TEST_KIND' })]))).toThrow('unknown action kind');
-      registerActionKind({ kind: 'TEST_KIND', dataOnly: true, validate: () => [], run: () => {}, icons: () => [] });
+      registerActionKind({ kind: 'TEST_KIND', dataOnly: true, triggers: ['entrance'], validate: () => [], run: () => {}, icons: () => [] });
       expect(() => registerGuestType(def([entrance({ kind: 'TEST_KIND' })]))).not.toThrow();
     });
 
@@ -513,11 +514,28 @@ describe('Action Kinds', () => {
         ]))).not.toThrow();
       });
 
-      it('should default a registered kind to entrance only, unless it lists its triggers', () => {
-        registerActionKind({ kind: 'TEST_ANY', dataOnly: true, validate: () => [], run: () => {}, icons: () => [] });
+      it('should use a registered kind\'s triggers', () => {
         registerActionKind({ kind: 'TEST_SCORE', dataOnly: true, triggers: ['score'], validate: () => [], run: () => {}, icons: () => [] });
-        expect(allowedTriggers(getActionKind('TEST_ANY'))).toEqual(['entrance']);
         expect(() => registerGuestType(def([{ trigger: 'score', action: { kind: 'TEST_SCORE' } }]))).not.toThrow();
+        resetGuestTypesForTesting();
+        expect(() => registerGuestType(def([entrance({ kind: 'TEST_SCORE' })])))
+          .toThrow('"TEST_SCORE" can\'t be used with trigger "entrance"');
+      });
+
+      it('should refuse to register a kind without triggers', () => {
+        const base = { dataOnly: true, validate: () => [], run: () => {}, icons: () => [] };
+        // Built without type checking, as from plain JavaScript
+        for (const triggers of [undefined, [], 'entrance']) {
+          expect(() => registerActionKind({ ...base, kind: 'TEST_NO_TRIGGERS', triggers } as unknown as ActionKind))
+            .toThrow('Action kind "TEST_NO_TRIGGERS" must list at least one trigger');
+        }
+        expect(findActionKind('TEST_NO_TRIGGERS')).toBeUndefined();
+      });
+
+      it('should list at least one trigger for every built-in kind', () => {
+        for (const name of ['autoInvite', 'adjustSelf', 'cycleSelf', 'scoreBonus', 'custom', 'chooseGuest']) {
+          expect(getActionKind(name).triggers).toEqual(name === 'scoreBonus' ? ['score'] : ['entrance']);
+        }
       });
 
       it('should allow an effect exactly when its kind allows its trigger, nested or not', () => {
@@ -536,7 +554,7 @@ describe('Action Kinds', () => {
             fc.boolean(),
             (kind, trigger, nested) => {
               resetGuestTypesForTesting();
-              const allowed = allowedTriggers(getActionKind(kind)).includes(trigger)
+              const allowed = getActionKind(kind).triggers.includes(trigger)
                 // chooseGuest itself only allows entrance
                 && (!nested || trigger === 'entrance');
               const effect = { trigger, action: nested ? pick(actions[kind]) : actions[kind] };

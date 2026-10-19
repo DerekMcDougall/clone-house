@@ -34,7 +34,7 @@ Two of the new icons aren't emoji (a bold "O" and a yellow X), so card icons gai
 #### Acceptance Criteria
 
 1. THE `Trigger` type SHALL include `'score'`, and its `triggerPhrase` SHALL be "when scored"
-2. AN Action_Kind SHALL list the triggers it can be used with; existing kinds SHALL allow only `'entrance'`, and `scoreBonus` SHALL allow only `'score'`
+2. EVERY Action_Kind SHALL list the triggers effects of that kind can have, as a required, non-empty list; registering a kind without one SHALL throw. Existing kinds SHALL list only `'entrance'`, and `scoreBonus` only `'score'`
 3. WHEN an effect's action kind doesn't allow the effect's trigger, THE Guest_Type_Registry SHALL reject the definition, including for actions nested inside another action (such as `chooseGuest`'s action)
 4. THE Game_Store SHALL NOT run `score` effects when a guest enters the party
 

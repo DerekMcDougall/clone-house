@@ -1,4 +1,4 @@
-import { allowedTriggers, findActionKind } from './action-kinds';
+import { findActionKind } from './action-kinds';
 import type { EffectContext } from './effect-context';
 import { EffectDefinition, Trigger, TRIGGERS } from './effect-definition';
 import type { Guest, GuestProperties } from './guest.model';
@@ -57,7 +57,7 @@ function actionProblems(action: unknown, path: string, dataOnly: boolean, trigge
   const kind = typeof action['kind'] === 'string' ? findActionKind(action['kind']) : undefined;
   if (!kind) return [`${path}.kind: unknown action kind ${JSON.stringify(action['kind'])}`];
   if (dataOnly && !kind.dataOnly) return [`${path}.kind: "${kind.kind}" can't be defined in JSON`];
-  if (trigger && !allowedTriggers(kind).includes(trigger)) {
+  if (trigger && !kind.triggers.includes(trigger)) {
     return [`${path}.kind: "${kind.kind}" can't be used with trigger "${trigger}"`];
   }
 

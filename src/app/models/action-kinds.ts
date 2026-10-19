@@ -12,9 +12,9 @@ export interface ActionKind<P = Record<string, unknown>> {
   kind: string;
   // False for kinds whose parameters can't be written in JSON, such as custom.
   dataOnly: boolean;
-  // The triggers this kind can be used with; ['entrance'] when not given. Score effects run
-  // outside the effect queue, so kinds that queue effects or choices can't be used there.
-  triggers?: readonly Trigger[];
+  // The triggers effects of this kind can have; each effect has one of them. Score effects
+  // run outside the effect queue, so kinds that queue effects or choices can't be used there.
+  triggers: readonly [Trigger, ...Trigger[]];
   // Returns every problem with the parameters, each starting with `path`; empty when valid.
   // `params` is the whole ActionDefinition, including `kind`. A kind whose parameters
   // include another action checks it with `validateAction`, which applies the same rules
@@ -64,6 +64,7 @@ const iconsProblems = (icons: unknown, path: string): string[] => {
 // ordinary auto-invite.
 const autoInviteKind: ActionKind<{ count: number }> = {
   kind: 'autoInvite',
+  triggers: ['entrance'],
   dataOnly: true,
   validate: (p, path) => [
     ...(isInteger(p['count']) && p['count'] >= 1 ? [] : [`${path}.count: expected an integer ≥ 1`]),
@@ -96,6 +97,7 @@ type AdjustSelfParams = { property: keyof GuestProperties; delta: number; min?: 
 // enqueued aren't lost; does nothing if the guest has left the party.
 const adjustSelfKind: ActionKind<AdjustSelfParams> = {
   kind: 'adjustSelf',
+  triggers: ['entrance'],
   dataOnly: true,
   validate: (p, path) => {
     const problems = propertyProblems(p['property'], path);
@@ -132,6 +134,7 @@ type CycleSelfParams = { property: keyof GuestProperties; values: readonly numbe
 // couldn't say what the change means for the guest.
 const cycleSelfKind: ActionKind<CycleSelfParams> = {
   kind: 'cycleSelf',
+  triggers: ['entrance'],
   dataOnly: true,
   validate: (p, path) => {
     const values = p['values'];
@@ -215,6 +218,7 @@ const scoreBonusKind: ActionKind<ScoreBonusParams> = {
 // An effect written in code, for one-offs that no kind covers. Can't be used from JSON.
 const customKind: ActionKind<{ run: EffectHandler; icons: readonly GuestIcon[] }> = {
   kind: 'custom',
+  triggers: ['entrance'],
   dataOnly: false,
   validate: (p, path) => [
     ...(typeof p['run'] === 'function' ? [] : [`${path}.run: expected a function`]),
@@ -233,6 +237,7 @@ type ChooseGuestParams = { prompt: string; from: 'party'; action: ActionDefiniti
 // whose labels describe the guest itself rather than the one chosen.
 const chooseGuestKind: ActionKind<ChooseGuestParams> = {
   kind: 'chooseGuest',
+  triggers: ['entrance'],
   // Can be written in JSON whenever its action can, which validateAction checks
   dataOnly: true,
   validate: (p, path, validateAction) => [
@@ -256,6 +261,10 @@ let builtInsRegistered = false;
 
 const add = (kind: ActionKind): void => {
   if (kinds.has(kind.kind)) throw new Error(`Action kind "${kind.kind}" is already registered`);
+  // The type requires this too; checked here for kinds built without type checking
+  if (!Array.isArray(kind.triggers) || kind.triggers.length === 0) {
+    throw new Error(`Action kind "${kind.kind}" must list at least one trigger`);
+  }
   kinds.set(kind.kind, kind);
 };
 
@@ -283,12 +292,6 @@ export function findActionKind(name: string): ActionKind | undefined {
   ensureBuiltIns();
   return kinds.get(name);
 }
-
-// The triggers a kind can be used with.
-export function allowedTriggers(kind: ActionKind): readonly Trigger[] {
-  return kind.triggers ?? ['entrance'];
-}
-
 // Removes every kind except the built-ins. For tests only.
 export function resetActionKindsForTesting(): void {
   kinds.clear();

@@ -9,7 +9,7 @@ Add the `score` trigger and the per-kind trigger check, then the `scoreBonus` ki
 - [x] 1. The score trigger
   - [x] 1.1 Add `'score'` to `Trigger`, `TRIGGERS` and `triggerPhrase` ("when scored")
     - _Requirements: 1.1_
-  - [x] 1.2 Add `triggers` to `ActionKind` (default `['entrance']`) and reject an effect whose kind doesn't allow its trigger, nested actions included
+  - [x] 1.2 Add required, non-empty `triggers` to `ActionKind` (built-ins list `['entrance']`; registration refuses an empty list) and reject an effect whose kind doesn't allow its trigger, nested actions included
     - _Requirements: 1.2, 1.3_
   - [x] 1.3 Unit tests for the trigger check (top level, nested in `chooseGuest`, JSON) and property test 4
     - _Requirements: 1.2, 1.3_

@@ -176,6 +176,7 @@ describe('parseGuestTypeDefinition', () => {
     it('should accept JSON that uses an action kind registered in code', () => {
       registerActionKind<{ amount: number }>({
         kind: 'TEST_GAIN_MONEY',
+        triggers: ['entrance'],
         dataOnly: true,
         validate: (p, path) => (Number.isInteger(p['amount']) ? [] : [`${path}.amount: expected an integer`]),
         run: (ctx, _guest, { amount }) => ctx.setMoney(ctx.getMoney() + amount),

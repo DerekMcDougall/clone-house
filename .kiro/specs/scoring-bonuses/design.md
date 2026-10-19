@@ -8,7 +8,7 @@ Add a `score` trigger and a `scoreBonus` action kind. When a party is scored, se
 
 1. **A trigger and an action kind, not a separate bonus field**: Bonuses use the same effect definitions as entrance effects, so they get validation, JSON support and card icons for free. The next trigger planned (`activated`, in activated-abilities) fits the same way.
 
-2. **Kinds list their triggers**: Score effects run once at scoring, outside the effect queue, with no bust checks and no choices. An `autoInvite` or `chooseGuest` there would make no sense, and a `scoreBonus` on entrance would add popularity mid-party. So each `ActionKind` gets `triggers`, and validation rejects an effect whose kind doesn't allow its trigger. The check covers nested actions too, so `chooseGuest` can't wrap a `scoreBonus`. Kinds that don't set `triggers` default to `['entrance']`, which matches every kind today, including kinds registered by tests.
+2. **Kinds list their triggers**: Score effects run once at scoring, outside the effect queue, with no bust checks and no choices. An `autoInvite` or `chooseGuest` there would make no sense, and a `scoreBonus` on entrance would add popularity mid-party. So each `ActionKind` gets `triggers`, and validation rejects an effect whose kind doesn't allow its trigger. The check covers nested actions too, so `chooseGuest` can't wrap a `scoreBonus`. `triggers` is required and non-empty, so every kind says where it can be used, and a new kind can't pick up a trigger by default. Each effect still has one trigger; the list is the set of triggers that different effects of the kind can have.
 
 3. **One kind with a count and a condition**: All five bonuses are "amount × count, maybe only when something holds". `per` picks the count (`emptySpace`, `trouble`, `guestOfType`) and `when` the condition (`houseFull`). With neither, the bonus is flat. New counts and conditions can be added to the kind without new kinds.
 
@@ -35,10 +35,10 @@ models/guest-icons.ts
 └── GuestIcon: + color?, bold?
 
 models/action-kinds.ts
-├── ActionKind: + triggers?: readonly Trigger[] (default ['entrance'])
+├── ActionKind: + triggers: readonly [Trigger, ...Trigger[]] (required; built-ins list ['entrance'])
 ├── isIcon: accept optional color (string) and bold (boolean)
 ├── + scoreBonus kind
-└── + allowedTriggers(kind) helper
+└── registry: refuse a kind with no triggers
 
 models/guest-type.ts
 └── effectProblems / actionProblems: reject a kind that doesn't allow the effect's trigger, nested actions included
@@ -99,7 +99,7 @@ A `guestType` that isn't registered isn't an error; it counts 0. JSON types can 
 
 ### Trigger check (models/guest-type.ts)
 
-`effectProblems` passes each effect's trigger down to `actionProblems`, which adds a problem when `allowedTriggers(kind)` doesn't include it:
+`effectProblems` passes each effect's trigger down to `actionProblems`, which adds a problem when `kind.triggers` doesn't include it:
 
 ```
 effects[0].action.kind: "scoreBonus" can't be used with trigger "entrance"
