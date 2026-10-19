@@ -156,12 +156,12 @@ The win check stays first, so a winning party runs no score effects. A bust neve
     trigger: 'score',
     action: {
       kind: 'scoreBonus', resource: 'popularity', amount: 5, when: 'houseFull',
-      icons: [{ symbol: '🏠', label: '5 popularity when scored if the house is full' }]
+      icons: [{ symbol: '🏘️', label: '5 popularity when scored if the house is full' }]
     }
   }]
 },
 // MASCOT:    popularity 1, amount 1, per 'guestOfType', guestType 'OLD_FRIEND', { symbol: 'O', bold: true }
-// INTROVERT: popularity 1, amount 1, per 'emptySpace', 🏡
+// INTROVERT: popularity 1, amount 1, per 'emptySpace', 🛖
 // BARTENDER: popularity 1, resource 'money', amount 2, per 'trouble', 🍸
 // WRITER:    popularity 1, amount 2, per 'trouble', { symbol: 'X', color: '#f9a825', bold: true }
 ```

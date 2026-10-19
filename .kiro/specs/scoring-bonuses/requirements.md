@@ -12,7 +12,7 @@ Two of the new icons aren't emoji (a bold "O" and a yellow X), so card icons gai
 
 - **Normal scoring comes first, then bonuses.** The party's normal popularity and money are settled exactly as today: totals kept at 0 or above, and any money shortfall costing 7 popularity per point. Bonuses are then added to the settled totals, which are settled the same way again. So a Bartender's bonus money can't cover a Comedian's -1 money: if that -1 takes money below 0, the penalty applies before the Bartender pays out.
 - **"Trouble in the house" is the party's trouble before peace.** It's the same count as the trouble shown during the party. Peace raises the trouble limit but doesn't remove trouble.
-- **Icons**: Comedian 🏠 (red roof), Introvert 🏡 (green garden), Mascot a bold "O", Writer a bold "X" in gold, Bartender 🍸. There's no yellow X emoji, so the Writer's X is text.
+- **Icons**: Comedian 🏘️ (a crowded house), Introvert 🛖 (a hut, space to yourself), Mascot a bold "O", Writer a bold "X" in gold, Bartender 🍸. There's no yellow X emoji, so the Writer's X is text. The first draft used 🏠 and 🏡, which look alike at card size.
 - **No score breakdown is shown.** The totals go up by the bonus, as they do for normal scoring. Showing where each point came from is left for later.
 
 ## Glossary
@@ -82,9 +82,9 @@ Two of the new icons aren't emoji (a bold "O" and a yellow X), so card icons gai
 
    | Id | Label | Cost | Popularity | Money | Bonus | Icon |
    |---|---|---|---|---|---|---|
-   | `COMEDIAN` | Comedian | 5 | 0 | -1 | 5 popularity when the house is full | 🏠 |
+   | `COMEDIAN` | Comedian | 5 | 0 | -1 | 5 popularity when the house is full | 🏘️ |
    | `MASCOT` | Mascot | 5 | 1 | 0 | 1 popularity per Old Friend | bold "O" |
-   | `INTROVERT` | Introvert | 4 | 1 | 0 | 1 popularity per Empty_Space | 🏡 |
+   | `INTROVERT` | Introvert | 4 | 1 | 0 | 1 popularity per Empty_Space | 🛖 |
    | `BARTENDER` | Bartender | 11 | 1 | 0 | 2 money per Party_Trouble | 🍸 |
    | `WRITER` | Writer | 8 | 1 | 0 | 2 popularity per Party_Trouble | bold gold "X" |
 

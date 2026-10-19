@@ -61,9 +61,9 @@ Effects can also ask the player to choose (for example, to pick a guest), pausin
 
 Scoring bonuses are worked out from the finished party, after its normal popularity and money:
 
-- **Comedian** (🏠): 5 popularity if the house is full.
+- **Comedian** (🏘️): 5 popularity if the house is full.
 - **Mascot** (bold O): 1 popularity per Old Friend.
-- **Introvert** (🏡): 1 popularity per empty space.
+- **Introvert** (🛖): 1 popularity per empty space.
 - **Bartender** (🍸): 2 money per trouble.
 - **Writer** (bold gold X): 2 popularity per trouble.
 

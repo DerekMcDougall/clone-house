@@ -198,7 +198,7 @@ export const BUILT_IN_GUEST_TYPES: readonly GuestTypeDefinition[] = [
         resource: 'popularity',
         amount: 5,
         when: 'houseFull',
-        icons: [{ symbol: '🏠', label: '5 popularity when scored if the house is full' }]
+        icons: [{ symbol: '🏘️', label: '5 popularity when scored if the house is full' }]
       }
     }]
   },
@@ -231,7 +231,7 @@ export const BUILT_IN_GUEST_TYPES: readonly GuestTypeDefinition[] = [
         resource: 'popularity',
         amount: 1,
         per: 'emptySpace',
-        icons: [{ symbol: '🏡', label: '1 popularity per empty space when scored' }]
+        icons: [{ symbol: '🛖', label: '1 popularity per empty space when scored' }]
       }
     }]
   },

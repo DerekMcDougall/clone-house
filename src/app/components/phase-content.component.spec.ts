@@ -1104,9 +1104,9 @@ describe('PhaseContentComponent - Victory and Star Guests', () => {
     it('shows each scoring bonus guest with its bonus icon, values and price', () => {
       // scoring-bonuses Requirements 4.1, 4.2, 5.2, 5.5
       const expected: [string, string | null, string | null, string, string, string][] = [
-        ['Comedian', null, '-$1', '🏠', '5 popularity when scored if the house is full', 'Price: 5'],
+        ['Comedian', null, '-$1', '🏘️', '5 popularity when scored if the house is full', 'Price: 5'],
         ['Mascot', '1', null, 'O', '1 popularity per Old Friend when scored', 'Price: 5'],
-        ['Introvert', '1', null, '🏡', '1 popularity per empty space when scored', 'Price: 4'],
+        ['Introvert', '1', null, '🛖', '1 popularity per empty space when scored', 'Price: 4'],
         ['Bartender', '1', null, '🍸', '2 money per trouble when scored', 'Price: 11'],
         ['Writer', '1', null, 'X', '2 popularity per trouble when scored', 'Price: 8']
       ];
