@@ -28,7 +28,8 @@ export type BuiltInGuestType =
   | 'MASCOT'
   | 'INTROVERT'
   | 'BARTENDER'
-  | 'WRITER';
+  | 'WRITER'
+  | 'DANCER';
 
 // The game's own guest types, in registration order. Which of them are in a game is up to
 // the game setup; see game-setup.ts.
@@ -264,6 +265,23 @@ export const BUILT_IN_GUEST_TYPES: readonly GuestTypeDefinition[] = [
         amount: 2,
         per: 'trouble',
         icons: [{ symbol: 'X', label: '2 popularity per trouble when scored', color: '#f9a825', bold: true }]
+      }
+    }]
+  },
+  {
+    id: 'DANCER',
+    label: 'Dancer',
+    cost: 7,
+    properties: { popularityValue: 0, troubleValue: 0, moneyValue: 0, peaceValue: 0, starValue: 0 },
+    effects: [{
+      trigger: 'groupScore',
+      action: {
+        kind: 'scoreBonus',
+        resource: 'popularity',
+        amounts: [1, 4, 9, 16],
+        per: 'guestOfType',
+        guestType: 'DANCER',
+        icons: [{ symbol: '💃', label: '1, 4, 9 or 16 popularity for 1–4 Dancers, once per group, when scored' }]
       }
     }]
   }

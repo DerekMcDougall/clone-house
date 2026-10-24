@@ -504,11 +504,11 @@ describe('Guest Model - New Guest Types (Auctioneer, Gangster, Rock Star, Gamble
     });
 
     /**
-     * SHOP_GUESTS has exactly 108 total entries: 4 of each of the 27 shop types
+     * SHOP_GUESTS has exactly 112 total entries: 4 of each of the 28 shop types
      * **Validates: Requirements 5.6**
      */
-    it('should have exactly 108 total entries', () => {
-      expect(SHOP_GUESTS).toHaveLength(108);
+    it('should have exactly 112 total entries', () => {
+      expect(SHOP_GUESTS).toHaveLength(112);
     });
   });
 
@@ -558,7 +558,7 @@ describe('Guest Model - Star Guests', () => {
 
   it('should give every non-star guest type a starValue of 0', () => {
     const nonStarTypes = (Object.keys(GUEST_TYPE_DEFAULTS) as GuestType[]).filter(t => !STAR_TYPES.includes(t));
-    expect(nonStarTypes).toHaveLength(21);
+    expect(nonStarTypes).toHaveLength(22);
     for (const type of nonStarTypes) {
       expect(GUEST_TYPE_DEFAULTS[type].starValue).toBe(0);
     }
