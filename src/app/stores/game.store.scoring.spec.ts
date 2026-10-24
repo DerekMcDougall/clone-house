@@ -366,10 +366,14 @@ describe('GameStore - Scoring Bonuses', () => {
       expect(earned([testGuest('INTROVERT', 'Sheldon'), ...friends(1)], 6)).toEqual({ popularity: 6, money: 0 });
     });
 
-    it('should give a Bartender 2 money and a Writer 2 popularity per trouble', () => {
-      const party = [testGuest('BARTENDER', 'Sam'), testGuest('WRITER', 'Erin'), testGuest('WILD_BUDDY', 'Anthony'), testGuest('ROCK_STAR', 'Gord')];
-      // Normal: 1 + 1 + 2 + 3 popularity, 2 money. 2 trouble: Bartender +4 money, Writer +4 popularity
-      expect(earned(party, 5)).toEqual({ popularity: 11, money: 6 });
+    it('should give a Bartender 2 money and a Writer 2 popularity per trouble, before peace', () => {
+      const party = [
+        testGuest('BARTENDER', 'Sam'), testGuest('WRITER', 'Erin'), testGuest('WILD_BUDDY', 'Anthony'), testGuest('ROCK_STAR', 'Gord'),
+        testGuest('HIPPY', 'Bob')
+      ];
+      // Normal: 1 + 1 + 2 + 3 + 1 popularity, 2 money. 2 trouble (the Hippy's peace doesn't cancel any):
+      // Bartender +4 money, Writer +4 popularity
+      expect(earned(party, 6)).toEqual({ popularity: 12, money: 6 });
     });
 
     it('should count spaces from a house expansion', () => {
@@ -401,7 +405,7 @@ describe('GameStore - Scoring Bonuses', () => {
       bonusType('TEST_FULL', { amount: 5, when: 'houseFull' }, { moneyValue: -1 }),
       bonusType('TEST_LOSS', { resource: 'money', amount: -1 })
     ];
-    const plainTypes: GuestType[] = ['OLD_FRIEND', 'WILD_BUDDY', 'RICH_PAL', 'CATERER', 'TICKET_TAKER', 'GANGSTER'];
+    const plainTypes: GuestType[] = ['OLD_FRIEND', 'WILD_BUDDY', 'RICH_PAL', 'CATERER', 'TICKET_TAKER', 'GANGSTER', 'HIPPY'];
 
     // Each test type's bonus, worked out by hand, for a finished party
     const expectedBonus = (type: GuestType, party: Guest[], capacity: number): { popularity: number; money: number } => {
@@ -421,7 +425,7 @@ describe('GameStore - Scoring Bonuses', () => {
       // Feature: scoring-bonuses, Property 2: Scoring Is Normal Amounts Plus Bonuses
       fc.assert(
         fc.property(
-          fc.array(fc.nat(11), { minLength: 1, maxLength: 7 }),
+          fc.array(fc.nat(12), { minLength: 1, maxLength: 7 }),
           fc.nat(2),
           fc.nat(30),
           fc.nat(5),
