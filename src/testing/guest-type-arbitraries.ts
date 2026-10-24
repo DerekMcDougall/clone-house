@@ -57,27 +57,33 @@ const arbSimpleAction = (): fc.Arbitrary<ActionDefinition> => fc.oneof(
 // Valid scoreBonus actions. Optional parameters are left out when absent, as in JSON.
 const arbScoreBonusAction = (): fc.Arbitrary<ActionDefinition> => fc.record({
   resource: fc.constantFrom('popularity', 'money'),
-  amount: fc.integer({ min: -5, max: 5 }).filter(n => n !== 0),
+  // A fixed amount, or a table looked up by count
+  value: fc.oneof(
+    fc.integer({ min: -5, max: 5 }).filter(n => n !== 0).map(amount => ({ amount })),
+    fc.array(fc.integer({ min: -9, max: 20 }), { minLength: 1, maxLength: 4 }).map(amounts => ({ amounts }))
+  ),
   per: fc.constantFrom(undefined, 'emptySpace', 'trouble', 'guestOfType'),
   houseFull: fc.boolean(),
   icons: fc.array(fc.record(
     { symbol: fc.string({ minLength: 1, maxLength: 2 }), label: fc.string(), color: fc.string(), bold: fc.boolean() },
     { requiredKeys: ['symbol', 'label'] }
   ), { minLength: 1, maxLength: 2 })
-}).map(({ resource, amount, per, houseFull, icons }) => ({
+}).map(({ resource, value, per, houseFull, icons }) => ({
   kind: 'scoreBonus',
   resource,
-  amount,
+  ...value,
   ...(per && { per }),
   ...(per === 'guestOfType' && { guestType: 'OLD_FRIEND' }),
   ...(houseFull && { when: 'houseFull' }),
   icons
 }));
 
-// Valid data-only effects: entrance effects, and scoring bonuses on the score trigger.
+// Valid data-only effects: entrance effects, and scoring bonuses on the score and groupScore
+// triggers.
 export const arbDataOnlyEffect = (): fc.Arbitrary<EffectDefinition> => fc.oneof(
   arbDataOnlyAction().map(action => ({ trigger: 'entrance' as const, action })),
-  arbScoreBonusAction().map(action => ({ trigger: 'score' as const, action }))
+  fc.tuple(fc.constantFrom('score' as const, 'groupScore' as const), arbScoreBonusAction())
+    .map(([trigger, action]) => ({ trigger, action }))
 );
 
 // Valid definitions that can be written as JSON: either no effects field, or up to three
