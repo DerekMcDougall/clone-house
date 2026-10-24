@@ -1,6 +1,6 @@
 import { findActionKind } from './action-kinds';
 import type { EffectContext } from './effect-context';
-import { EffectDefinition, TRIGGERS } from './effect-definition';
+import { EffectDefinition, Trigger, TRIGGERS } from './effect-definition';
 import type { Guest, GuestProperties } from './guest.model';
 
 // The function behind a custom action. `guest` is the guest whose effect this is, as it was
@@ -38,24 +38,30 @@ export function effectProblems(effects: unknown, dataOnly = false): string[] {
       .filter(key => key !== 'trigger' && key !== 'action')
       .map(key => `${path}.${key}: unknown field`);
 
-    if (!TRIGGERS.includes(effect['trigger'] as never)) {
+    const trigger = effect['trigger'];
+    if (!TRIGGERS.includes(trigger as never)) {
       problems.push(`${path}.trigger: expected one of ${TRIGGERS.join(', ')}`);
     }
 
-    return [...problems, ...actionProblems(effect['action'], `${path}.action`, dataOnly)];
+    // Without a valid trigger there's nothing to check the kind against
+    const validTrigger = TRIGGERS.includes(trigger as never) ? trigger as Trigger : undefined;
+    return [...problems, ...actionProblems(effect['action'], `${path}.action`, dataOnly, validTrigger)];
   });
 }
 
 // Every problem with one action, checked by its kind. Actions nested inside it are checked
-// the same way.
-function actionProblems(action: unknown, path: string, dataOnly: boolean): string[] {
+// the same way, against the same trigger.
+function actionProblems(action: unknown, path: string, dataOnly: boolean, trigger: Trigger | undefined): string[] {
   if (!isObject(action)) return [`${path}: expected an object`];
 
   const kind = typeof action['kind'] === 'string' ? findActionKind(action['kind']) : undefined;
   if (!kind) return [`${path}.kind: unknown action kind ${JSON.stringify(action['kind'])}`];
   if (dataOnly && !kind.dataOnly) return [`${path}.kind: "${kind.kind}" can't be defined in JSON`];
+  if (trigger && !kind.triggers.includes(trigger)) {
+    return [`${path}.kind: "${kind.kind}" can't be used with trigger "${trigger}"`];
+  }
 
-  return kind.validate(action, path, (nested, nestedPath) => actionProblems(nested, nestedPath, dataOnly));
+  return kind.validate(action, path, (nested, nestedPath) => actionProblems(nested, nestedPath, dataOnly, trigger));
 }
 
 // Throws on the first problem found, naming the type. Effect problems are reported together.

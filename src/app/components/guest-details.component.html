@@ -1,7 +1,8 @@
 @if (details.icons.length > 0) {
   <div class="guest-icons">
     @for (icon of details.icons; track $index) {
-      <span role="img" [attr.aria-label]="icon.label" [title]="icon.label">{{ icon.symbol }}</span>
+      <span role="img" [attr.aria-label]="icon.label" [title]="icon.label"
+            [style.color]="icon.color ?? null" [class.bold]="icon.bold">{{ icon.symbol }}</span>
     }
   </div>
 }

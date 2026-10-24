@@ -2,6 +2,8 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { GUEST_TYPE_DEFAULTS, GuestProperties, GuestType } from '../models/guest.model';
 import { GuestDetailsComponent } from './guest-details.component';
+import { resetGuestTypesForTesting } from '../models/guest-type-registry';
+import { registerTestGuestType } from '../../testing/guests';
 
 describe('GuestDetailsComponent', () => {
   let fixture: ComponentFixture<GuestDetailsComponent>;
@@ -65,6 +67,38 @@ describe('GuestDetailsComponent', () => {
     const el = render('MERMAID', { popularityValue: 0, troubleValue: 1, moneyValue: 0, peaceValue: 1, starValue: 1 });
     const symbols = Array.from(el.querySelectorAll('.guest-icons [role="img"]')).map(i => i.textContent?.trim());
     expect(symbols).toEqual(['👤', '☮️', '❌', '⭐']);
+  });
+
+  it('shows an icon\'s color and bold weight, and leaves other icons unstyled', () => {
+    registerTestGuestType({
+      id: 'TEST_STYLED',
+      properties: { popularityValue: 0, troubleValue: 1, moneyValue: 0, peaceValue: 0, starValue: 0 },
+      effects: [{
+        trigger: 'score',
+        action: {
+          kind: 'scoreBonus', resource: 'popularity', amount: 1,
+          icons: [{ symbol: 'X', label: 'Styled', color: 'rgb(249, 168, 37)', bold: true }, { symbol: 'O', label: 'Plain' }]
+        }
+      }]
+    });
+    try {
+      const icons = Array.from(render('TEST_STYLED', { popularityValue: 0, troubleValue: 1, moneyValue: 0, peaceValue: 0, starValue: 0 }).querySelectorAll<HTMLElement>('.guest-icons [role="img"]'));
+      expect(icons.map(i => i.textContent?.trim())).toEqual(['X', 'O', '❌']);
+      expect(icons[0].style.color).toBe('rgb(249, 168, 37)');
+      expect(icons[0].classList.contains('bold')).toBe(true);
+      for (const icon of icons.slice(1)) {
+        expect(icon.style.color).toBe('');
+        expect(icon.classList.contains('bold')).toBe(false);
+      }
+    } finally {
+      resetGuestTypesForTesting();
+    }
+  });
+
+  it('puts a scoring bonus icon left of trouble on a guest in the house', () => {
+    const el = render('WRITER', { ...GUEST_TYPE_DEFAULTS['WRITER'], troubleValue: 1 });
+    const symbols = Array.from(el.querySelectorAll('.guest-icons [role="img"]')).map(i => i.textContent?.trim());
+    expect(symbols).toEqual(['X', '❌']);
   });
 
   it('updates when the properties change', () => {

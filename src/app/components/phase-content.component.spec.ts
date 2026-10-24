@@ -369,8 +369,8 @@ describe('PhaseContentComponent', () => {
       const compiled = fixture.nativeElement as HTMLElement;
       const shopCards = compiled.querySelectorAll('.shop-card');
 
-      // Should have 22 purchasable guest types (including the 7 star types) + 1 Expand House card = 23
-      expect(shopCards.length).toBe(23);
+      // Should have 27 purchasable guest types (including the 7 star types) + 1 Expand House card = 28
+      expect(shopCards.length).toBe(28);
     });
 
     it('should show type labels on shop cards', () => {
@@ -770,7 +770,7 @@ describe('PhaseContentComponent', () => {
       expect(addedFeedback).toBeFalsy();
     });
 
-    it('should display shop cards in correct order: Old Friend, Monkey, Rich Pal, Hippy, Ticket Taker, Caterer, Mr. Popular, Rock Star, Werewolf, Gangster, Cute Dog, Gambler, Auctioneer, Celebrity, Climber, Dinosaur, Dragon, Mermaid, Alien, Unicorn, Leprechaun, Superhero, Expand House', () => {
+    it('should display shop cards by cost, then label, with Expand House last', () => {
       // Requirements: 9.2, 9.3
       component.phase = GamePhase.BUY;
       fixture.detectChanges();
@@ -779,9 +779,10 @@ describe('PhaseContentComponent', () => {
       const headers = compiled.querySelectorAll('.shop-card .card-header');
 
       expect(Array.from(headers, h => h.textContent?.trim())).toEqual([
-        'Old Friend', 'Monkey', 'Rich Pal', 'Hippy', 'Ticket Taker', 'Caterer', 'Mr. Popular', 'Rock Star',
-        'Werewolf', 'Gangster', 'Cute Dog', 'Gambler', 'Auctioneer', 'Celebrity', 'Climber', 'Dinosaur', 'Dragon',
-        'Mermaid', 'Alien', 'Unicorn', 'Leprechaun', 'Superhero', 'Expand House'
+        'Old Friend', 'Monkey', 'Rich Pal', 'Hippy', 'Introvert', 'Ticket Taker', 'Caterer', 'Comedian', 'Mascot',
+        'Mr. Popular', 'Rock Star', 'Werewolf', 'Gangster', 'Cute Dog', 'Gambler', 'Writer', 'Auctioneer',
+        'Bartender', 'Celebrity', 'Climber', 'Dinosaur', 'Dragon', 'Mermaid', 'Alien', 'Unicorn', 'Leprechaun',
+        'Superhero', 'Expand House'
       ]);
     });
   });
@@ -1098,6 +1099,36 @@ describe('PhaseContentComponent - Victory and Star Guests', () => {
       const icons = Array.from(card.querySelectorAll('.guest-icons [role="img"]')).map(i => i.textContent?.trim());
       expect(icons).toEqual(['🌙']);
       expect(card.querySelector('.shop-price')?.textContent?.trim()).toBe('Price: 5');
+    });
+
+    it('shows each scoring bonus guest with its bonus icon, values and price', () => {
+      // scoring-bonuses Requirements 4.1, 4.2, 5.2, 5.5
+      const expected: [string, string | null, string | null, string, string, string][] = [
+        ['Comedian', null, '-$1', '🏘️', '5 popularity when scored if the house is full', 'Price: 5'],
+        ['Mascot', '1', null, 'O', '1 popularity per Old Friend when scored', 'Price: 5'],
+        ['Introvert', '1', null, '🛖', '1 popularity per empty space when scored', 'Price: 4'],
+        ['Bartender', '1', null, '🍸', '2 money per trouble when scored', 'Price: 11'],
+        ['Writer', '1', null, 'X', '2 popularity per trouble when scored', 'Price: 8']
+      ];
+      for (const [label, popularity, money, symbol, iconLabel, price] of expected) {
+        const card = shopCard(label);
+        expect(card.querySelector('.guest-popularity .guest-value')?.textContent?.trim() ?? null).toBe(popularity);
+        expect(card.querySelector('.guest-money .guest-value')?.textContent?.trim() ?? null).toBe(money);
+        const icons = Array.from(card.querySelectorAll<HTMLElement>('.guest-icons [role="img"]'));
+        expect(icons.map(i => i.textContent?.trim())).toEqual([symbol]);
+        expect(icons[0].getAttribute('aria-label')).toBe(iconLabel);
+        expect(card.querySelector('.shop-price')?.textContent?.trim()).toBe(price);
+      }
+    });
+
+    it('shows the Mascot\'s O in bold and the Writer\'s X in bold gold', () => {
+      // scoring-bonuses Requirements 5.2
+      const icon = (label: string) => shopCard(label).querySelector<HTMLElement>('.guest-icons [role="img"]')!;
+      expect(icon('Mascot').classList.contains('bold')).toBe(true);
+      expect(icon('Mascot').style.color).toBe('');
+      expect(icon('Writer').classList.contains('bold')).toBe(true);
+      expect(icon('Writer').style.color).toBe('rgb(249, 168, 37)');
+      expect(icon('Bartender').classList.contains('bold')).toBe(false);
     });
 
     it('keeps the "Buy <type>" accessible name', () => {

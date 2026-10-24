@@ -20,6 +20,8 @@ export interface GameStateView {
   getDiscard(): readonly Guest[];
   getPopularity(): number;
   getMoney(): number;
+  // How many guests the house has room for. Effects can read it but not change it.
+  getHouseCapacity(): number;
 }
 
 // A question for the player, asked by an effect through ctx.requestChoice().

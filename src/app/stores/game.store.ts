@@ -5,6 +5,7 @@ import { ChoiceOption, ChoiceRequest, EffectContext, GameEffect, GameStateView, 
 import { admitGuest, createGuest, createGuestIdSource, Guest, GuestType, WINNING_STAR_COUNT } from '../models/guest.model';
 import { DEFAULT_GAME_SETUP, GameSetup, validateGameSetup } from '../models/game-setup';
 import { getGuestType, guestTypeLabel } from '../models/guest-type-registry';
+import { runEffect } from '../models/action-kinds';
 
 export type { EffectContext };
 
@@ -14,6 +15,7 @@ class EffectContextImpl implements EffectContext {
   private _discard: Guest[];
   private _popularity: number;
   private _money: number;
+  private readonly _houseCapacity: number;
   // What the effect enqueues and requests, in order
   readonly queued: QueueEntry[] = [];
 
@@ -22,13 +24,15 @@ class EffectContextImpl implements EffectContext {
     party: Guest[],
     discard: Guest[],
     popularity: number,
-    money: number
+    money: number,
+    houseCapacity: number
   ) {
     this._deck = deck;
     this._party = party;
     this._discard = discard;
     this._popularity = popularity;
     this._money = money;
+    this._houseCapacity = houseCapacity;
   }
 
   getDeck(): Guest[] { return this._deck; }
@@ -42,6 +46,7 @@ class EffectContextImpl implements EffectContext {
   setPopularity(value: number): void { this._popularity = value; }
   getMoney(): number { return this._money; }
   setMoney(value: number): void { this._money = value; }
+  getHouseCapacity(): number { return this._houseCapacity; }
 
   updateGuest(guest: Guest, updater: (g: Guest) => Guest): Guest {
     const updated = { ...updater(guest), id: guest.id };
@@ -53,6 +58,17 @@ class EffectContextImpl implements EffectContext {
   requestChoice(request: ChoiceRequest): void { this.queued.push({ kind: 'choice', request }); }
 }
 
+const MONEY_DEFICIT_PENALTY_RATE = 7;
+
+// Keeps popularity and money at 0 or above. Each point money would go below 0 costs
+// MONEY_DEFICIT_PENALTY_RATE popularity instead.
+const settle = (popularity: number, money: number): { popularity: number; money: number } => {
+  const moneyDeficit = Math.max(0, -money);
+  return {
+    popularity: Math.max(0, Math.max(0, popularity) - moneyDeficit * MONEY_DEFICIT_PENALTY_RATE),
+    money: Math.max(0, money)
+  };
+};
 
 // The choice the player has to make now. `resume` carries on with the chosen option: for an
 // effect's choice it runs onChoose and the rest of the queue; for ban selection it applies
@@ -281,7 +297,8 @@ export const GameStore = signalStore(
       getParty: () => store.party(),
       getDiscard: () => store.discard(),
       getPopularity: () => store.popularity(),
-      getMoney: () => store.money()
+      getMoney: () => store.money(),
+      getHouseCapacity: () => store.houseCapacity()
     };
 
     // Shuts the party down: the party is kept aside for ban selection, the discard pile goes
@@ -357,7 +374,8 @@ export const GameStore = signalStore(
           store.party(),
           store.discard(),
           store.popularity(),
-          store.money()
+          store.money(),
+          store.houseCapacity()
         );
         entry.run(ctx);
         stack.push(...[...ctx.queued].reverse());
@@ -524,29 +542,25 @@ export const GameStore = signalStore(
             return;
           }
 
-          const MONEY_DEFICIT_PENALTY_RATE = 7;
+          // Step 1: Settle the party guests' popularity and money
+          const scored = settle(
+            store.popularity() + calculatePopularityChange(),
+            store.money() + calculateMoneyChange()
+          );
 
-          // Step 1: Calculate and apply popularity from party guests
-          const popularityChange = calculatePopularityChange();
-          const currentPopularity = store.popularity();
-          const newPopularity = Math.max(0, currentPopularity + popularityChange);
+          // Step 2: Add every guest's scoring bonuses to the settled totals, then settle again,
+          // so bonus money can't cover a shortfall from step 1. Every bonus sees the same party.
+          const ctx = new EffectContextImpl(
+            store.deck(), store.party(), store.discard(), scored.popularity, scored.money, store.houseCapacity()
+          );
+          for (const guest of store.party()) {
+            for (const effect of getGuestType(guest.type).effects ?? []) {
+              if (effect.trigger === 'score') runEffect(ctx, guest, effect);
+            }
+          }
+          patchState(store, settle(ctx.getPopularity(), ctx.getMoney()));
 
-          // Step 2: Calculate money change from party guests
-          const moneyChange = calculateMoneyChange();
-          const currentMoney = store.money();
-
-          // Step 3: Compute money deficit and clamp money to 0
-          const moneyDeficit = Math.max(0, -(currentMoney + moneyChange));
-          const newMoney = Math.max(0, currentMoney + moneyChange);
-
-          // Step 4: Apply money deficit penalty to already-updated popularity
-          const finalPopularity = moneyDeficit > 0
-            ? Math.max(0, newPopularity - moneyDeficit * MONEY_DEFICIT_PENALTY_RATE)
-            : newPopularity;
-
-          patchState(store, { popularity: finalPopularity, money: newMoney });
-
-          // Step 2: Return both party guests and discard pile to deck, then shuffle
+          // Step 3: Return both party guests and discard pile to deck, then shuffle
           const party = store.party();
           const currentDiscard = store.discard();
           const currentDeck = store.deck();
@@ -559,7 +573,7 @@ export const GameStore = signalStore(
             discard: [],
           });
 
-          // Step 3: Advance turn or complete game
+          // Step 4: Advance turn or complete game
           if (currentTurn === totalTurns) {
             patchState(store, { isGameComplete: true });
           } else {

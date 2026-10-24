@@ -1,6 +1,8 @@
 import * as fc from 'fast-check';
 import { describe, expect, it } from 'vitest';
-import { formatMoney, getGuestDetails, Guest, GUEST_TYPE_DEFAULTS, GUEST_TYPE_ENTRANCE_ICONS, GuestType, INITIAL_GUESTS } from './guest.model';
+import { formatMoney, getGuestDetails, Guest, GUEST_TYPE_DEFAULTS, GuestType, INITIAL_GUESTS } from './guest.model';
+import { effectIcons } from './action-kinds';
+import { getGuestType } from './guest-type-registry';
 import { testGuest } from '../../testing/guests';
 
 /**
@@ -180,6 +182,8 @@ describe('Guest Model - Property-Based Tests', () => {
 
 describe('Guest Details - Property-Based Tests', () => {
   const guestTypeArb = fc.constantFrom(...(Object.keys(GUEST_TYPE_DEFAULTS) as GuestType[]));
+  // The icons of every effect of the type, entrance and score alike
+  const typeIcons = (type: GuestType) => effectIcons(getGuestType(type).effects ?? []);
   const valueArb = fc.integer({ min: -5, max: 9 });
   const propertiesArb = fc.record({
     popularityValue: valueArb,
@@ -199,12 +203,12 @@ describe('Guest Details - Property-Based Tests', () => {
   });
 
   // Property 2: entrance icons, then one per point of peace, trouble and star
-  it('orders icons as entrance effects, peace, trouble, star', () => {
+  it('orders icons as effects, peace, trouble, star', () => {
     fc.assert(fc.property(guestTypeArb, propertiesArb, (type, properties) => {
-      const entrance = (GUEST_TYPE_ENTRANCE_ICONS[type] ?? []).map(icon => icon.symbol);
+      const effects = typeIcons(type).map(icon => icon.symbol);
       const repeat = (symbol: string, count: number) => Array(Math.max(0, count)).fill(symbol);
       const expected = [
-        ...entrance,
+        ...effects,
         ...repeat('☮️', properties.peaceValue),
         ...repeat('❌', properties.troubleValue),
         ...repeat('⭐', properties.starValue)
@@ -213,12 +217,12 @@ describe('Guest Details - Property-Based Tests', () => {
     }));
   });
 
-  // Property 3: entrance icons depend only on the type
-  it('shows the same entrance icons whatever the properties', () => {
+  // Property 3: effect icons depend only on the type
+  it('shows the same effect icons whatever the properties', () => {
     fc.assert(fc.property(guestTypeArb, propertiesArb, propertiesArb, (type, a, b) => {
-      const entranceCount = GUEST_TYPE_ENTRANCE_ICONS[type]?.length ?? 0;
-      const first = getGuestDetails(type, a).icons.slice(0, entranceCount);
-      const second = getGuestDetails(type, b).icons.slice(0, entranceCount);
+      const effectCount = typeIcons(type).length;
+      const first = getGuestDetails(type, a).icons.slice(0, effectCount);
+      const second = getGuestDetails(type, b).icons.slice(0, effectCount);
       expect(first).toEqual(second);
     }));
   });

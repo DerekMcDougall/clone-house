@@ -1,10 +1,11 @@
 import * as fc from 'fast-check';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
-  ActionKind, effectIcons, findActionKind, getActionKind, registerActionKind, resetActionKindsForTesting, runEffect
+  ActionKind, effectIcons, findActionKind, getActionKind, registerActionKind, resetActionKindsForTesting,
+  runEffect
 } from './action-kinds';
 import { BUILT_IN_TABLES_SNAPSHOT } from './built-in-tables.snapshot';
-import { EffectDefinition } from './effect-definition';
+import { EffectDefinition, Trigger, TRIGGERS } from './effect-definition';
 import { admitGuest } from './guest-effects';
 import { getGuestDetails, Guest, GuestProperties } from './guest.model';
 import { DEFAULT_GAME_SETUP } from './game-setup';
@@ -222,6 +223,126 @@ describe('Action Kinds', () => {
     });
   });
 
+  describe('scoreBonus', () => {
+    const icon = { symbol: '🍸', label: 'Test bonus' };
+    const bonus = (params: Record<string, unknown>): EffectDefinition =>
+      ({ trigger: 'score', action: { kind: 'scoreBonus', resource: 'popularity', amount: 1, icons: [icon], ...params } });
+    // Runs the bonus of the first guest in `party` and returns the popularity and money added
+    const score = (party: Guest[], params: Record<string, unknown>, houseCapacity = 5) => {
+      const ctx = new TestEffectContext({ party, houseCapacity });
+      run(ctx, party[0], bonus(params));
+      return { popularity: ctx.popularity, money: ctx.money };
+    };
+    const friends = (n: number) => Array.from({ length: n }, (_, i) => testGuest('OLD_FRIEND', `Friend ${i}`));
+
+    it('should add a flat bonus once without per', () => {
+      expect(score(friends(1), { amount: 3 })).toEqual({ popularity: 3, money: 0 });
+      expect(score(friends(1), { resource: 'money', amount: -2 })).toEqual({ popularity: 0, money: -2 });
+    });
+
+    it('should count empty spaces in the house', () => {
+      expect(score(friends(2), { per: 'emptySpace' }, 5)).toEqual({ popularity: 3, money: 0 });
+      expect(score(friends(5), { per: 'emptySpace' }, 5)).toEqual({ popularity: 0, money: 0 });
+    });
+
+    it('should count trouble in the party, before peace', () => {
+      const party = [testGuest('OLD_FRIEND', 'Sam'), testGuest('WILD_BUDDY', 'Anthony'), testGuest('ROCK_STAR', 'Gord'), testGuest('HIPPY', 'Bob')];
+      expect(score(party, { resource: 'money', amount: 2, per: 'trouble' })).toEqual({ popularity: 0, money: 4 });
+    });
+
+    it('should count party guests of the given type', () => {
+      const party = [testGuest('RICH_PAL', 'Sparty'), ...friends(3), testGuest('WILD_BUDDY', 'Teresa')];
+      expect(score(party, { per: 'guestOfType', guestType: 'OLD_FRIEND' })).toEqual({ popularity: 3, money: 0 });
+      expect(score(party, { per: 'guestOfType', guestType: 'NOT_REGISTERED' })).toEqual({ popularity: 0, money: 0 });
+    });
+
+    it('should add nothing unless the house is full when asked', () => {
+      expect(score(friends(4), { amount: 5, when: 'houseFull' }, 5)).toEqual({ popularity: 0, money: 0 });
+      expect(score(friends(5), { amount: 5, when: 'houseFull' }, 5)).toEqual({ popularity: 5, money: 0 });
+    });
+
+    it('should show the icons it is given', () => {
+      expect(effectIcons([bonus({})])).toEqual([icon]);
+    });
+
+    it('should report every problem with its parameters', () => {
+      const validate = (p: Record<string, unknown>) => getActionKind('scoreBonus').validate({ kind: 'scoreBonus', ...p }, 'a', noNested);
+      expect(validate({ resource: 'charm', amount: 0, per: 'guest', when: 'never', icons: [], extra: 1 })).toEqual([
+        'a.resource: expected "popularity" or "money"',
+        'a.amount: expected a non-zero integer',
+        'a.per: expected one of emptySpace, trouble, guestOfType',
+        'a.when: expected "houseFull"',
+        'a.icons: expected a non-empty list of { symbol, label }',
+        'a.extra: unknown parameter'
+      ]);
+      const valid = { resource: 'money', amount: 1, icons: [icon] };
+      expect(validate(valid)).toEqual([]);
+      expect(validate({ ...valid, amount: 1.5 })).toEqual(['a.amount: expected a non-zero integer']);
+      expect(validate({ ...valid, per: 'guestOfType' })).toEqual(['a.guestType: expected a non-empty string']);
+      expect(validate({ ...valid, per: 'guestOfType', guestType: '' })).toEqual(['a.guestType: expected a non-empty string']);
+      expect(validate({ ...valid, per: 'trouble', guestType: 'OLD_FRIEND' }))
+        .toEqual(['a.guestType: only allowed when per is "guestOfType"']);
+    });
+
+    it('should add amount × count of its resource, or nothing when its condition fails', () => {
+      // Feature: scoring-bonuses, Property 1: Bonus Formula
+      fc.assert(
+        fc.property(
+          fc.array(fc.record({
+            type: fc.constantFrom('OLD_FRIEND', 'WILD_BUDDY', 'RICH_PAL', 'MONKEY'),
+            troubleValue: fc.integer({ min: 0, max: 3 })
+          }), { minLength: 1, maxLength: 8 }),
+          fc.integer({ min: 0, max: 4 }),
+          fc.constantFrom<'popularity' | 'money'>('popularity', 'money'),
+          fc.integer({ min: -5, max: 5 }).filter(n => n !== 0),
+          fc.constantFrom(undefined, 'emptySpace', 'trouble', 'guestOfType'),
+          fc.boolean(),
+          (guests, extraSpace, resource, amount, per, houseFull) => {
+            const party = guests.map(({ type, troubleValue }, i) => testGuest(type, `Guest ${i}`, { troubleValue }));
+            const capacity = party.length + extraSpace;
+            const params = {
+              resource, amount,
+              ...(per && { per }),
+              ...(per === 'guestOfType' && { guestType: 'OLD_FRIEND' }),
+              ...(houseFull && { when: 'houseFull' })
+            };
+
+            const count =
+              per === 'emptySpace' ? extraSpace :
+              per === 'trouble' ? party.reduce((sum, g) => sum + g.properties.troubleValue, 0) :
+              per === 'guestOfType' ? party.filter(g => g.type === 'OLD_FRIEND').length :
+              1;
+            // + 0 turns -0 (a negative amount times 0) into 0
+            const expected = houseFull && extraSpace > 0 ? 0 : amount * count + 0;
+
+            const ctx = new TestEffectContext({ party, houseCapacity: capacity });
+            run(ctx, party[0], bonus(params));
+
+            expect(resource === 'popularity' ? ctx.popularity : ctx.money).toBe(expected);
+            expect(resource === 'popularity' ? ctx.money : ctx.popularity).toBe(0);
+            expect(ctx.party).toEqual(party);
+          }
+        ),
+        { numRuns: 200 }
+      );
+    });
+  });
+
+  describe('Given icons', () => {
+    const cycle = (icons: unknown) => ({ kind: 'cycleSelf', property: 'troubleValue', values: [0, 1], icons });
+
+    it('should accept a color and bold', () => {
+      expect(getActionKind('cycleSelf').validate(cycle([{ symbol: 'X', label: 'X', color: '#f9a825', bold: true }]), 'a', noNested))
+        .toEqual([]);
+    });
+
+    it('should reject a color that is not a string and a bold that is not a boolean', () => {
+      expect(getActionKind('cycleSelf').validate(
+        cycle([{ symbol: 'O', label: 'O' }, { symbol: 'X', label: 'X', color: 3, bold: 'yes' }]), 'a', noNested
+      )).toEqual(['a.icons[1].color: expected a string', 'a.icons[1].bold: expected a boolean']);
+    });
+  });
+
   describe('custom', () => {
     it('should run its function with the guest and show its icons', () => {
       const icons = [{ symbol: '🧪', label: 'Test effect' }];
@@ -312,6 +433,7 @@ describe('Action Kinds', () => {
   describe('Registry', () => {
     const doubler: ActionKind<{ times: number }> = {
       kind: 'TEST_DOUBLE_MONEY',
+      triggers: ['entrance'],
       dataOnly: true,
       validate: () => [],
       run: (ctx) => ctx.setMoney(ctx.getMoney() * 2),
@@ -334,7 +456,7 @@ describe('Action Kinds', () => {
       registerActionKind(doubler);
       resetActionKindsForTesting();
       expect(findActionKind('TEST_DOUBLE_MONEY')).toBeUndefined();
-      expect(['autoInvite', 'adjustSelf', 'cycleSelf', 'custom', 'chooseGuest'].every(k => findActionKind(k))).toBe(true);
+      expect(['autoInvite', 'adjustSelf', 'cycleSelf', 'scoreBonus', 'custom', 'chooseGuest'].every(k => findActionKind(k))).toBe(true);
     });
   });
 
@@ -356,15 +478,94 @@ describe('Action Kinds', () => {
 
     it('should reject an unknown trigger and an unknown kind', () => {
       expect(() => registerGuestType(def([{ trigger: 'exit', action: { kind: 'autoInvite', count: 1 } }])))
-        .toThrow('effects[0].trigger: expected one of entrance');
+        .toThrow('effects[0].trigger: expected one of entrance, score');
       expect(() => registerGuestType(def([entrance({ kind: 'NOPE' })])))
         .toThrow('effects[0].action.kind: unknown action kind "NOPE"');
     });
 
     it('should accept a kind once it is registered', () => {
       expect(() => registerGuestType(def([entrance({ kind: 'TEST_KIND' })]))).toThrow('unknown action kind');
-      registerActionKind({ kind: 'TEST_KIND', dataOnly: true, validate: () => [], run: () => {}, icons: () => [] });
+      registerActionKind({ kind: 'TEST_KIND', dataOnly: true, triggers: ['entrance'], validate: () => [], run: () => {}, icons: () => [] });
       expect(() => registerGuestType(def([entrance({ kind: 'TEST_KIND' })]))).not.toThrow();
+    });
+
+    describe('Triggers', () => {
+      const bonusAction = { kind: 'scoreBonus', resource: 'popularity', amount: 1, icons: [{ symbol: '?', label: 'Icon' }] };
+      const pick = (action: unknown) =>
+        ({ kind: 'chooseGuest', prompt: 'Pick', from: 'party', action, icons: [{ symbol: '?', label: 'Icon' }] });
+
+      it('should reject a kind used with a trigger it does not allow', () => {
+        expect(() => registerGuestType(def([entrance(bonusAction)])))
+          .toThrow('effects[0].action.kind: "scoreBonus" can\'t be used with trigger "entrance"');
+        expect(() => registerGuestType(def([{ trigger: 'score', action: { kind: 'autoInvite', count: 1 } }])))
+          .toThrow('effects[0].action.kind: "autoInvite" can\'t be used with trigger "score"');
+      });
+
+      it('should check nested actions against the effect\'s trigger', () => {
+        expect(() => registerGuestType(def([entrance(pick(bonusAction))])))
+          .toThrow('effects[0].action.action.kind: "scoreBonus" can\'t be used with trigger "entrance"');
+      });
+
+      it('should accept existing kinds on entrance and scoreBonus on score', () => {
+        expect(() => registerGuestType(def([
+          entrance({ kind: 'autoInvite', count: 1 }),
+          entrance(pick({ kind: 'adjustSelf', property: 'popularityValue', delta: 1 })),
+          { trigger: 'score', action: bonusAction }
+        ]))).not.toThrow();
+      });
+
+      it('should use a registered kind\'s triggers', () => {
+        registerActionKind({ kind: 'TEST_SCORE', dataOnly: true, triggers: ['score'], validate: () => [], run: () => {}, icons: () => [] });
+        expect(() => registerGuestType(def([{ trigger: 'score', action: { kind: 'TEST_SCORE' } }]))).not.toThrow();
+        resetGuestTypesForTesting();
+        expect(() => registerGuestType(def([entrance({ kind: 'TEST_SCORE' })])))
+          .toThrow('"TEST_SCORE" can\'t be used with trigger "entrance"');
+      });
+
+      it('should refuse to register a kind without triggers', () => {
+        const base = { dataOnly: true, validate: () => [], run: () => {}, icons: () => [] };
+        // Built without type checking, as from plain JavaScript
+        for (const triggers of [undefined, [], 'entrance']) {
+          expect(() => registerActionKind({ ...base, kind: 'TEST_NO_TRIGGERS', triggers } as unknown as ActionKind))
+            .toThrow('Action kind "TEST_NO_TRIGGERS" must list at least one trigger');
+        }
+        expect(findActionKind('TEST_NO_TRIGGERS')).toBeUndefined();
+      });
+
+      it('should list at least one trigger for every built-in kind', () => {
+        for (const name of ['autoInvite', 'adjustSelf', 'cycleSelf', 'scoreBonus', 'custom', 'chooseGuest']) {
+          expect(getActionKind(name).triggers).toEqual(name === 'scoreBonus' ? ['score'] : ['entrance']);
+        }
+      });
+
+      it('should allow an effect exactly when its kind allows its trigger, nested or not', () => {
+        // Feature: scoring-bonuses, Property 4: Trigger Check
+        registerActionKind({ kind: 'TEST_BOTH', dataOnly: true, triggers: ['entrance', 'score'], validate: () => [], run: () => {}, icons: () => [] });
+        const actions: Record<string, unknown> = {
+          autoInvite: { kind: 'autoInvite', count: 1 },
+          adjustSelf: { kind: 'adjustSelf', property: 'popularityValue', delta: 1 },
+          scoreBonus: bonusAction,
+          TEST_BOTH: { kind: 'TEST_BOTH' }
+        };
+        fc.assert(
+          fc.property(
+            fc.constantFrom(...Object.keys(actions)),
+            fc.constantFrom<Trigger>(...TRIGGERS),
+            fc.boolean(),
+            (kind, trigger, nested) => {
+              resetGuestTypesForTesting();
+              const allowed = getActionKind(kind).triggers.includes(trigger)
+                // chooseGuest itself only allows entrance
+                && (!nested || trigger === 'entrance');
+              const effect = { trigger, action: nested ? pick(actions[kind]) : actions[kind] };
+              const register = () => registerGuestType(def([effect]));
+              if (allowed) expect(register).not.toThrow();
+              else expect(register).toThrow('can\'t be used with trigger');
+            }
+          ),
+          { numRuns: 100 }
+        );
+      });
     });
   });
 

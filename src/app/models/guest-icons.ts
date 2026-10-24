@@ -1,7 +1,10 @@
-// A symbol shown in the top right corner of a guest card.
+// A symbol shown in the top right corner of a guest card. `color` (any CSS color) and `bold`
+// are for text symbols, such as a bold "O"; they make no visible difference to an emoji.
 export interface GuestIcon {
   symbol: string;
   label: string;
+  color?: string;
+  bold?: boolean;
 }
 
 // Icons for points of peace, trouble and star. Effect icons come from action kinds (see
