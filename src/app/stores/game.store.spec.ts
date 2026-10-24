@@ -1949,7 +1949,7 @@ describe('Shop Buy Guests', () => {
       store.initializeGame();
 
       const inventory = store.shopInventory();
-      expect(inventory.length).toBe(27);
+      expect(inventory.length).toBe(28);
 
       const oldFriendEntry = inventory.find((e: ShopInventoryEntry) => e.type === 'OLD_FRIEND');
       const richPalEntry = inventory.find((e: ShopInventoryEntry) => e.type === 'RICH_PAL');
@@ -2111,8 +2111,8 @@ describe('Shop Buy Guests', () => {
      */
     it('should set shopInventory to empty array after resetGame()', () => {
       store.initializeGame();
-      // Verify shop has entries (OLD_FRIEND, RICH_PAL, MONKEY, + 4 new types + 2 peace types + 2 negative resource types + CLIMBER + MR_POPULAR + CELEBRITY + 7 star types + WEREWOLF + 5 scoring bonus types)
-      expect(store.shopInventory().length).toBe(27);
+      // Verify shop has entries (OLD_FRIEND, RICH_PAL, MONKEY, + 4 new types + 2 peace types + 2 negative resource types + CLIMBER + MR_POPULAR + CELEBRITY + 7 star types + WEREWOLF + 5 scoring bonus types + DANCER)
+      expect(store.shopInventory().length).toBe(28);
 
       store.resetGame();
 
@@ -2380,7 +2380,7 @@ describe('Monkey Guest — Store Initialization', () => {
     const items = store.purchasableShopItems();
 
     // Cheapest first: Old Friend (2), then Monkey and Rich Pal (3), alphabetically
-    expect(items.length).toBe(27);
+    expect(items.length).toBe(28);
     expect(items[0].type).toBe('OLD_FRIEND');
     expect(items[1].type).toBe('MONKEY');
     expect(items[2].type).toBe('RICH_PAL');
@@ -2499,7 +2499,7 @@ describe('More Guest Types — Store Initialization', () => {
      * Old Friend (2), Monkey (3), Rich Pal (3), Rock Star (5), Gangster (6), Gambler (7), Auctioneer (9)
      * **Validates: Requirements 9.1, 9.2**
      */
-    it('should return all 27 types sorted by ascending cost then alphabetical label', () => {
+    it('should return all 28 types sorted by ascending cost then alphabetical label', () => {
       store.initializeGame();
 
       const items = store.purchasableShopItems();
@@ -2507,7 +2507,7 @@ describe('More Guest Types — Store Initialization', () => {
       expect(items.map(i => [i.type, i.cost])).toEqual([
         ['OLD_FRIEND', 2], ['MONKEY', 3], ['RICH_PAL', 3], ['HIPPY', 4], ['INTROVERT', 4], ['TICKET_TAKER', 4],
         ['CATERER', 5], ['COMEDIAN', 5], ['MASCOT', 5], ['MR_POPULAR', 5], ['ROCK_STAR', 5], ['WEREWOLF', 5],
-        ['GANGSTER', 6], ['CUTE_DOG', 7], ['GAMBLER', 7], ['WRITER', 8], ['AUCTIONEER', 9], ['BARTENDER', 11],
+        ['GANGSTER', 6], ['CUTE_DOG', 7], ['DANCER', 7], ['GAMBLER', 7], ['WRITER', 8], ['AUCTIONEER', 9], ['BARTENDER', 11],
         ['CELEBRITY', 11], ['CLIMBER', 12],
         ['DINOSAUR', 25], ['DRAGON', 30], ['MERMAID', 35], ['ALIEN', 40], ['UNICORN', 45],
         ['LEPRECHAUN', 50], ['SUPERHERO', 50]
@@ -2573,10 +2573,10 @@ describe('Climber Entrance Effect — GameStore', () => {
 
       const items = store.purchasableShopItems();
 
-      expect(items.length).toBe(27);
+      expect(items.length).toBe(28);
       // Star guests (cost 25+) follow Climber
       const climberIndex = items.findIndex(i => i.type === 'CLIMBER');
-      expect(climberIndex).toBe(19);
+      expect(climberIndex).toBe(20);
       expect(items[climberIndex].cost).toBe(12);
       expect(items.slice(climberIndex + 1).every(i => GUEST_TYPE_DEFAULTS[i.type].starValue > 0)).toBe(true);
     });

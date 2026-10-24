@@ -328,6 +328,95 @@ describe('Action Kinds', () => {
     });
   });
 
+  describe('scoreBonus amounts', () => {
+    const icon = { symbol: '💃', label: 'Test group bonus' };
+    const table = (params: Record<string, unknown>): EffectDefinition =>
+      ({ trigger: 'groupScore', action: { kind: 'scoreBonus', resource: 'popularity', icons: [icon], ...params } });
+    const dancers = (n: number) => Array.from({ length: n }, (_, i) => testGuest('OLD_FRIEND', `Dancer ${i}`));
+    // Runs a table bonus that counts Old Friends, for a party of `n` of them plus a Rich Pal
+    const scoreTable = (n: number, amounts: number[], extra: Record<string, unknown> = {}, houseCapacity = 10) => {
+      const party = [testGuest('RICH_PAL', 'Khalil'), ...dancers(n)];
+      const ctx = new TestEffectContext({ party, houseCapacity });
+      run(ctx, party[0], table({ amounts, per: 'guestOfType', guestType: 'OLD_FRIEND', ...extra }));
+      return ctx.popularity;
+    };
+
+    it('should look the bonus up by count, using the last entry past the end', () => {
+      expect([0, 1, 2, 3, 4, 5, 6].map(n => scoreTable(n, [1, 4, 9, 16]))).toEqual([0, 1, 4, 9, 16, 16, 16]);
+    });
+
+    it('should use the first entry without per', () => {
+      const ctx = new TestEffectContext({ party: dancers(3) });
+      run(ctx, ctx.party[0], table({ amounts: [7, 8] }));
+      expect(ctx.popularity).toBe(7);
+    });
+
+    it('should apply when: houseFull to a table', () => {
+      // 1 Rich Pal + 2 Old Friends in a house of 3 is full; of 4 it isn't
+      expect(scoreTable(2, [1, 4], { when: 'houseFull' }, 3)).toBe(4);
+      expect(scoreTable(2, [1, 4], { when: 'houseFull' }, 4)).toBe(0);
+    });
+
+    it('should add money from a table', () => {
+      const ctx = new TestEffectContext({ party: dancers(2) });
+      run(ctx, ctx.party[0], table({ resource: 'money', amounts: [3, -2], per: 'guestOfType', guestType: 'OLD_FRIEND' }));
+      expect(ctx.money).toBe(-2);
+      expect(ctx.popularity).toBe(0);
+    });
+
+    it('should require exactly one of amount and amounts, and a non-empty list of integers', () => {
+      const validate = (p: Record<string, unknown>) =>
+        getActionKind('scoreBonus').validate({ kind: 'scoreBonus', resource: 'popularity', icons: [icon], ...p }, 'a', noNested);
+      expect(validate({ amounts: [1, 4] })).toEqual([]);
+      expect(validate({})).toEqual(['a.amount: give exactly one of amount and amounts']);
+      expect(validate({ amount: 1, amounts: [1] })).toEqual(['a.amount: give exactly one of amount and amounts']);
+      for (const amounts of [[], [1, 0.5], 'x', [1, '2']]) {
+        expect(validate({ amounts })).toEqual(['a.amounts: expected a non-empty list of integers']);
+      }
+    });
+
+    it('should be allowed on score and groupScore, and no other kind on groupScore', () => {
+      expect(getActionKind('scoreBonus').triggers).toEqual(['score', 'groupScore']);
+      const def = (effect: unknown) => ({
+        id: 'TEST_GROUP', label: 'Group', cost: null,
+        properties: { ...getGuestType('OLD_FRIEND').properties }, effects: [effect as EffectDefinition]
+      });
+      expect(() => registerGuestType(def(table({ amounts: [1] })))).not.toThrow();
+      resetGuestTypesForTesting();
+      expect(() => registerGuestType(def({ trigger: 'groupScore', action: { kind: 'autoInvite', count: 1 } })))
+        .toThrow('"autoInvite" can\'t be used with trigger "groupScore"');
+    });
+
+    it('should add amounts[min(count, length) - 1], or 0 for none', () => {
+      // Feature: group-scoring-bonuses, Property 1: amounts Lookup
+      fc.assert(
+        fc.property(
+          fc.array(fc.integer({ min: -9, max: 20 }), { minLength: 1, maxLength: 5 }),
+          fc.nat(7),
+          (amounts, n) => {
+            const expected = n === 0 ? 0 : amounts[Math.min(n, amounts.length) - 1];
+            expect(scoreTable(n, amounts)).toBe(expected);
+          }
+        ),
+        { numRuns: 200 }
+      );
+    });
+
+    it('should match amount when given a one-entry table and no per', () => {
+      fc.assert(
+        fc.property(fc.integer({ min: -9, max: 9 }).filter(n => n !== 0), fc.nat(5), (value, size) => {
+          const party = dancers(size + 1);
+          const withTable = new TestEffectContext({ party });
+          run(withTable, party[0], table({ amounts: [value] }));
+          const withAmount = new TestEffectContext({ party });
+          run(withAmount, party[0], table({ amount: value }));
+          expect(withTable.popularity).toBe(withAmount.popularity);
+        }),
+        { numRuns: 100 }
+      );
+    });
+  });
+
   describe('Given icons', () => {
     const cycle = (icons: unknown) => ({ kind: 'cycleSelf', property: 'troubleValue', values: [0, 1], icons });
 
@@ -534,7 +623,7 @@ describe('Action Kinds', () => {
 
       it('should list at least one trigger for every built-in kind', () => {
         for (const name of ['autoInvite', 'adjustSelf', 'cycleSelf', 'scoreBonus', 'custom', 'chooseGuest']) {
-          expect(getActionKind(name).triggers).toEqual(name === 'scoreBonus' ? ['score'] : ['entrance']);
+          expect(getActionKind(name).triggers).toEqual(name === 'scoreBonus' ? ['score', 'groupScore'] : ['entrance']);
         }
       });
 

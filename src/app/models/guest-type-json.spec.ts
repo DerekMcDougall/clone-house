@@ -92,6 +92,15 @@ describe('parseGuestTypeDefinition', () => {
       .toThrow('\n  effects[0].action.kind: "scoreBonus" can\'t be used with trigger "entrance"');
   });
 
+  it('should accept a group bonus with a table', () => {
+    const action = {
+      kind: 'scoreBonus', resource: 'popularity', amounts: [1, 4, 9, 16], per: 'guestOfType', guestType: 'PARTY_PLANNER',
+      icons: [{ symbol: '💃', label: 'Group' }]
+    };
+    const json = { ...JSON.parse(PARTY_PLANNER_JSON), effects: [{ trigger: 'groupScore', action }] };
+    expect(parseGuestTypeDefinition(json).effects).toEqual([{ trigger: 'groupScore', action }]);
+  });
+
   it('should reject a badly typed icon color or bold', () => {
     const json = {
       ...JSON.parse(PARTY_PLANNER_JSON),

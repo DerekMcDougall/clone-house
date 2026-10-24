@@ -18,7 +18,7 @@ Each turn has two phases.
 When a party ends normally:
 
 - with 4+ stars, the player wins immediately ("Congrats! You threw the ultimate party!") and nothing is scored
-- otherwise the party is scored: each guest's popularity and money are added to the totals (and settled: see Resources), then each guest's scoring bonus is added and the totals are settled again. The party and discard pile are then shuffled back into the deck.
+- otherwise the party is scored in three steps, settling the totals after each (see Resources): each guest's popularity and money; then each guest's own scoring bonus; then each type's group bonus, once per type. The party and discard pile are then shuffled back into the deck.
 
 ## Resources
 
@@ -28,7 +28,7 @@ When a party ends normally:
 - **Peace**: counted only during a party. Each point raises the trouble limit by 1.
 - **Stars**: counted only during a party. 4 at the end of a party wins.
 
-Guests can grant negative popularity or money; those amounts are subtracted when the party is scored. Scoring bonuses come after the money penalty is applied, so bonus money can't cover a shortfall from the guests' normal money.
+Guests can grant negative popularity or money; those amounts are subtracted when the party is scored. Scoring bonuses come after the money penalty is applied, so bonus money can't cover a shortfall from the guests' normal money, and group bonus money can't cover one from own bonuses.
 
 ## The House
 
@@ -69,6 +69,10 @@ Scoring bonuses are worked out from the finished party, after its normal popular
 
 Trouble here is the party's trouble before peace.
 
+Group bonuses belong to a type rather than a guest. They're applied once, after every guest's own bonus, however many guests of the type are in the party, and can depend on how many there are:
+
+- **Dancer** (💃): 1, 4, 9 or 16 popularity for 1, 2, 3 or 4 Dancers (more than 4 count as 4).
+
 ### Guest Types
 
 | Type | Cost | Popularity | Money | Other |
@@ -89,6 +93,7 @@ Trouble here is the party's trouble before peace.
 | Gangster | 6 | | 4 | 1 trouble |
 | Gambler | 7 | 2 | 3 | 1 trouble |
 | Cute Dog | 7 | 2 | | 1 peace |
+| Dancer | 7 | | | group bonus: 1, 4, 9 or 16 popularity for 1–4 Dancers |
 | Writer | 8 | 1 | | bonus: 2 popularity per trouble |
 | Auctioneer | 9 | | 3 | |
 | Bartender | 11 | 1 | | bonus: 2 money per trouble |
